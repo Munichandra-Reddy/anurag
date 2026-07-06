@@ -152,15 +152,15 @@ const Overview: React.FC = () => {
           className="h-48 bg-[#F9F9F9] relative border-b border-gray-100 bg-cover bg-center"
           style={profile.bannerUrl ? { backgroundImage: `url(${profile.bannerUrl})` } : {}}
         >
-          <div className="absolute top-4 right-4 flex gap-3">
+          <div className="absolute top-4 right-4 flex flex-col sm:flex-row gap-2 sm:gap-3">
             <button 
               onClick={handleOpenEdit}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-white border border-gray-200 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 transition-colors"
             >
-              <Edit size={16} /> Edit Profile
+              <Edit size={16} /> <span className="hidden sm:inline">Edit Profile</span><span className="sm:hidden">Edit</span>
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
-              Reset Simulator
+            <button className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-white border border-gray-200 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 transition-colors">
+              <RefreshCcw size={14} className="sm:hidden" /> <span className="hidden sm:inline">Reset Simulator</span><span className="sm:hidden">Reset</span>
             </button>
           </div>
         </div>
@@ -181,17 +181,17 @@ const Overview: React.FC = () => {
 
           <div className="pt-20">
             {/* Name and Badge */}
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-2xl font-bold text-gray-900">{profile.name}</h1>
-              <span className="px-3 py-1 bg-orange-50 border border-orange-200 text-orange-500 rounded-full text-xs font-medium">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 w-full sm:w-auto">{profile.name}</h1>
+              <span className="px-3 py-1 bg-orange-50 border border-orange-200 text-orange-500 rounded-full text-[10px] sm:text-xs font-medium">
                 {profile.professionalTag}
               </span>
               {userBatch !== 'Unassigned' ? (
-                <span className="px-3 py-1 bg-blue-50 border border-blue-200 text-blue-600 rounded-full text-xs font-medium flex items-center gap-1">
+                <span className="px-3 py-1 bg-blue-50 border border-blue-200 text-blue-600 rounded-full text-[10px] sm:text-xs font-medium flex items-center gap-1">
                   {userBatch === 'Morning' ? '🌅 Morning Batch' : '🌃 Evening Batch'}
                 </span>
               ) : (
-                <span className="px-3 py-1 bg-gray-50 border border-gray-200 text-gray-500 rounded-full text-xs font-medium flex items-center gap-1">
+                <span className="px-3 py-1 bg-gray-50 border border-gray-200 text-gray-500 rounded-full text-[10px] sm:text-xs font-medium flex items-center gap-1">
                   ⏳ Batch Pending
                 </span>
               )}
@@ -204,11 +204,11 @@ const Overview: React.FC = () => {
             </div>
 
             {/* Attendance */}
-            <div className="flex items-center gap-2 text-sm mb-4">
+            <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm mb-4">
               <span className="text-gray-500">🕒 Attendance:</span>
               <span className="font-bold text-green-600">{attendancePercentage}%</span>
               <span className="text-gray-500">({attendance.attended} of {attendance.total} sessions)</span>
-              <span className="px-2 py-0.5 bg-green-50 border border-green-200 text-green-600 rounded-full text-xs font-medium ml-1">
+              <span className="px-2 py-0.5 bg-green-50 border border-green-200 text-green-600 rounded-full text-[10px] sm:text-xs font-medium ml-1">
                 Compliant
               </span>
             </div>
@@ -235,11 +235,11 @@ const Overview: React.FC = () => {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center gap-3">
-                <button className="flex items-center gap-2 px-4 py-2 border border-primary text-primary rounded-lg text-sm font-medium hover:bg-orange-50 transition-colors">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full md:w-auto">
+                <button className="flex items-center justify-center gap-2 px-4 py-2 border border-primary text-primary rounded-lg text-sm font-medium hover:bg-orange-50 transition-colors">
                   <MessageSquare size={16} /> Org Chat Room
                 </button>
-                <button className="px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+                <button className="px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors text-center w-full sm:w-auto">
                   Full Stack Web Development
                 </button>
               </div>
@@ -249,24 +249,23 @@ const Overview: React.FC = () => {
         </div>
       </div>
 
-      {/* Live Session Banner */}
-      <div className="mt-6 bg-[#edf7f0] border border-[#d6ecd9] rounded-xl flex items-center justify-between p-3 shadow-sm overflow-hidden">
-        <div className="flex-1 overflow-hidden whitespace-nowrap text-sm font-bold text-[#205e41] mr-4 relative">
+      <div className="mt-6 bg-[#edf7f0] border border-[#d6ecd9] rounded-xl flex flex-col md:flex-row items-center justify-between p-3 shadow-sm overflow-hidden gap-3">
+        <div className="w-full md:flex-1 overflow-hidden whitespace-nowrap text-sm font-bold text-[#205e41] md:mr-4 relative">
           <div className="animate-marquee">
             LIVE TIMER: 87:28 - GOOGLE MEET CLASSROOM LINK IS NOW ACTIVE - PLEASE CHECK OUT WHEN THE SESSION ENDS. <span className="mx-2 font-black text-gray-400">•</span> 🟢 CURRENTLY CHECKED IN: "{currentSession.topic.toUpperCase()}"
           </div>
         </div>
-        <div className="flex gap-2 shrink-0 relative z-10 bg-[#edf7f0]">
+        <div className="flex flex-wrap sm:flex-nowrap w-full md:w-auto justify-center gap-2 shrink-0 relative z-10 bg-[#edf7f0]">
           <button 
             onClick={handleJoinLive}
-            className="flex items-center gap-2 px-4 py-2 bg-[#0ea5e9] text-white rounded-lg text-sm font-bold hover:bg-[#0284c7] transition-colors" 
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-[#0ea5e9] text-white rounded-lg text-sm font-bold hover:bg-[#0284c7] transition-colors" 
             style={{backgroundColor: '#009a66'}}
           >
             <Video size={16} /> Join Live
           </button>
           <button 
             onClick={handleCheckOut}
-            className="flex items-center gap-2 px-4 py-2 bg-[#9f1239] text-white rounded-lg text-sm font-bold hover:bg-[#881337] transition-colors" 
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-[#9f1239] text-white rounded-lg text-sm font-bold hover:bg-[#881337] transition-colors" 
             style={{backgroundColor: '#a30000'}}
           >
             <LogOut size={16} /> Check Out

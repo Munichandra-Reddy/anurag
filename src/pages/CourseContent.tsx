@@ -59,9 +59,9 @@ const CourseContent: React.FC = () => {
 
   return (
     <div className="w-full max-w-5xl space-y-8 pb-12">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 text-gray-900 font-bold text-2xl">
-          <BookOpen className="text-orange-500" size={28} /> 
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0">
+        <div className="flex items-center gap-3 text-gray-900 font-bold text-xl sm:text-2xl">
+          <BookOpen className="text-orange-500" size={24} className="sm:w-7 sm:h-7" /> 
           Course Content
         </div>
         <div className="flex items-center gap-3">
@@ -154,12 +154,12 @@ const CourseContent: React.FC = () => {
                 className="p-5 flex items-center justify-between cursor-pointer select-none"
                 onClick={() => setExpandedId(isExpanded ? null : session.id)}
               >
-                <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${isExpanded ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'}`}>
+                <div className="flex items-start sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
+                  <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex shrink-0 items-center justify-center font-bold text-sm transition-colors ${isExpanded ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'}`}>
                     {index + 1}
                   </div>
-                  <div>
-                    <h3 className={`font-bold text-lg transition-colors ${isExpanded ? 'text-primary' : 'text-gray-900'}`}>
+                  <div className="flex-1">
+                    <h3 className={`font-bold text-base sm:text-lg transition-colors leading-tight ${isExpanded ? 'text-primary' : 'text-gray-900'}`}>
                       {session.title}
                     </h3>
                     <p className="text-xs text-gray-500 mt-1">Session {index + 1} • Core Java Module</p>
@@ -185,15 +185,15 @@ const CourseContent: React.FC = () => {
                     {session.content}
                   </p>
                   
-                  <div className="flex flex-wrap gap-3">
-                    <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors">
+                  <div className="flex flex-col sm:flex-row flex-wrap gap-3 mt-4">
+                    <button className="flex items-center justify-center sm:justify-start gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors w-full sm:w-auto">
                       <FileText size={16} className="text-blue-500" /> Lesson Notes
                     </button>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors">
+                    <button className="flex items-center justify-center sm:justify-start gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors w-full sm:w-auto">
                       <PlayCircle size={16} className="text-red-500" /> Watch Recording
                     </button>
                     {!isMentor && (
-                      <button className="ml-auto flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg text-sm font-bold hover:bg-green-100 transition-colors">
+                      <button className="sm:ml-auto flex items-center justify-center sm:justify-start gap-2 px-4 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg text-sm font-bold hover:bg-green-100 transition-colors w-full sm:w-auto mt-2 sm:mt-0">
                         <CheckCircle size={16} /> Mark Completed
                       </button>
                     )}

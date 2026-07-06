@@ -169,11 +169,15 @@ const Classes: React.FC = () => {
             <button onClick={nextMonth} className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50"><ChevronRight size={16} /></button>
           </div>
         </div>
-        <div className="grid grid-cols-7 border-b border-gray-100">
-          {header}
-        </div>
-        <div className="grid grid-cols-7">
-          {days}
+        <div className="overflow-x-auto">
+          <div className="min-w-[600px] md:min-w-0">
+            <div className="grid grid-cols-7 border-b border-gray-100">
+              {header}
+            </div>
+            <div className="grid grid-cols-7">
+              {days}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -181,10 +185,10 @@ const Classes: React.FC = () => {
 
   return (
     <div className="w-full space-y-6">
-      <div className="flex justify-between items-end">
+      <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-end gap-4 sm:gap-0">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">Class Schedule</h1>
-          <p className="text-gray-500 flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">Class Schedule</h1>
+          <p className="text-gray-500 flex items-center gap-2 text-sm sm:text-base">
             <CalendarIcon size={16} />
             {courseName}
           </p>
@@ -293,7 +297,7 @@ const Classes: React.FC = () => {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 ml-auto">
+                  <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto sm:ml-auto mt-2 sm:mt-0">
                     <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
                       status === 'COMPLETED' 
                         ? 'bg-green-100 text-green-700'
@@ -305,7 +309,7 @@ const Classes: React.FC = () => {
                     </span>
                     <button 
                       onClick={() => toggleDetails(session.id)}
-                      className="px-4 py-2 text-sm font-medium text-primary border border-primary/40 rounded-lg hover:bg-orange-50 transition-colors"
+                      className="flex-1 sm:flex-none px-4 py-2 text-sm font-medium text-primary border border-primary/40 rounded-lg hover:bg-orange-50 transition-colors"
                     >
                       {expandedSession === session.id ? 'Hide Details' : 'View Details'}
                     </button>

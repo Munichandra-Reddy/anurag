@@ -89,18 +89,18 @@ const Projects: React.FC = () => {
           
           return (
             <div key={project.id} className="border border-gray-200 rounded-2xl p-6 bg-white shadow-sm">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h3 className="font-bold text-lg text-gray-900">{project.title}</h3>
+              <div className="flex flex-col sm:flex-row justify-between items-start mb-2 gap-3 sm:gap-0">
+                <div className="w-full sm:w-auto">
+                  <h3 className="font-bold text-lg text-gray-900 leading-tight">{project.title}</h3>
                   <p className="text-xs text-gray-500 mt-1">Individual Project · Mentor: Anjali Sharma</p>
                 </div>
-                <div>
+                <div className="shrink-0">
                   {isCompleted ? (
-                    <span className="bg-[#00a676] text-white px-4 py-1.5 text-sm font-semibold rounded-xl">
+                    <span className="bg-[#00a676] text-white px-4 py-1.5 text-xs sm:text-sm font-semibold rounded-xl inline-block">
                       Completed
                     </span>
                   ) : (
-                    <span className="text-orange-500 border border-orange-200 bg-orange-50 px-4 py-1.5 text-sm font-semibold rounded-xl">
+                    <span className="text-orange-500 border border-orange-200 bg-orange-50 px-4 py-1.5 text-xs sm:text-sm font-semibold rounded-xl inline-block">
                       In Progress
                     </span>
                   )}
@@ -134,18 +134,18 @@ const Projects: React.FC = () => {
                 </div>
               ) : (
                 <form onSubmit={(e) => handleSubmit(e, project.id)} className="mt-6">
-                  <div className="flex gap-3">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <input 
                       type="url" 
                       placeholder="https://github.com/student/..." 
-                      className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary placeholder-gray-400"
+                      className="flex-1 w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary placeholder-gray-400"
                       value={inputs[project.id] || ''}
                       onChange={(e) => handleInputChange(project.id, e.target.value)}
                       required
                     />
                     <button 
                       type="submit"
-                      className="px-6 py-2 bg-primary text-white font-medium text-sm rounded-lg hover:bg-primary/90 transition-colors"
+                      className="w-full sm:w-auto px-6 py-2 bg-primary text-white font-medium text-sm rounded-lg hover:bg-primary/90 transition-colors"
                     >
                       Submit
                     </button>
