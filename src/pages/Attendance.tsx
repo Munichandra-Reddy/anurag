@@ -149,13 +149,13 @@ const Attendance: React.FC = () => {
             className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors text-sm"
           />
         </div>
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <div className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors text-sm font-medium w-full md:w-auto">
-            <Filter size={16} />
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+          <div className="flex items-center justify-between gap-2 px-4 py-2 text-gray-700 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors text-sm font-medium w-full sm:w-auto">
+            <Filter size={16} className="shrink-0" />
             <select 
               value={batchFilter}
               onChange={(e) => setBatchFilter(e.target.value)}
-              className="bg-transparent outline-none cursor-pointer"
+              className="bg-transparent outline-none cursor-pointer w-full text-right sm:text-left"
             >
               <option value="All">All Batches</option>
               <option value="Morning">Morning Batch</option>
@@ -164,7 +164,7 @@ const Attendance: React.FC = () => {
           </div>
           <button 
             onClick={markAllPresent}
-            className="flex items-center justify-center gap-2 px-4 py-2 text-white bg-primary rounded-xl hover:bg-orange-600 transition-colors text-sm font-medium w-full md:w-auto shrink-0 shadow-sm"
+            className="flex items-center justify-center gap-2 px-4 py-2 text-white bg-primary rounded-xl hover:bg-orange-600 transition-colors text-sm font-medium w-full sm:w-auto shrink-0 shadow-sm"
           >
             <Check size={16} />
             Mark All Present
@@ -236,13 +236,13 @@ const Attendance: React.FC = () => {
                     )}
                   </td>
                   <td className="py-4 px-6">
-                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center justify-end gap-2 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => markAttendance(student.email, 'present')}
                         className={`p-2 rounded-lg transition-colors ${
                           student.status === 'present' 
                             ? 'bg-green-100 text-green-700' 
-                            : 'text-gray-400 hover:bg-green-50 hover:text-green-600'
+                            : 'text-gray-400 hover:bg-green-50 hover:text-green-600 bg-gray-50 sm:bg-transparent'
                         }`}
                         title="Mark Present"
                       >
@@ -253,7 +253,7 @@ const Attendance: React.FC = () => {
                         className={`p-2 rounded-lg transition-colors ${
                           student.status === 'absent' 
                             ? 'bg-red-100 text-red-700' 
-                            : 'text-gray-400 hover:bg-red-50 hover:text-red-600'
+                            : 'text-gray-400 hover:bg-red-50 hover:text-red-600 bg-gray-50 sm:bg-transparent'
                         }`}
                         title="Mark Absent"
                       >

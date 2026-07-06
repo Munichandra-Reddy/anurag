@@ -258,15 +258,15 @@ const ProjectBatch: React.FC = () => {
   // -------------------------------------------------------------
   return (
     <div className="w-full max-w-5xl space-y-8 pb-12">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 text-gray-900 font-bold text-2xl">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3 text-gray-900 font-bold text-xl sm:text-2xl">
           <Users className="text-primary" size={28} /> 
           Project Batch Management
         </div>
         {!editingBatchId && (
           <button 
             onClick={handleAddNewBatch}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-orange-600 transition-colors shadow-sm"
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-orange-600 transition-colors shadow-sm w-full sm:w-auto"
           >
             <Plus size={16} /> Add New Batch
           </button>
@@ -275,23 +275,23 @@ const ProjectBatch: React.FC = () => {
 
       {editingBatchId && editForm && (
         <div className="bg-orange-50 border border-orange-200 p-6 rounded-2xl shadow-sm mb-8 relative">
-          <div className="flex justify-between items-start mb-6 border-b border-orange-200/50 pb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 border-b border-orange-200/50 pb-4 gap-4">
             <div>
               <h2 className="text-lg font-bold text-gray-900">
                 {batches.some(b => b.id === editForm.id) ? 'Edit Batch Details' : 'Create New Batch'}
               </h2>
               <p className="text-sm text-gray-600 mt-1">Configure batch settings and assign students.</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <button 
                 onClick={handleCancelEdit}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors shadow-sm"
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors shadow-sm flex-1 sm:flex-none"
               >
                 <X size={16} /> Cancel
               </button>
               <button 
                 onClick={handleSaveEdit}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 transition-colors shadow-sm"
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 transition-colors shadow-sm flex-1 sm:flex-none"
               >
                 <Check size={16} /> Save Changes
               </button>

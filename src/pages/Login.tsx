@@ -15,18 +15,20 @@ const Login: React.FC = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
     
     // Mentor Login Check
     if (
-      (email === 'maheshk@geonixa.com' && password === 'GEO@9001') ||
-      (email === 'jithendravarma.l@gmail.com' && password === 'Varma@9293')
+      (cleanEmail === 'maheshk@geonixa.com' && cleanPassword === 'GEO@9001') ||
+      (cleanEmail === 'jithendravarma.l@gmail.com' && cleanPassword === 'Varma@9293')
     ) {
-      localStorage.setItem('loggedInEmail', email);
+      localStorage.setItem('loggedInEmail', cleanEmail);
       navigate('/mentor-dashboard');
       return;
     }
 
-    if (email.includes('@anurag')) {
+    if (cleanEmail.includes('@anurag')) {
       setIsLoading(true);
       setError('');
       try {
@@ -36,14 +38,14 @@ const Login: React.FC = () => {
         // Merge students based on email to prevent losing old data
         const allStudentsMap = new Map();
         [...localStudents, ...cloudStudents].forEach(s => {
-          if (s && s.email) allStudentsMap.set(s.email, s);
+          if (s && s.email) allStudentsMap.set(s.email.toLowerCase(), s);
         });
         const existingStudents = Array.from(allStudentsMap.values());
 
-        const student = existingStudents.find((s: any) => s.email === email && s.password === password);
+        const student = existingStudents.find((s: any) => s.email.toLowerCase() === cleanEmail && s.password === cleanPassword);
         
         if (student) {
-          localStorage.setItem('loggedInEmail', email);
+          localStorage.setItem('loggedInEmail', cleanEmail);
           navigate('/dashboard');
         } else {
           setError('Invalid username or password. Please create an account first.');
@@ -60,11 +62,14 @@ const Login: React.FC = () => {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.includes('@anurag')) {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
+    if (!cleanEmail.includes('@anurag')) {
       setError('Only @anurag domain emails are allowed to register.');
       return;
     }
-    if (password !== confirmPassword) {
+    if (cleanPassword !== confirmPassword.trim()) {
       setError('Passwords do not match.');
       return;
     }
@@ -79,11 +84,11 @@ const Login: React.FC = () => {
       // Merge students based on email to prevent losing old data
       const allStudentsMap = new Map();
       [...localStudents, ...cloudStudents].forEach(s => {
-        if (s && s.email) allStudentsMap.set(s.email, s);
+        if (s && s.email) allStudentsMap.set(s.email.toLowerCase(), s);
       });
       const existingStudents = Array.from(allStudentsMap.values());
 
-      const studentExists = existingStudents.some((s: any) => s.email === email);
+      const studentExists = existingStudents.some((s: any) => s.email.toLowerCase() === cleanEmail);
       
       if (studentExists) {
         setError('An account with this email already exists. Please sign in.');
@@ -94,9 +99,9 @@ const Login: React.FC = () => {
       // Store signed up student
       const newStudent = {
         id: Date.now(),
-        name: name || email.split('@')[0],
-        email: email,
-        password: password,
+        name: name.trim() || cleanEmail.split('@')[0],
+        email: cleanEmail,
+        password: cleanPassword,
         registeredAt: new Date().toISOString()
       };
       
@@ -108,7 +113,7 @@ const Login: React.FC = () => {
       // Sync to cloud in the background
       await saveToCloudflare('registeredStudents', updatedStudents);
 
-      localStorage.setItem('loggedInEmail', email);
+      localStorage.setItem('loggedInEmail', cleanEmail);
       navigate('/dashboard');
     } catch (err) {
       setError('Failed to connect to server. Please try again.');
