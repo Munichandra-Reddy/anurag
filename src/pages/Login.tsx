@@ -1,0 +1,263 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
+
+const Login: React.FC = () => {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoginView, setIsLoginView] = useState(true);
+  const navigate = useNavigate();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Mentor Login Check
+    if (
+      (email === 'maheshk@geonixa.com' && password === 'GEO@9001') ||
+      (email === 'jithendravarma.l@gmail.com' && password === 'Varma@9293')
+    ) {
+      localStorage.setItem('loggedInEmail', email);
+      navigate('/mentor-dashboard');
+      return;
+    }
+
+    if (email.includes('@anurag')) {
+      setIsLoading(true);
+      setError('');
+      try {
+        const cloudStudents = await getFromCloudflare('registeredStudents') || [];
+        const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
+        
+        // Merge students based on email to prevent losing old data
+        const allStudentsMap = new Map();
+        [...localStudents, ...cloudStudents].forEach(s => {
+          if (s && s.email) allStudentsMap.set(s.email, s);
+        });
+        const existingStudents = Array.from(allStudentsMap.values());
+
+        const student = existingStudents.find((s: any) => s.email === email && s.password === password);
+        
+        if (student) {
+          localStorage.setItem('loggedInEmail', email);
+          navigate('/dashboard');
+        } else {
+          setError('Invalid username or password. Please create an account first.');
+        }
+      } catch (err) {
+        setError('Failed to connect to server. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      setError('Access restricted to @anurag emails and authorized mentors.');
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.includes('@anurag')) {
+      setError('Only @anurag domain emails are allowed to register.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const cloudStudents = await getFromCloudflare('registeredStudents') || [];
+      const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
+      
+      // Merge students based on email to prevent losing old data
+      const allStudentsMap = new Map();
+      [...localStudents, ...cloudStudents].forEach(s => {
+        if (s && s.email) allStudentsMap.set(s.email, s);
+      });
+      const existingStudents = Array.from(allStudentsMap.values());
+
+      const studentExists = existingStudents.some((s: any) => s.email === email);
+      
+      if (studentExists) {
+        setError('An account with this email already exists. Please sign in.');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Store signed up student
+      const newStudent = {
+        id: Date.now(),
+        name: name || email.split('@')[0],
+        email: email,
+        password: password,
+        registeredAt: new Date().toISOString()
+      };
+      
+      const updatedStudents = [...existingStudents, newStudent];
+      
+      // Keep local storage in sync as the primary instant datastore
+      localStorage.setItem('registeredStudents', JSON.stringify(updatedStudents));
+      
+      // Sync to cloud in the background
+      await saveToCloudflare('registeredStudents', updatedStudents);
+
+      localStorage.setItem('loggedInEmail', email);
+      navigate('/dashboard');
+    } catch (err) {
+      setError('Failed to connect to server. Please try again.');
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-gray-100 p-8"
+      >
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-primary text-white rounded-2xl mx-auto flex items-center justify-center text-2xl font-bold mb-4">
+            AL
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900">Anurag LMS Portal</h1>
+          <p className="text-sm text-gray-500 mt-2">
+            {isLoginView ? 'Sign in to your account' : 'Create a new account'}
+          </p>
+        </div>
+
+        {isLoginView ? (
+          <>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input 
+                  type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="student@anurag.edu.in"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors disabled:opacity-50"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-sm font-medium text-gray-700">Password</label>
+                  <a href="#" onClick={(e) => e.preventDefault()} className="text-sm font-medium text-primary hover:text-orange-600 transition-colors">Forgot Password?</a>
+                </div>
+                <input 
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors disabled:opacity-50"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+
+              {error && <p className="text-red-500 text-sm">{error}</p>}
+
+              <button 
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-3 bg-primary text-white rounded-xl font-medium hover:bg-orange-600 transition-colors mt-4 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                {isLoading ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  'Sign In'
+                )}
+              </button>
+            </form>
+
+            <p className="mt-8 text-center text-sm text-gray-600">
+              Don't have an account? <a href="#" onClick={(e) => { e.preventDefault(); setIsLoginView(false); setError(''); }} className="font-medium text-primary hover:text-orange-600 transition-colors">Create an account</a>
+            </p>
+          </>
+        ) : (
+          <>
+            <form onSubmit={handleSignup} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                <input 
+                  type="text" 
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="John Doe"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors disabled:opacity-50"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input 
+                  type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="student@anurag.edu.in"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors disabled:opacity-50"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input 
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors disabled:opacity-50"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                <input 
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors disabled:opacity-50"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+
+              {error && <p className="text-red-500 text-sm">{error}</p>}
+
+              <button 
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-3 bg-primary text-white rounded-xl font-medium hover:bg-orange-600 transition-colors mt-4 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                {isLoading ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  'Sign Up'
+                )}
+              </button>
+            </form>
+
+            <p className="mt-8 text-center text-sm text-gray-600">
+              Already have an account? <a href="#" onClick={(e) => { e.preventDefault(); setIsLoginView(true); setError(''); }} className="font-medium text-primary hover:text-orange-600 transition-colors">Sign In</a>
+            </p>
+          </>
+        )}
+      </motion.div>
+    </div>
+  );
+};
+
+export default Login;
