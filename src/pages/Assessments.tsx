@@ -302,9 +302,9 @@ const Assessments: React.FC = () => {
         {assessmentsData.map((assessment: any) => (
           <div 
             key={assessment.id} 
-            className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col sm:flex-row items-start sm:items-center justify-between group gap-4 sm:gap-0"
+            className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col md:flex-row items-start md:items-center justify-between group gap-4 md:gap-0"
           >
-            <div className="w-full sm:w-auto">
+            <div className="w-full md:w-auto">
               <h3 className="font-bold text-lg text-gray-900 group-hover:text-primary transition-colors">{assessment.title}</h3>
               <p className="text-gray-500 text-sm mt-1">{assessment.description}</p>
               <div className="flex items-center gap-4 mt-4">
@@ -313,7 +313,7 @@ const Assessments: React.FC = () => {
               </div>
             </div>
             
-            <div className="flex items-center gap-4 w-full sm:w-auto">
+            <div className="flex items-center gap-4 w-full md:w-auto">
               {isMentor ? (
                 <button 
                   onClick={() => handleRemoveAssessment(assessment.id)}
@@ -324,18 +324,18 @@ const Assessments: React.FC = () => {
                 </button>
               ) : (
                 completedAssessments[assessment.id] ? (
-                  <div className="shrink-0 flex flex-col items-start sm:items-end gap-1.5 w-full sm:w-auto">
-                    <span className="flex items-center justify-center sm:justify-start gap-1.5 px-5 py-2 bg-green-50 text-green-700 font-bold rounded-xl border border-green-100 text-sm shadow-sm w-full sm:w-auto">
+                  <div className="shrink-0 flex flex-col items-start md:items-end gap-1.5 w-full md:w-auto">
+                    <span className="flex items-center justify-center md:justify-start gap-1.5 px-5 py-2 bg-green-50 text-green-700 font-bold rounded-xl border border-green-100 text-sm shadow-sm w-full md:w-auto">
                       <Award size={18} /> Completed
                     </span>
-                    <span className="text-xs font-bold text-gray-500 bg-gray-50 px-3 py-1 rounded-md border border-gray-100 w-full sm:w-auto text-center sm:text-right">
+                    <span className="text-xs font-bold text-gray-500 bg-gray-50 px-3 py-1 rounded-md border border-gray-100 w-full md:w-auto text-center md:text-right">
                       Score: {completedAssessments[assessment.id].score}/15
                     </span>
                   </div>
                 ) : (
                   <button 
                     onClick={() => handleSelectAssessment(assessment.id)}
-                    className="shrink-0 flex items-center justify-center gap-2 px-6 py-2.5 bg-orange-50 text-orange-600 font-bold rounded-xl hover:bg-orange-100 transition-colors border border-orange-100 shadow-sm w-full sm:w-auto"
+                    className="shrink-0 flex items-center justify-center gap-2 px-6 py-2.5 bg-orange-50 text-orange-600 font-bold rounded-xl hover:bg-orange-100 transition-colors border border-orange-100 shadow-sm w-full md:w-auto"
                   >
                     <PlayCircle size={18} /> Take Test
                   </button>

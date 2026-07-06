@@ -154,12 +154,12 @@ const CourseContent: React.FC = () => {
                 className="p-5 flex items-center justify-between cursor-pointer select-none"
                 onClick={() => setExpandedId(isExpanded ? null : session.id)}
               >
-                <div className="flex items-start sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
-                  <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex shrink-0 items-center justify-center font-bold text-sm transition-colors ${isExpanded ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'}`}>
+                <div className="flex items-start md:items-center gap-3 md:gap-4 w-full md:w-auto">
+                  <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex shrink-0 items-center justify-center font-bold text-sm transition-colors ${isExpanded ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'}`}>
                     {index + 1}
                   </div>
                   <div className="flex-1">
-                    <h3 className={`font-bold text-base sm:text-lg transition-colors leading-tight ${isExpanded ? 'text-primary' : 'text-gray-900'}`}>
+                    <h3 className={`font-bold text-base md:text-lg transition-colors leading-tight ${isExpanded ? 'text-primary' : 'text-gray-900'}`}>
                       {session.title}
                     </h3>
                     <p className="text-xs text-gray-500 mt-1">Session {index + 1} • Core Java Module</p>
@@ -185,15 +185,15 @@ const CourseContent: React.FC = () => {
                     {session.content}
                   </p>
                   
-                  <div className="flex flex-col sm:flex-row flex-wrap gap-3 mt-4">
-                    <button className="flex items-center justify-center sm:justify-start gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors w-full sm:w-auto">
+                  <div className="flex flex-col md:flex-row flex-wrap gap-3 mt-4">
+                    <button className="flex items-center justify-center md:justify-start gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors w-full md:w-auto">
                       <FileText size={16} className="text-blue-500" /> Lesson Notes
                     </button>
-                    <button className="flex items-center justify-center sm:justify-start gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors w-full sm:w-auto">
+                    <button className="flex items-center justify-center md:justify-start gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors w-full md:w-auto">
                       <PlayCircle size={16} className="text-red-500" /> Watch Recording
                     </button>
                     {!isMentor && (
-                      <button className="sm:ml-auto flex items-center justify-center sm:justify-start gap-2 px-4 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg text-sm font-bold hover:bg-green-100 transition-colors w-full sm:w-auto mt-2 sm:mt-0">
+                      <button className="md:ml-auto flex items-center justify-center md:justify-start gap-2 px-4 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg text-sm font-bold hover:bg-green-100 transition-colors w-full md:w-auto mt-2 md:mt-0">
                         <CheckCircle size={16} /> Mark Completed
                       </button>
                     )}

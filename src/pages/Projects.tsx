@@ -89,18 +89,18 @@ const Projects: React.FC = () => {
           
           return (
             <div key={project.id} className="border border-gray-200 rounded-2xl p-6 bg-white shadow-sm">
-              <div className="flex flex-col sm:flex-row justify-between items-start mb-2 gap-3 sm:gap-0">
-                <div className="w-full sm:w-auto">
+              <div className="flex flex-col md:flex-row justify-between items-start mb-2 gap-3 md:gap-0">
+                <div className="w-full md:w-auto">
                   <h3 className="font-bold text-lg text-gray-900 leading-tight">{project.title}</h3>
                   <p className="text-xs text-gray-500 mt-1">Individual Project · Mentor: Anjali Sharma</p>
                 </div>
                 <div className="shrink-0">
                   {isCompleted ? (
-                    <span className="bg-[#00a676] text-white px-4 py-1.5 text-xs sm:text-sm font-semibold rounded-xl inline-block">
+                    <span className="bg-[#00a676] text-white px-4 py-1.5 text-xs md:text-sm font-semibold rounded-xl inline-block">
                       Completed
                     </span>
                   ) : (
-                    <span className="text-orange-500 border border-orange-200 bg-orange-50 px-4 py-1.5 text-xs sm:text-sm font-semibold rounded-xl inline-block">
+                    <span className="text-orange-500 border border-orange-200 bg-orange-50 px-4 py-1.5 text-xs md:text-sm font-semibold rounded-xl inline-block">
                       In Progress
                     </span>
                   )}
@@ -134,7 +134,7 @@ const Projects: React.FC = () => {
                 </div>
               ) : (
                 <form onSubmit={(e) => handleSubmit(e, project.id)} className="mt-6">
-                  <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex flex-col md:flex-row gap-3">
                     <input 
                       type="url" 
                       placeholder="https://github.com/student/..." 
@@ -145,7 +145,7 @@ const Projects: React.FC = () => {
                     />
                     <button 
                       type="submit"
-                      className="w-full sm:w-auto px-6 py-2 bg-primary text-white font-medium text-sm rounded-lg hover:bg-primary/90 transition-colors"
+                      className="w-full md:w-auto px-6 py-2 bg-primary text-white font-medium text-sm rounded-lg hover:bg-primary/90 transition-colors"
                     >
                       Submit
                     </button>
