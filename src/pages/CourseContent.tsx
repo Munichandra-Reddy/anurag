@@ -3,19 +3,14 @@ import { BookOpen, ChevronDown, ChevronUp, PlayCircle, FileText, CheckCircle, Pl
 import { useLocation } from 'react-router-dom';
 
 const defaultSessions = [
-  { id: 1, title: 'Introduction to Java & Environment Setup', content: 'Understand the history of Java, JVM, JRE, and JDK architecture. Set up the development environment, install IDE, and write the first Hello World program.' },
-  { id: 2, title: 'Variables, Data Types & Operators', content: 'Deep dive into primitive and non-primitive data types. Learn about variable scope, type casting, and various operators (arithmetic, relational, logical, bitwise).' },
-  { id: 3, title: 'Control Flow Statements', content: 'Master decision-making with if-else and switch statements. Learn iterative execution using for, while, and do-while loops along with break and continue keywords.' },
-  { id: 4, title: 'Introduction to OOP (Classes & Objects)', content: 'Understand the core concepts of Object-Oriented Programming. Learn how to define classes, create objects, and understand the lifecycle of an object in memory.' },
-  { id: 5, title: 'Methods, Constructors & Encapsulation', content: 'Learn how to write reusable methods and define constructors. Understand access modifiers (private, public, protected) and the concept of data hiding through Encapsulation.' },
-  { id: 6, title: 'Inheritance & Polymorphism', content: 'Explore code reusability through Inheritance (is-a relationship). Understand method overloading (compile-time) and method overriding (run-time) polymorphism.' },
-  { id: 7, title: 'Abstract Classes & Interfaces', content: 'Learn to achieve abstraction in Java. Compare Abstract classes vs Interfaces, and understand default and static methods introduced in modern Java interfaces.' },
-  { id: 8, title: 'Arrays & Strings in Java', content: 'Work with single and multi-dimensional arrays. Understand the String pool, immutability of Strings, and use StringBuilder/StringBuffer for dynamic string manipulation.' },
-  { id: 9, title: 'Exception Handling', content: 'Learn the hierarchy of Java exceptions. Master the try-catch-finally blocks, throw and throws keywords, and create custom user-defined exceptions.' },
-  { id: 10, title: 'Java Collections Framework', content: 'Deep dive into the Collections hierarchy. Work with List (ArrayList, LinkedList), Set (HashSet, TreeSet), and Map (HashMap, TreeMap) to manage groups of objects.' },
-  { id: 11, title: 'File I/O & Serialization', content: 'Read from and write to files using byte streams and character streams (FileInputStream, BufferedReader). Understand object state persistence using Serialization.' },
-  { id: 12, title: 'Multithreading & Concurrency', content: 'Understand the thread lifecycle. Learn how to create threads using Thread class and Runnable interface. Master synchronization and inter-thread communication.' },
-  { id: 13, title: 'Java 8 Features & Stream API', content: 'Explore modern Java capabilities including Lambda expressions, Functional Interfaces, Optional class, and the powerful Stream API for bulk data operations.' }
+  { id: 1, title: 'Introduction to Autodesk Revit & BIM', content: 'Understand the concept of Building Information Modeling (BIM) and how Revit fits into the architectural workflow. Learn about project templates and basic setup.' },
+  { id: 2, title: 'Revit User Interface & Navigation', content: 'Explore the ribbon, properties palette, project browser, and drawing area. Master 2D and 3D navigation, view controls, and basic selection methods.' },
+  { id: 3, title: 'Basic Modeling: Walls, Doors & Windows', content: 'Learn to create and modify walls, set constraints, and understand wall properties. Add and adjust doors and windows within the model.' },
+  { id: 4, title: 'Floors, Roofs & Ceilings', content: 'Create architectural floors, sketch roof boundaries (by footprint and extrusion), and generate automatic or sketched ceilings.' },
+  { id: 5, title: 'Dimensions, Annotations & Detailing', content: 'Add temporary and permanent dimensions, text notes, and tags. Create 2D drafting views and understand detail components.' },
+  { id: 6, title: 'Schedules and Quantities', content: 'Extract data from your model to create door, window, and room schedules. Learn how to format and sort schedule data.' },
+  { id: 7, title: 'Creating Sheets & Printing', content: 'Set up title blocks, place views on sheets, and adjust viewport scales. Configure print settings and export your model to PDF or CAD formats.' },
+  { id: 8, title: 'Introduction to Families & Components', content: 'Understand the difference between system families and loadable families. Load furniture, fixtures, and other components into your project.' }
 ];
 
 const CourseContent: React.FC = () => {
@@ -24,7 +19,7 @@ const CourseContent: React.FC = () => {
   const isMentor = location.pathname.includes('/mentor-dashboard');
 
   const [sessionsData, setSessionsData] = useState(() => {
-    const saved = localStorage.getItem('anuragLmsCourses');
+    const saved = localStorage.getItem('anuragLmsCoursesRevit');
     return saved ? JSON.parse(saved) : defaultSessions;
   });
 
@@ -33,7 +28,7 @@ const CourseContent: React.FC = () => {
   const [newContent, setNewContent] = useState('');
 
   useEffect(() => {
-    localStorage.setItem('anuragLmsCourses', JSON.stringify(sessionsData));
+    localStorage.setItem('anuragLmsCoursesRevit', JSON.stringify(sessionsData));
   }, [sessionsData]);
 
   const handleAddCourse = (e: React.FormEvent) => {
@@ -74,15 +69,15 @@ const CourseContent: React.FC = () => {
             </button>
           )}
           {isMentor && (
-            <div className="px-4 py-1.5 bg-orange-50 border border-orange-200 text-orange-600 rounded-full text-sm font-bold">
-              Mastering Core Java
-            </div>
-          )}
+            <div className="px-4 py-2 bg-orange-50 text-orange-600 font-bold rounded-lg border border-orange-200 text-sm">
+            Mastering Revit
+          </div>
+        )}
         </div>
       </div>
       
-      <p className="text-gray-600 text-sm">
-        This comprehensive Java module is divided into structured sessions. Follow the sequence to build a strong foundation in backend development.
+      <p className="text-gray-600 text-sm mt-2 max-w-4xl leading-relaxed">
+        This comprehensive Revit module is divided into structured sessions. Follow the sequence to build a strong foundation in architectural BIM modeling.
       </p>
 
       {/* Add Course Form (Mentor Only) */}
@@ -162,7 +157,7 @@ const CourseContent: React.FC = () => {
                     <h3 className={`font-bold text-base md:text-lg transition-colors leading-tight ${isExpanded ? 'text-primary' : 'text-gray-900'}`}>
                       {session.title}
                     </h3>
-                    <p className="text-xs text-gray-500 mt-1">Session {index + 1} • Core Java Module</p>
+                    <p className="text-xs text-gray-500 mt-1">Session {index + 1} • Revit Architecture</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">

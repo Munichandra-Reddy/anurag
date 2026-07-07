@@ -13,38 +13,38 @@ interface RecordedVideo {
 const defaultVideos: RecordedVideo[] = [
   {
     id: '1',
-    title: 'HTML Tutorial for Beginners - Full Course',
-    topic: 'HTML',
-    duration: '1:02:45',
-    videoUrl: 'https://www.youtube.com/watch?v=qz0aGYrrlhU' 
+    title: 'Autodesk Revit - Full Beginner Course',
+    topic: 'Revit Architecture',
+    duration: '2:45:10',
+    videoUrl: 'https://www.youtube.com/watch?v=jWqK-lJvLpA'
   },
   {
     id: '2',
-    title: 'CSS Crash Course for Absolute Beginners',
-    topic: 'CSS',
-    duration: '1:25:01',
-    videoUrl: 'https://www.youtube.com/watch?v=yfoY53QXEnI'
+    title: 'Revit - Complete Tutorial for Beginners',
+    topic: 'Revit Architecture',
+    duration: '1:10:05',
+    videoUrl: 'https://www.youtube.com/watch?v=Nd6U2KgHI6k'
   },
   {
     id: '3',
-    title: 'JavaScript Full Course for Beginners',
-    topic: 'JavaScript',
-    duration: '3:26:42',
-    videoUrl: 'https://www.youtube.com/watch?v=jS4aFq5-91M'
+    title: 'Revit - Tutorials for Beginners in 10 MINUTES!',
+    topic: 'Revit Basics',
+    duration: '10:42',
+    videoUrl: 'https://www.youtube.com/watch?v=0h321T9-8Wc'
   },
   {
     id: '4',
-    title: 'Advanced CSS and Flexbox Mastery',
-    topic: 'CSS',
-    duration: '45:30',
-    videoUrl: 'https://www.youtube.com/watch?v=fYq5PXgSsbE'
+    title: 'Complete Revit in 2 Hours - Project Based',
+    topic: 'Revit Project',
+    duration: '1:58:30',
+    videoUrl: 'https://www.youtube.com/watch?v=f9xS8R5S4fA'
   },
   {
     id: '5',
-    title: 'JavaScript DOM Manipulation Tutorial',
-    topic: 'JavaScript',
-    duration: '1:10:15',
-    videoUrl: 'https://www.youtube.com/watch?v=5fb2aPlgoys'
+    title: 'Revit 2024: The Complete Beginner Course',
+    topic: 'Revit Architecture',
+    duration: '3:12:15',
+    videoUrl: 'https://www.youtube.com/watch?v=yfoY53QXEnI'
   }
 ];
 
@@ -60,12 +60,12 @@ const LmsAccess: React.FC = () => {
   const isMentor = location.pathname.includes('mentor-dashboard');
 
   const [videos, setVideos] = useState<RecordedVideo[]>(() => {
-    const saved = localStorage.getItem('anuragLmsVideos');
+    const saved = localStorage.getItem('anuragLmsVideosRevitValid');
     return saved ? JSON.parse(saved) : defaultVideos;
   });
 
   useEffect(() => {
-    localStorage.setItem('anuragLmsVideos', JSON.stringify(videos));
+    localStorage.setItem('anuragLmsVideosRevitValid', JSON.stringify(videos));
   }, [videos]);
 
   const [activeVideo, setActiveVideo] = useState<RecordedVideo>(videos[0] || defaultVideos[0]);
