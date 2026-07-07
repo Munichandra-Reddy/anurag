@@ -1,14 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, ArrowLeft, Award, PlayCircle, Plus, Trash2, X } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
+import { WeeklyExamReport } from '../components/WeeklyExamReport';
+import { WeeklyAssessmentFlow } from '../components/WeeklyAssessmentFlow';
 
-const defaultAssessments = [
-  { id: 1, title: 'Frontend Basics Assessment 1', description: 'Test your foundational knowledge of HTML structure, CSS styling, and basic JavaScript logic.' },
-  { id: 2, title: 'Frontend Basics Assessment 2', description: 'Test your foundational knowledge of HTML structure, CSS styling, and basic JavaScript logic.' },
-  { id: 3, title: 'Frontend Basics Assessment 3', description: 'Test your foundational knowledge of HTML structure, CSS styling, and basic JavaScript logic.' },
-  { id: 4, title: 'Frontend Basics Assessment 4', description: 'Test your foundational knowledge of HTML structure, CSS styling, and basic JavaScript logic.' },
-  { id: 5, title: 'Frontend Basics Assessment 5', description: 'Test your foundational knowledge of HTML structure, CSS styling, and basic JavaScript logic.' },
-];
+const defaultAssessments: { id: number, title: string, description: string }[] = [];
 
 const questions = [
   { id: 1, text: "What does HTML stand for?", options: ["Hyper Text Markup Language", "Home Tool Markup Language", "Hyperlinks and Text Markup Language", "Hyper Tool Markup Language"], correct: 0 },
@@ -30,10 +26,13 @@ const questions = [
 
 const Assessments: React.FC = () => {
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const pattern = searchParams.get('pattern');
+
   const isMentor = location.pathname.includes('/mentor-dashboard');
 
   const [assessmentsData, setAssessmentsData] = useState(() => {
-    const saved = localStorage.getItem('anuragLmsAssessmentsList');
+    const saved = localStorage.getItem('anuragLmsAssessmentsListEmpty3');
     return saved ? JSON.parse(saved) : defaultAssessments;
   });
 
@@ -54,7 +53,7 @@ const Assessments: React.FC = () => {
   });
 
   useEffect(() => {
-    localStorage.setItem('anuragLmsAssessmentsList', JSON.stringify(assessmentsData));
+    localStorage.setItem('anuragLmsAssessmentsListEmpty3', JSON.stringify(assessmentsData));
   }, [assessmentsData]);
 
   const handleAddAssessment = (e: React.FormEvent) => {
@@ -222,22 +221,123 @@ const Assessments: React.FC = () => {
     );
   }
 
+  if (pattern === 'weekly Exam Pattern') {
+    return (
+      <div className="w-full max-w-3xl mx-auto space-y-6 pb-12">
+        <div className="flex items-center gap-3 text-gray-900 font-bold text-2xl mb-8">
+          <FileText className="text-orange-500" size={28} /> 
+          Weekly Exam Pattern
+        </div>
+        
+        <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+          <div className="space-y-4 text-lg">
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+              <span className="font-medium text-gray-700">Project</span>
+              <span className="font-bold text-primary">5M</span>
+            </div>
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+              <span className="font-medium text-gray-700">Portfolio & Document</span>
+              <span className="font-bold text-primary">5M</span>
+            </div>
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+              <span className="font-medium text-gray-700">Theory Assignment</span>
+              <span className="font-bold text-primary">5M</span>
+            </div>
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+              <span className="font-medium text-gray-700">Attendence</span>
+              <span className="font-bold text-primary">2M</span>
+            </div>
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+              <span className="font-medium text-gray-700">Mentor</span>
+              <span className="font-bold text-primary">3M</span>
+            </div>
+            <div className="flex justify-between items-center pt-4">
+              <span className="font-black text-gray-900 text-xl">Total</span>
+              <span className="font-black text-primary text-2xl">20M</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (pattern === 'CIE Exam Pattern') {
+    return (
+      <div className="w-full max-w-3xl mx-auto space-y-6 pb-12">
+        <div className="flex items-center gap-3 text-gray-900 font-bold text-2xl mb-8">
+          <FileText className="text-orange-500" size={28} /> 
+          CIE Exam Pattern
+        </div>
+        
+        <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+          <div className="space-y-4 text-lg">
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+              <span className="font-medium text-gray-700">Project</span>
+              <span className="font-bold text-primary">15M</span>
+            </div>
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+              <span className="font-medium text-gray-700">Theory Assignment</span>
+              <span className="font-bold text-primary">10M</span>
+            </div>
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+              <span className="font-medium text-gray-700">Viva</span>
+              <span className="font-bold text-primary">5M</span>
+            </div>
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+              <span className="font-medium text-gray-700">6 weeks Average</span>
+              <span className="font-bold text-primary">20M</span>
+            </div>
+            <div className="flex justify-between items-center pt-4">
+              <span className="font-black text-gray-900 text-xl">Total</span>
+              <span className="font-black text-primary text-2xl">50M</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (pattern === 'SEM Exam Pattern') {
+    return (
+      <div className="w-full max-w-3xl mx-auto space-y-6 pb-12">
+        <div className="flex items-center gap-3 text-gray-900 font-bold text-2xl mb-8">
+          <FileText className="text-orange-500" size={28} /> 
+          SEM Exam Pattern
+        </div>
+        
+        <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+          <div className="space-y-4 text-lg">
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+              <span className="font-medium text-gray-700">Project</span>
+              <span className="font-bold text-primary">15M</span>
+            </div>
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+              <span className="font-medium text-gray-700">Theory Assignment</span>
+              <span className="font-bold text-primary">10M</span>
+            </div>
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+              <span className="font-medium text-gray-700">Viva</span>
+              <span className="font-bold text-primary">5M</span>
+            </div>
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+              <span className="font-medium text-gray-700">CIE1 or CIE2(best of one)</span>
+              <span className="font-bold text-primary">20M</span>
+            </div>
+            <div className="flex justify-between items-center pt-4">
+              <span className="font-black text-gray-900 text-xl">Total</span>
+              <span className="font-black text-primary text-2xl">50M</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (pattern && pattern.startsWith('week') && pattern !== 'weekly Exam Pattern') {
+    return <WeeklyExamReport pattern={pattern} isMentor={isMentor} loggedInEmail={loggedInEmail} />;
+  }
+
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6 pb-12">
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-3 text-gray-900 font-bold text-2xl">
-          <FileText className="text-orange-500" size={28} /> 
-          Course Assessments
-        </div>
-        {isMentor && !isAdding && (
-          <button 
-            onClick={() => setIsAdding(true)}
-            className="flex items-center gap-2 px-4 py-1.5 bg-primary text-white rounded-lg text-sm font-bold hover:bg-orange-600 transition-colors shadow-sm"
-          >
-            <Plus size={16} /> Add Assessment
-          </button>
-        )}
-      </div>
+
 
       {isMentor && isAdding && (
         <div className="bg-white border-2 border-primary/20 p-6 rounded-2xl shadow-sm mb-6 relative">
@@ -292,13 +392,14 @@ const Assessments: React.FC = () => {
         </div>
       )}
 
+      <div className="mb-12">
+        <WeeklyAssessmentFlow isMentor={isMentor} loggedInEmail={loggedInEmail} />
+      </div>
+
       <div className="grid grid-cols-1 gap-4">
-        {assessmentsData.length === 0 && (
-          <div className="bg-white p-8 rounded-2xl border border-gray-200 text-center text-gray-500">
-            No assessments available. {isMentor && 'Add one above!'}
-          </div>
+        {assessmentsData.length > 0 && (
+          <h3 className="font-bold text-lg text-gray-900 border-b border-gray-200 pb-2 mt-4 mb-2">Practice Quizzes</h3>
         )}
-        
         {assessmentsData.map((assessment: any) => (
           <div 
             key={assessment.id} 

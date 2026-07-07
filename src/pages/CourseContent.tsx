@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, ChevronDown, ChevronUp, PlayCircle, FileText, CheckCircle, Plus, Trash2, X } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, PlayCircle, FileText, CheckCircle, Plus, Trash2, X, Upload } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
 const defaultSessions = [
@@ -26,6 +26,22 @@ const CourseContent: React.FC = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newContent, setNewContent] = useState('');
+  const [newPdfName, setNewPdfName] = useState('');
+  const [newPdfDataUrl, setNewPdfDataUrl] = useState('');
+  const [newVideoUrl, setNewVideoUrl] = useState('');
+  const [viewingFile, setViewingFile] = useState<{name: string, url: string} | null>(null);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setNewPdfName(file.name);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setNewPdfDataUrl(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   useEffect(() => {
     localStorage.setItem('anuragLmsCoursesRevit', JSON.stringify(sessionsData));
@@ -38,12 +54,18 @@ const CourseContent: React.FC = () => {
     const newSession = {
       id: Date.now(),
       title: newTitle,
-      content: newContent
+      content: newContent,
+      pdfName: newPdfName,
+      pdfDataUrl: newPdfDataUrl,
+      videoUrl: newVideoUrl
     };
 
     setSessionsData([...sessionsData, newSession]);
     setNewTitle('');
     setNewContent('');
+    setNewPdfName('');
+    setNewPdfDataUrl('');
+    setNewVideoUrl('');
     setIsAdding(false);
   };
 
@@ -65,7 +87,7 @@ const CourseContent: React.FC = () => {
               onClick={() => setIsAdding(true)}
               className="flex items-center gap-2 px-4 py-1.5 bg-primary text-white rounded-lg text-sm font-bold hover:bg-orange-600 transition-colors shadow-sm"
             >
-              <Plus size={16} /> Add Session
+              <Plus size={16} /> Add Course
             </button>
           )}
           {isMentor && (
@@ -90,11 +112,11 @@ const CourseContent: React.FC = () => {
             <X size={18} />
           </button>
           
-          <h3 className="text-lg font-bold text-gray-900 mb-4">Add New Course Session</h3>
+          <h3 className="text-lg font-bold text-gray-900 mb-4">Add New Course</h3>
           
           <form onSubmit={handleAddCourse} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Session Title</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Course Title</label>
               <input 
                 type="text" 
                 value={newTitle}
@@ -105,7 +127,7 @@ const CourseContent: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Session Description / Content</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Course Description</label>
               <textarea 
                 value={newContent}
                 onChange={(e) => setNewContent(e.target.value)}
@@ -113,6 +135,26 @@ const CourseContent: React.FC = () => {
                 placeholder="Provide a detailed description of what this session will cover..."
                 className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm resize-none"
                 required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Course Resources (Optional)</label>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700">
+                  <Upload size={16} /> Choose File
+                  <input type="file" className="hidden" onChange={handleFileUpload} />
+                </label>
+                {newPdfName && <span className="text-sm text-primary font-medium">{newPdfName}</span>}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Course Video URL (Optional)</label>
+              <input 
+                type="url" 
+                value={newVideoUrl}
+                onChange={(e) => setNewVideoUrl(e.target.value)}
+                placeholder="https://youtube.com/..."
+                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm"
               />
             </div>
             <div className="flex justify-end gap-3 pt-2">
@@ -127,7 +169,7 @@ const CourseContent: React.FC = () => {
                 type="submit"
                 className="px-6 py-2 bg-primary text-white rounded-xl font-medium hover:bg-orange-600 text-sm transition-colors shadow-sm"
               >
-                Save Session
+                Save Course
               </button>
             </div>
           </form>
@@ -181,12 +223,25 @@ const CourseContent: React.FC = () => {
                   </p>
                   
                   <div className="flex flex-col md:flex-row flex-wrap gap-3 mt-4">
-                    <button className="flex items-center justify-center md:justify-start gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors w-full md:w-auto">
-                      <FileText size={16} className="text-blue-500" /> Lesson Notes
-                    </button>
-                    <button className="flex items-center justify-center md:justify-start gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors w-full md:w-auto">
-                      <PlayCircle size={16} className="text-red-500" /> Watch Recording
-                    </button>
+                    {(session.pdfName || defaultSessions.some(s => s.id === session.id)) && (
+                      <button 
+                        onClick={() => {
+                          if (session.pdfDataUrl) {
+                            setViewingFile({ name: session.pdfName, url: session.pdfDataUrl });
+                          } else {
+                            alert(`Opening document: ${session.pdfName || 'Lesson Notes'}`);
+                          }
+                        }}
+                        className="flex items-center justify-center md:justify-start gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors w-full md:w-auto"
+                      >
+                        <FileText size={16} className="text-blue-500" /> {session.pdfName || 'Lesson Notes'}
+                      </button>
+                    )}
+                    {(session.videoUrl || defaultSessions.some(s => s.id === session.id)) && (
+                      <a href={session.videoUrl || '#'} target="_blank" rel="noreferrer" className="flex items-center justify-center md:justify-start gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors w-full md:w-auto">
+                        <PlayCircle size={16} className="text-red-500" /> Watch Recording
+                      </a>
+                    )}
                     {!isMentor && (
                       <button className="md:ml-auto flex items-center justify-center md:justify-start gap-2 px-4 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg text-sm font-bold hover:bg-green-100 transition-colors w-full md:w-auto mt-2 md:mt-0">
                         <CheckCircle size={16} /> Mark Completed
@@ -199,6 +254,47 @@ const CourseContent: React.FC = () => {
           );
         })}
       </div>
+
+      {viewingFile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 shrink-0">
+              <div className="flex items-center gap-3">
+                <FileText className="text-primary" size={24} />
+                <h3 className="font-bold text-gray-900 text-lg truncate pr-4">{viewingFile.name}</h3>
+              </div>
+              <button 
+                onClick={() => setViewingFile(null)} 
+                className="p-2 text-gray-500 hover:bg-gray-200 hover:text-gray-900 rounded-full transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto bg-gray-100/50 p-6 flex items-center justify-center">
+              {viewingFile.url.startsWith('data:image') ? (
+                <img src={viewingFile.url} alt={viewingFile.name} className="max-w-full max-h-full object-contain rounded-xl shadow-sm border border-gray-200 bg-white" />
+              ) : viewingFile.url.startsWith('data:application/pdf') ? (
+                <iframe src={viewingFile.url} className="w-full h-full rounded-xl shadow-sm border border-gray-200 bg-white" title={viewingFile.name} />
+              ) : (
+                <div className="text-center p-12 bg-white rounded-2xl shadow-sm border border-gray-200 max-w-md">
+                  <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <FileText size={40} className="text-primary" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">File Preview Unavailable</h3>
+                  <p className="text-gray-500 mb-8">This file type cannot be previewed directly in the browser.</p>
+                  <a 
+                    href={viewingFile.url} 
+                    download={viewingFile.name} 
+                    className="inline-flex items-center justify-center w-full px-6 py-3 bg-primary text-white rounded-xl font-bold hover:bg-orange-600 transition-colors shadow-sm"
+                  >
+                    Download File
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

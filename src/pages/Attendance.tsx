@@ -101,8 +101,8 @@ const Attendance: React.FC = () => {
     return matchesSearch && matchesBatch;
   });
 
-  const presentCount = students.filter((s: any) => s.status === 'present').length;
-  const totalCount = students.length;
+  const presentCount = filteredStudents.filter((s: any) => s.status === 'present').length;
+  const totalCount = filteredStudents.length;
 
   if (isLoading) {
     return (
@@ -236,7 +236,7 @@ const Attendance: React.FC = () => {
                     )}
                   </td>
                   <td className="py-4 px-6">
-                    <div className="flex items-center justify-end gap-2 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => markAttendance(student.email, 'present')}
                         className={`p-2 rounded-lg transition-colors ${

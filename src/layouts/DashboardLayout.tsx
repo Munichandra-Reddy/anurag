@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, BookOpen, Video, Briefcase, 
-  Key, FileText, LogOut, Users, MessageSquare, BarChart, Award, Menu, X
+  Key, FileText, LogOut, Users, MessageSquare, BarChart, Award, Menu, X, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 
@@ -11,6 +11,7 @@ const DashboardLayout: React.FC = () => {
   const location = useLocation();
   const userEmail = localStorage.getItem('loggedInEmail') || 'student@anurag.edu.in';
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isAssessmentsExpanded, setIsAssessmentsExpanded] = useState(false);
 
   // Close mobile menu when route changes
   React.useEffect(() => {
@@ -26,6 +27,7 @@ const DashboardLayout: React.FC = () => {
     { title: 'Project Batch', icon: <Users size={20} />, path: '/dashboard/project-batch' },
     { title: 'Chat Support', icon: <MessageSquare size={20} />, path: '/dashboard/chat-support' },
     { title: 'Weekly Exam Reports', icon: <BarChart size={20} />, path: '/dashboard/weekly-reports' },
+    { title: 'Exam Reports', icon: <FileText size={20} />, path: '/dashboard/assessments' },
     { title: 'Assessments', icon: <FileText size={20} />, path: '/dashboard/assessments' },
     { title: 'Top Performer', icon: <Award size={20} />, path: '/dashboard/top-performer' },
   ];
@@ -63,22 +65,59 @@ const DashboardLayout: React.FC = () => {
           </button>
         </div>
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-          {menuItems.map((item, index) => (
-            <NavLink
-              key={index}
-              to={item.path}
-              end={item.path === '/dashboard'}
-              className={({ isActive }) => cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                isActive 
-                  ? "bg-primary/10 text-primary" 
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-              )}
-            >
-              {item.icon}
-              {item.title}
-            </NavLink>
-          ))}
+          {menuItems.map((item, index) => {
+            if (item.title === 'Exam Reports') {
+              return (
+                <div key={index}>
+                  <button
+                    onClick={() => setIsAssessmentsExpanded(!isAssessmentsExpanded)}
+                    className={cn(
+                      "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                      location.pathname.includes('/assessments')
+                        ? "bg-primary/10 text-primary" 
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      {item.icon}
+                      {item.title}
+                    </div>
+                    {isAssessmentsExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </button>
+                  {isAssessmentsExpanded && (
+                    <div className="pl-11 pr-3 py-2 flex flex-col gap-2.5 mt-1 border-l-2 border-primary/20 ml-5">
+                      {['weekly Exam Pattern', 'CIE Exam Pattern', 'SEM Exam Pattern', 'week1', 'week2', 'week3', 'week4', 'week5', 'week6', 'CIE1', 'week7', 'week8', 'week9', 'week10', 'week11', 'week12', 'CIE2', 'SEM'].map((subItem, idx) => (
+                        <button 
+                          key={idx} 
+                          onClick={() => navigate(`/dashboard/assessments?pattern=${encodeURIComponent(subItem)}`)}
+                          className="text-left text-sm font-medium text-gray-500 hover:text-primary cursor-pointer transition-colors"
+                        >
+                          {subItem}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            return (
+              <NavLink
+                key={index}
+                to={item.path}
+                end={item.path === '/dashboard'}
+                className={({ isActive }) => cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                  isActive 
+                    ? "bg-primary/10 text-primary" 
+                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                )}
+              >
+                {item.icon}
+                {item.title}
+              </NavLink>
+            );
+          })}
         </nav>
 
         {/* Profile and Signout Widget */}
