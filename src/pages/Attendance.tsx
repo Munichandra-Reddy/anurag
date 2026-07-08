@@ -5,7 +5,23 @@ import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
 
 const Attendance: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [sessions, setSessions] = useState<any[]>(() => {
+    const savedClasses = localStorage.getItem('anuragLmsClasses');
+    return savedClasses ? JSON.parse(savedClasses) : [];
+  });
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const savedClasses = localStorage.getItem('anuragLmsClasses');
+    if (savedClasses) {
+      const parsed = JSON.parse(savedClasses);
+      if (parsed.length > 0) {
+        const hasToday = parsed.some((s: any) => s.dateString === today);
+        return hasToday ? today : parsed[0].dateString;
+      }
+    }
+    return '';
+  });
   const [batchFilter, setBatchFilter] = useState('All');
   const [isLoading, setIsLoading] = useState(true);
   
@@ -61,6 +77,7 @@ const Attendance: React.FC = () => {
   };
 
   const markAttendance = (email: string, status: string) => {
+    if (!selectedDate) return;
     const newRecords = { ...attendanceRecords };
     if (!newRecords[selectedDate]) {
       newRecords[selectedDate] = {};
@@ -73,6 +90,7 @@ const Attendance: React.FC = () => {
   };
 
   const markAllPresent = () => {
+    if (!selectedDate) return;
     const newRecords = { ...attendanceRecords };
     if (!newRecords[selectedDate]) {
       newRecords[selectedDate] = {};
@@ -123,12 +141,21 @@ const Attendance: React.FC = () => {
         <div className="flex items-center gap-4 bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
           <div className="flex items-center gap-2 text-gray-600 border-r border-gray-200 pr-4">
             <CalendarIcon size={18} className="text-primary" />
-            <input 
-              type="date" 
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="outline-none bg-transparent font-medium text-gray-900"
-            />
+            {sessions.length > 0 ? (
+              <select 
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="outline-none bg-transparent font-medium text-gray-900 cursor-pointer"
+              >
+                {sessions.map((session, idx) => (
+                  <option key={idx} value={session.dateString}>
+                    {session.dateString} ({session.title})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="text-sm font-medium text-gray-500">No sessions scheduled</span>
+            )}
           </div>
           <div className="flex flex-col px-2">
             <span className="text-xs text-gray-500 font-medium">Present Today</span>

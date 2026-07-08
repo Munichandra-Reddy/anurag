@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Mail, Calendar, User, Loader2 } from 'lucide-react';
+import { Search, Mail, Calendar, User, Loader2, UserPlus, Trash2, X } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
 
 interface Student {
@@ -15,6 +15,12 @@ const MentorStudents: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+
+  // Add Student State
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newStudentName, setNewStudentName] = useState('');
+  const [newStudentEmail, setNewStudentEmail] = useState('');
+  const [newStudentBatch, setNewStudentBatch] = useState('Morning');
 
   useEffect(() => {
     const loadStudents = async () => {
@@ -52,6 +58,38 @@ const MentorStudents: React.FC = () => {
     await saveToCloudflare('registeredStudents', updated);
   };
 
+  const handleRemoveStudent = async (studentId: number) => {
+    if (!window.confirm("Are you sure you want to remove this student?")) return;
+    const updated = students.filter(s => s.id !== studentId);
+    setStudents(updated);
+    localStorage.setItem('registeredStudents', JSON.stringify(updated));
+    await saveToCloudflare('registeredStudents', updated);
+  };
+
+  const handleAddStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newStudentName || !newStudentEmail) return;
+
+    const newStudent: Student = {
+      id: Date.now(),
+      name: newStudentName,
+      email: newStudentEmail,
+      registeredAt: new Date().toISOString(),
+      batch: newStudentBatch
+    };
+
+    const updated = [newStudent, ...students];
+    setStudents(updated);
+    localStorage.setItem('registeredStudents', JSON.stringify(updated));
+    await saveToCloudflare('registeredStudents', updated);
+
+    // Reset form
+    setNewStudentName('');
+    setNewStudentEmail('');
+    setNewStudentBatch('Morning');
+    setShowAddForm(false);
+  };
+
   if (isLoading) {
     return (
       <div className="w-full h-64 flex items-center justify-center">
@@ -76,9 +114,9 @@ const MentorStudents: React.FC = () => {
         </div>
       </div>
 
-      {/* Search Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
-        <div className="relative w-full md:w-96">
+      {/* Search and Add Bar */}
+      <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+        <div className="relative w-full md:max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
             type="text"
@@ -88,7 +126,60 @@ const MentorStudents: React.FC = () => {
             className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors text-sm"
           />
         </div>
+        <button 
+          onClick={() => setShowAddForm(!showAddForm)}
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl font-bold text-sm hover:bg-orange-600 transition-colors shrink-0 w-full md:w-auto justify-center"
+        >
+          {showAddForm ? <X size={18} /> : <UserPlus size={18} />}
+          {showAddForm ? "Cancel" : "Add Student"}
+        </button>
       </div>
+
+      {/* Add Student Form */}
+      {showAddForm && (
+        <motion.div 
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          className="bg-orange-50 border border-orange-100 p-6 rounded-2xl shadow-sm"
+        >
+          <h3 className="font-bold text-orange-900 mb-4 flex items-center gap-2">
+            <UserPlus size={18} /> Add New Student
+          </h3>
+          <form onSubmit={handleAddStudent} className="flex flex-col md:flex-row gap-4 items-end">
+            <div className="w-full md:flex-1">
+              <label className="block text-xs font-bold text-orange-800 mb-1">Full Name</label>
+              <input 
+                type="text" required
+                value={newStudentName} onChange={e => setNewStudentName(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-orange-200 rounded-lg focus:outline-none focus:border-primary text-sm"
+                placeholder="e.g. Raju"
+              />
+            </div>
+            <div className="w-full md:flex-1">
+              <label className="block text-xs font-bold text-orange-800 mb-1">Email Address</label>
+              <input 
+                type="email" required
+                value={newStudentEmail} onChange={e => setNewStudentEmail(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-orange-200 rounded-lg focus:outline-none focus:border-primary text-sm"
+                placeholder="e.g. raju@anurag.com"
+              />
+            </div>
+            <div className="w-full md:w-48 shrink-0">
+              <label className="block text-xs font-bold text-orange-800 mb-1">Assign Batch</label>
+              <select 
+                value={newStudentBatch} onChange={e => setNewStudentBatch(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-orange-200 rounded-lg focus:outline-none focus:border-primary text-sm"
+              >
+                <option value="Morning">Morning Batch</option>
+                <option value="Evening">Evening Batch</option>
+              </select>
+            </div>
+            <button type="submit" className="w-full md:w-auto px-6 py-2 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-700 transition-colors text-sm">
+              Save Student
+            </button>
+          </form>
+        </motion.div>
+      )}
 
       {/* Students Grid */}
       {filteredStudents.length > 0 ? (
@@ -101,7 +192,7 @@ const MentorStudents: React.FC = () => {
               key={student.id}
               className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow relative"
             >
-              <div className="absolute top-4 right-4">
+              <div className="absolute top-4 right-4 flex items-center gap-2">
                 <select 
                   value={student.batch || 'Unassigned'}
                   onChange={(e) => handleBatchChange(student.id, e.target.value)}
@@ -111,8 +202,15 @@ const MentorStudents: React.FC = () => {
                   <option value="Morning">Morning Batch</option>
                   <option value="Evening">Evening Batch</option>
                 </select>
+                <button 
+                  onClick={() => handleRemoveStudent(student.id)}
+                  className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                  title="Remove Student"
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
-              <div className="flex items-start gap-4 pr-24">
+              <div className="flex items-start gap-4 pr-32">
                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-primary font-bold text-lg shrink-0">
                   {student.name.charAt(0).toUpperCase()}
                 </div>

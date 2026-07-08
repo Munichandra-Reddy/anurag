@@ -14,7 +14,7 @@ interface Batch {
 const ProjectBatch: React.FC = () => {
   const location = useLocation();
   const isMentor = location.pathname.includes('/mentor-dashboard');
-  const loggedInEmail = localStorage.getItem('loggedInEmail') || '';
+  const loggedInEmail = sessionStorage.getItem('loggedInEmail') || '';
 
   const [batches, setBatches] = useState<Batch[]>([]);
   const [registeredStudents, setRegisteredStudents] = useState<any[]>([]);
@@ -186,19 +186,10 @@ const ProjectBatch: React.FC = () => {
           {/* Batch Info Card */}
           <div className="col-span-1 md:col-span-2 bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
             <h2 className="text-lg font-bold text-gray-900 mb-6">Batch Overview</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6">
               <div className="p-4 bg-orange-50 rounded-xl border border-orange-100">
                 <p className="text-xs font-bold text-orange-600 uppercase tracking-wider">Batch Number</p>
                 <p className="text-2xl font-black text-gray-900 mt-1">{myBatch.batchNumber || '—'}</p>
-              </div>
-              <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 flex flex-col">
-                <p className="text-xs font-bold text-blue-600 uppercase tracking-wider">Virtual Room</p>
-                <p className="text-2xl font-black text-gray-900 mt-1">{myBatch.virtualRoom || '—'}</p>
-                {myBatch.virtualRoom && (
-                  <button className="mt-auto flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors w-max">
-                    <Video size={16} /> Join Meeting Room
-                  </button>
-                )}
               </div>
             </div>
           </div>
@@ -298,7 +289,7 @@ const ProjectBatch: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Batch Number</label>
               <input 
@@ -306,16 +297,6 @@ const ProjectBatch: React.FC = () => {
                 value={editForm.batchNumber}
                 onChange={e => setEditForm({...editForm, batchNumber: e.target.value})}
                 placeholder="e.g. Batch 1"
-                className="w-full p-3 rounded-xl border border-gray-200 bg-white font-bold text-gray-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Virtual Room</label>
-              <input 
-                type="text"
-                value={editForm.virtualRoom}
-                onChange={e => setEditForm({...editForm, virtualRoom: e.target.value})}
-                placeholder="e.g. Room 203"
                 className="w-full p-3 rounded-xl border border-gray-200 bg-white font-bold text-gray-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
               />
             </div>
@@ -416,9 +397,6 @@ const ProjectBatch: React.FC = () => {
               <div className="col-span-1 md:col-span-2">
                 <h2 className="text-xl font-black text-gray-900 mb-2">{batch.batchNumber || 'Unnamed Batch'}</h2>
                 <div className="flex items-center gap-6 text-sm text-gray-500">
-                  <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
-                    <Video size={16} className="text-blue-500" /> Room: <span className="font-bold text-gray-900">{batch.virtualRoom || 'N/A'}</span>
-                  </div>
                   <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
                     <ShieldCheck size={16} className="text-primary" /> Mentor: <span className="font-bold text-gray-900">{batch.assignedMentor || 'Unassigned'}</span>
                   </div>

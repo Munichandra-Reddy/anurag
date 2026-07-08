@@ -44,7 +44,7 @@ const Assessments: React.FC = () => {
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   
-  const loggedInEmail = localStorage.getItem('loggedInEmail') || 'student@anurag.edu.in';
+  const loggedInEmail = sessionStorage.getItem('loggedInEmail') || 'student@anurag.edu.in';
   const assessmentsKey = `anuragLmsAssessments_${loggedInEmail}`;
 
   const [completedAssessments, setCompletedAssessments] = useState<Record<number, { score: number, percentage: number, answers: Record<number, number> }>>(() => {

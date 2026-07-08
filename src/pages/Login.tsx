@@ -13,17 +13,40 @@ const Login: React.FC = () => {
   const [isLoginView, setIsLoginView] = useState(true);
   const navigate = useNavigate();
 
+  React.useEffect(() => {
+    const loggedInEmail = sessionStorage.getItem('loggedInEmail');
+    if (loggedInEmail) {
+      if (loggedInEmail === 'munidhoni@72') {
+        navigate('/faculty-dashboard');
+      } else if (
+        loggedInEmail === 'maheshk@geonixa.com' || 
+        loggedInEmail === 'jithendravarma.l@gmail.com'
+      ) {
+        navigate('/mentor-dashboard');
+      } else {
+        navigate('/dashboard');
+      }
+    }
+  }, [navigate]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
     
+    // Faculty Login Check
+    if (cleanEmail === 'munidhoni@72' && cleanPassword === 'Muni@72') {
+      sessionStorage.setItem('loggedInEmail', cleanEmail);
+      navigate('/faculty-dashboard');
+      return;
+    }
+
     // Mentor Login Check
     if (
       (cleanEmail === 'maheshk@geonixa.com' && cleanPassword === 'GEO@9001') ||
       (cleanEmail === 'jithendravarma.l@gmail.com' && cleanPassword === 'Varma@9293')
     ) {
-      localStorage.setItem('loggedInEmail', cleanEmail);
+      sessionStorage.setItem('loggedInEmail', cleanEmail);
       navigate('/mentor-dashboard');
       return;
     }
@@ -45,7 +68,7 @@ const Login: React.FC = () => {
         const student = existingStudents.find((s: any) => s.email.toLowerCase() === cleanEmail && s.password === cleanPassword);
         
         if (student) {
-          localStorage.setItem('loggedInEmail', cleanEmail);
+          sessionStorage.setItem('loggedInEmail', cleanEmail);
           navigate('/dashboard');
         } else {
           setError('Invalid username or password. Please create an account first.');
@@ -56,7 +79,7 @@ const Login: React.FC = () => {
         setIsLoading(false);
       }
     } else {
-      setError('Access restricted to @anurag emails and authorized mentors.');
+      setError('Access restricted to @anurag emails, mentors, and faculty.');
     }
   };
 
@@ -98,11 +121,10 @@ const Login: React.FC = () => {
       
       // Store signed up student
       const newStudent = {
-        id: Date.now(),
-        name: name.trim() || cleanEmail.split('@')[0],
+        name,
         email: cleanEmail,
         password: cleanPassword,
-        registeredAt: new Date().toISOString()
+        batch: 'Pending'
       };
       
       const updatedStudents = [...existingStudents, newStudent];
@@ -113,7 +135,7 @@ const Login: React.FC = () => {
       // Sync to cloud in the background
       await saveToCloudflare('registeredStudents', updatedStudents);
 
-      localStorage.setItem('loggedInEmail', cleanEmail);
+      sessionStorage.setItem('loggedInEmail', cleanEmail);
       navigate('/dashboard');
     } catch (err) {
       setError('Failed to connect to server. Please try again.');

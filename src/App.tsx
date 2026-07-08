@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './pages/Login';
 import DashboardLayout from './layouts/DashboardLayout';
 import MentorDashboardLayout from './layouts/MentorDashboardLayout';
+import FacultyDashboardLayout from './layouts/FacultyDashboardLayout';
 import Overview from './pages/Overview';
 import Classes from './pages/Classes';
 import Projects from './pages/Projects';
@@ -13,6 +14,8 @@ import Attendance from './pages/Attendance';
 import MentorStudents from './pages/MentorStudents';
 import ChatSupport from './pages/ChatSupport';
 import TopPerformer from './pages/TopPerformer';
+import AttendanceReport from './pages/AttendanceReport';
+import MarksReport from './pages/MarksReport';
 
 function App() {
   return (
@@ -45,7 +48,17 @@ function App() {
           <Route path="project-batch" element={<ProjectBatch />} />
           <Route path="chat-support" element={<ChatSupport />} />
           <Route path="assessments" element={<Assessments />} />
+          <Route path="attendance-report" element={<AttendanceReport />} />
+          <Route path="marks-report" element={<MarksReport />} />
           <Route path="top-performer" element={<TopPerformer />} />
+          <Route path="*" element={<div className="p-8">Feature Coming Soon</div>} />
+        </Route>
+
+        {/* Faculty Dashboard */}
+        <Route path="/faculty-dashboard" element={<FacultyDashboardLayout />}>
+          <Route index element={<Navigate to="attendance-report" replace />} />
+          <Route path="attendance-report" element={<AttendanceReport isFacultyView={true} />} />
+          <Route path="marks-report" element={<MarksReport isFacultyView={true} />} />
           <Route path="*" element={<div className="p-8">Feature Coming Soon</div>} />
         </Route>
       </Routes>

@@ -9,7 +9,16 @@ import { cn } from '../utils/cn';
 const DashboardLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const userEmail = localStorage.getItem('loggedInEmail') || 'student@anurag.edu.in';
+  const userEmail = sessionStorage.getItem('loggedInEmail');
+
+  React.useEffect(() => {
+    // Route Guard: strict access only for logged in users
+    if (!userEmail) {
+      navigate('/login');
+    } else if (userEmail === 'maheshk@geonixa.com' || userEmail === 'jithendravarma.l@gmail.com') {
+      navigate('/mentor-dashboard');
+    }
+  }, [userEmail, navigate]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAssessmentsExpanded, setIsAssessmentsExpanded] = useState(false);
 
@@ -133,7 +142,10 @@ const DashboardLayout: React.FC = () => {
           </div>
           
           <button 
-            onClick={() => navigate('/login')}
+            onClick={() => {
+              sessionStorage.removeItem('loggedInEmail');
+              navigate('/login');
+            }}
             className="flex items-center justify-between text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors w-full text-sm font-bold p-2 rounded-lg"
           >
             <div className="flex items-center gap-2">

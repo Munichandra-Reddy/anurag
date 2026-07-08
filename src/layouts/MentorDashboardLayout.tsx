@@ -9,12 +9,14 @@ import { cn } from '../utils/cn';
 const MentorDashboardLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  let userEmail = localStorage.getItem('loggedInEmail') || 'mentor@geonixa.com';
-  
-  // Ensure student emails are never displayed in the mentor portal
-  if (userEmail.includes('@anurag')) {
-    userEmail = 'maheshk@geonixa.com';
-  }
+  const userEmail = sessionStorage.getItem('loggedInEmail');
+
+  React.useEffect(() => {
+    // Route Guard: strict access only for authorized mentors
+    if (userEmail !== 'maheshk@geonixa.com' && userEmail !== 'jithendravarma.l@gmail.com') {
+      navigate('/login');
+    }
+  }, [userEmail, navigate]);
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAssessmentsExpanded, setIsAssessmentsExpanded] = useState(false);
@@ -34,6 +36,8 @@ const MentorDashboardLayout: React.FC = () => {
     { title: 'Chat Support', icon: <MessageSquare size={20} />, path: '/mentor-dashboard/chat-support' },
     { title: 'Exam Reports', icon: <FileText size={20} />, path: '/mentor-dashboard/assessments' },
     { title: 'Assessments', icon: <FileText size={20} />, path: '/mentor-dashboard/assessments' },
+    { title: 'Attendance Report', icon: <ClipboardCheck size={20} />, path: '/mentor-dashboard/attendance-report' },
+    { title: 'Marks Report', icon: <FileText size={20} />, path: '/mentor-dashboard/marks-report' },
     { title: 'Top Performer', icon: <Award size={20} />, path: '/mentor-dashboard/top-performer' },
   ];
 
@@ -139,7 +143,7 @@ const MentorDashboardLayout: React.FC = () => {
           
           <button 
             onClick={() => {
-              localStorage.removeItem('loggedInEmail');
+              sessionStorage.removeItem('loggedInEmail');
               navigate('/login');
             }}
             className="flex items-center justify-between text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors w-full text-sm font-bold p-2 rounded-lg"

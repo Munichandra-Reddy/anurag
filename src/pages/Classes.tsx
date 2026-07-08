@@ -23,7 +23,7 @@ const defaultSessions = getThursdays(new Date(currentYear, 6, 1), 13).map((date,
   id: Date.now() + i, // Unique IDs
   title: `Session ${i + 1}`,
   topic: `Introduction to Web Technologies & Modern Frameworks Part ${i + 1}`,
-  dateString: date.toISOString().split('T')[0], // Store as ISO string date part
+  dateString: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`, // Store as local date string
   time: "10:00 AM - 12:00 PM"
 }));
 
@@ -129,7 +129,7 @@ const Classes: React.FC = () => {
 
     // Days
     for (let d = 1; d <= daysInMonth; d++) {
-      const currentDateString = new Date(year, month, d).toISOString().split('T')[0];
+      const currentDateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       
       // Check if we have sessions on this day
       const daySessions = sessions.filter((s: any) => s.dateString === currentDateString);

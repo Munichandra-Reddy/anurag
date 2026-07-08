@@ -12,7 +12,7 @@ interface ChatMessage {
 const ChatSupport: React.FC = () => {
   const location = useLocation();
   const isMentor = location.pathname.includes('/mentor-dashboard');
-  const loggedInEmail = localStorage.getItem('loggedInEmail') || '';
+  const loggedInEmail = sessionStorage.getItem('loggedInEmail') || '';
   
   const [registeredStudents, setRegisteredStudents] = useState<any[]>([]);
   const [chats, setChats] = useState<Record<string, ChatMessage[]>>({});
