@@ -78,7 +78,7 @@ const CourseContent: React.FC = () => {
     <div className="w-full max-w-5xl space-y-8 pb-12">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0">
         <div className="flex items-center gap-3 text-gray-900 font-bold text-xl sm:text-2xl">
-          <BookOpen className="text-orange-500" size={24} className="sm:w-7 sm:h-7" /> 
+          <BookOpen className="text-orange-500 sm:w-7 sm:h-7" size={24} /> 
           Course Content
         </div>
         <div className="flex items-center gap-3">

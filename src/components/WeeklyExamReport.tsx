@@ -6,6 +6,7 @@ interface Student {
   id: number;
   name: string;
   email: string;
+  batch?: string;
 }
 
 interface Marks {
