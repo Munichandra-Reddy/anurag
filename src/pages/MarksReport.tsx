@@ -23,6 +23,19 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
   useEffect(() => {
     const loadData = async () => {
       try {
+        if (isFacultyView) {
+          const snapshot = await getFromCloudflare('facultySnapshotMarks');
+          if (snapshot) {
+            setStudents(snapshot.students || []);
+            setMarksData(snapshot.marksData || {});
+            setIsSubmitted(true);
+          } else {
+            setIsSubmitted(false);
+          }
+          setIsLoading(false);
+          return;
+        }
+
         const cloudStudents = await getFromCloudflare('registeredStudents');
         
         // Merge lingering local students to prevent data loss
@@ -72,18 +85,14 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
         
         setMarksData(allMarks);
         
-        const localFlag = localStorage.getItem('facultySubmittedMarks');
-        let isFlagSubmitted = false;
+        // Check if current live data matches the last submitted snapshot
+        const currentDataString = JSON.stringify({ marksData: allMarks, students: registeredStudents });
+        const lastSubmittedHash = localStorage.getItem('facultySnapshotHash_Marks');
         
-        if (localFlag) {
-          isFlagSubmitted = JSON.parse(localFlag).submitted;
-        } else {
-          const submittedFlag = await getFromCloudflare('facultySubmittedMarks');
-          isFlagSubmitted = !!submittedFlag?.submitted;
-        }
-        
-        if (isFlagSubmitted) {
+        if (lastSubmittedHash === currentDataString) {
           setIsSubmitted(true);
+        } else {
+          setIsSubmitted(false);
         }
 
       } catch (error) {
@@ -117,15 +126,18 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     
-    const flagData = { submitted: true, timestamp: Date.now() };
-    // Save to local storage for instant sync and offline support
-    localStorage.setItem('facultySubmittedMarks', JSON.stringify(flagData));
-    // Save to cloudflare for remote persistence
-    await saveToCloudflare('facultySubmittedMarks', flagData);
+    const snapshotData = { marksData, students };
+    const currentDataString = JSON.stringify(snapshotData);
+    
+    // Save snapshot for faculty
+    await saveToCloudflare('facultySnapshotMarks', snapshotData);
+    
+    // Save hash locally to know when data changes again
+    localStorage.setItem('facultySnapshotHash_Marks', currentDataString);
     
     setIsSubmitted(true);
     setIsSubmitting(false);
-    alert('Marks Report successfully submitted to Faculty!');
+    alert('Marks updates successfully sent to Faculty!');
   };
 
   return (

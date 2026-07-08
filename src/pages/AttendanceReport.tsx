@@ -18,44 +18,53 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ isFacultyView = fal
   useEffect(() => {
     const loadData = async () => {
       try {
+        if (isFacultyView) {
+          const snapshot = await getFromCloudflare('facultySnapshotAttendance');
+          if (snapshot) {
+            setStudents(snapshot.students || []);
+            setAttendanceRecords(snapshot.attendanceRecords || {});
+            setSessions(snapshot.sessions || []);
+            setIsSubmitted(true);
+          } else {
+            setIsSubmitted(false);
+          }
+          setIsLoading(false);
+          return;
+        }
+
+        // --- Mentor View: Load live data ---
         const [cloudStudents, cloudAttendance] = await Promise.all([
           getFromCloudflare('registeredStudents'),
           getFromCloudflare('attendanceRecords')
         ]);
         
-        // Merge lingering local students to prevent data loss
         const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
         const allStudentsMap = new Map();
         [...localStudents, ...(cloudStudents || [])].forEach(s => {
           if (s && s.email) allStudentsMap.set(s.email, s);
         });
-        setStudents(Array.from(allStudentsMap.values()));
+        const currentStudents = Array.from(allStudentsMap.values());
+        setStudents(currentStudents);
 
-        // Merge lingering local attendance records
         const localAttendance = JSON.parse(localStorage.getItem('attendanceRecords') || '{}');
-        const mergedAttendance = { ...localAttendance, ...(cloudAttendance || {}) };
-        setAttendanceRecords(mergedAttendance);
+        const currentAttendance = { ...localAttendance, ...(cloudAttendance || {}) };
+        setAttendanceRecords(currentAttendance);
 
-        // Load sessions
+        let currentSessions = [];
         const savedClasses = localStorage.getItem('anuragLmsClasses');
         if (savedClasses) {
-          const parsed = JSON.parse(savedClasses);
-          // Load all sessions dynamically
-          setSessions(parsed);
+          currentSessions = JSON.parse(savedClasses);
+          setSessions(currentSessions);
         }
         
-        const localFlag = localStorage.getItem('facultySubmittedAttendance');
-        let isFlagSubmitted = false;
+        // Check if current live data matches the last submitted snapshot
+        const currentDataString = JSON.stringify({ attendanceRecords: currentAttendance, students: currentStudents, sessions: currentSessions });
+        const lastSubmittedHash = localStorage.getItem('facultySnapshotHash_Attendance');
         
-        if (localFlag) {
-          isFlagSubmitted = JSON.parse(localFlag).submitted;
-        } else {
-          const submittedFlag = await getFromCloudflare('facultySubmittedAttendance');
-          isFlagSubmitted = !!submittedFlag?.submitted;
-        }
-        
-        if (isFlagSubmitted) {
+        if (lastSubmittedHash === currentDataString) {
           setIsSubmitted(true);
+        } else {
+          setIsSubmitted(false);
         }
 
       } catch (error) {
@@ -89,15 +98,18 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ isFacultyView = fal
   const handleSubmit = async () => {
     setIsSubmitting(true);
     
-    const flagData = { submitted: true, timestamp: Date.now() };
-    // Save to local storage for instant sync and offline support
-    localStorage.setItem('facultySubmittedAttendance', JSON.stringify(flagData));
-    // Save to cloudflare for remote persistence
-    await saveToCloudflare('facultySubmittedAttendance', flagData);
+    const snapshotData = { attendanceRecords, students, sessions };
+    const currentDataString = JSON.stringify(snapshotData);
+    
+    // Save snapshot for faculty
+    await saveToCloudflare('facultySnapshotAttendance', snapshotData);
+    
+    // Save hash locally to know when data changes again
+    localStorage.setItem('facultySnapshotHash_Attendance', currentDataString);
     
     setIsSubmitted(true);
     setIsSubmitting(false);
-    alert('Attendance Report successfully submitted to Faculty!');
+    alert('Attendance updates successfully sent to Faculty!');
   };
 
   return (
