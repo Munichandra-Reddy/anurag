@@ -50,7 +50,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ isFacultyView = fal
         const currentAttendance = { ...localAttendance, ...(cloudAttendance || {}) };
         setAttendanceRecords(currentAttendance);
 
-        let currentSessions = [];
+        let currentSessions: any[] = [];
         const savedClasses = localStorage.getItem('anuragLmsClasses');
         if (savedClasses) {
           currentSessions = JSON.parse(savedClasses);

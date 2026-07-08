@@ -8,7 +8,7 @@ import { cn } from '../utils/cn';
 const FacultyDashboardLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const userEmail = sessionStorage.getItem('loggedInEmail');
+  const userEmail = sessionStorage.getItem('loggedInEmail') || '';
 
   React.useEffect(() => {
     // Route Guard: strict access only for faculty
