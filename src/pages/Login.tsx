@@ -121,12 +121,10 @@ const Login: React.FC = () => {
       
       // Store signed up student
       const newStudent = {
-        id: Date.now(),
         name,
         email: cleanEmail,
         password: cleanPassword,
-        batch: 'Pending',
-        registeredAt: new Date().toISOString()
+        batch: 'Pending'
       };
       
       const updatedStudents = [...existingStudents, newStudent];
