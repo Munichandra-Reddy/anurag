@@ -177,18 +177,9 @@ const Overview: React.FC = () => {
           </div>
 
           <div className="pt-20">
-            {/* Name and Badge */}
+            {/* Name */}
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 w-full sm:w-auto">{profile.name}</h1>
-              {userBatch && userBatch !== 'Unassigned' && userBatch !== 'Pending' ? (
-                <span className="px-3 py-1 bg-blue-50 border border-blue-200 text-blue-600 rounded-full text-[10px] sm:text-xs font-medium flex items-center gap-1">
-                  {userBatch.includes('Morning') ? '🌅 ' : '🌃 '}{userBatch}
-                </span>
-              ) : (
-                <span className="px-3 py-1 bg-gray-50 border border-gray-200 text-gray-500 rounded-full text-[10px] sm:text-xs font-medium flex items-center gap-1">
-                  ⏳ Batch Pending
-                </span>
-              )}
             </div>
 
             {/* Institution */}
@@ -232,7 +223,7 @@ const Overview: React.FC = () => {
 
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
         <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start">
             <h3 className="text-[10px] font-bold text-gray-500 tracking-wider uppercase">Attendance Rate</h3>
@@ -243,32 +234,6 @@ const Overview: React.FC = () => {
           <div className="mt-2">
             <p className="text-3xl font-black text-gray-900">{attendancePercentage}%</p>
             <p className="text-xs text-gray-500 mt-1">{attendance.attended} of {attendance.total} classes logged</p>
-          </div>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col justify-between">
-          <div className="flex justify-between items-start">
-            <h3 className="text-[10px] font-bold text-gray-500 tracking-wider uppercase">Outstanding Dues</h3>
-            <div className="w-8 h-8 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center shrink-0">
-              <CreditCard size={16} />
-            </div>
-          </div>
-          <div className="mt-2">
-            <p className="text-3xl font-black text-gray-900">₹20,000</p>
-            <p className="text-xs text-gray-500 mt-1">Status: Dues Outstanding</p>
-          </div>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col justify-between">
-          <div className="flex justify-between items-start">
-            <h3 className="text-[10px] font-bold text-gray-500 tracking-wider uppercase">LMS Learning Portal</h3>
-            <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0">
-              <Laptop size={16} />
-            </div>
-          </div>
-          <div className="mt-2">
-            <p className="text-3xl font-black text-gray-900">Activated</p>
-            <p className="text-xs text-gray-500 mt-1">Credentials active</p>
           </div>
         </div>
 
