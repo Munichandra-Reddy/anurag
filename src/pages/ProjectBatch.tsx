@@ -101,6 +101,7 @@ const ProjectBatch: React.FC = () => {
   const handleSaveEdit = () => {
     if (!editForm) return;
     
+    
     let updatedBatches: Batch[];
     const exists = batches.some(b => b.id === editForm.id);
     
@@ -109,6 +110,19 @@ const ProjectBatch: React.FC = () => {
     } else {
       updatedBatches = [editForm, ...batches]; // Put new batch at the top
     }
+    
+    // Update the students' batch property so their dashboard reflects the change
+    const updatedStudents = registeredStudents.map(student => {
+      // If student is in this batch, set their batch property
+      if (editForm.memberEmails.includes(student.email)) {
+        return { ...student, batch: editForm.batchNumber };
+      }
+      return student;
+    });
+    
+    localStorage.setItem('registeredStudents', JSON.stringify(updatedStudents));
+    saveToCloudflare('registeredStudents', updatedStudents);
+    setRegisteredStudents(updatedStudents);
     
     saveBatches(updatedBatches);
     setEditingBatchId(null);
