@@ -177,9 +177,18 @@ const Overview: React.FC = () => {
           </div>
 
           <div className="pt-20">
-            {/* Name */}
+            {/* Name and Badge */}
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 w-full sm:w-auto">{profile.name}</h1>
+              {userBatch && userBatch !== 'Unassigned' && userBatch !== 'Pending' ? (
+                <span className="px-3 py-1 bg-blue-50 border border-blue-200 text-blue-600 rounded-full text-[10px] sm:text-xs font-medium flex items-center gap-1">
+                  {userBatch.includes('Morning') ? '🌅 ' : '🌃 '}{userBatch}
+                </span>
+              ) : (
+                <span className="px-3 py-1 bg-gray-50 border border-gray-200 text-gray-500 rounded-full text-[10px] sm:text-xs font-medium flex items-center gap-1">
+                  ⏳ Batch Pending
+                </span>
+              )}
             </div>
 
             {/* Institution */}
