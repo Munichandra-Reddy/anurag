@@ -31,12 +31,9 @@ const DashboardLayout: React.FC = () => {
     { title: 'Overview', icon: <LayoutDashboard size={20} />, path: '/dashboard' },
     { title: 'Course Content', icon: <BookOpen size={20} />, path: '/dashboard/content' },
     { title: 'Classes', icon: <Video size={20} />, path: '/dashboard/classes' },
-    { title: 'Projects', icon: <Briefcase size={20} />, path: '/dashboard/projects' },
     { title: 'LMS Access', icon: <Key size={20} />, path: '/dashboard/access' },
     { title: 'Project Batch', icon: <Users size={20} />, path: '/dashboard/project-batch' },
     { title: 'Chat Support', icon: <MessageSquare size={20} />, path: '/dashboard/chat-support' },
-    { title: 'Weekly Exam Reports', icon: <BarChart size={20} />, path: '/dashboard/weekly-reports' },
-    { title: 'Exam Reports', icon: <FileText size={20} />, path: '/dashboard/assessments' },
     { title: 'Assessments', icon: <FileText size={20} />, path: '/dashboard/assessments' },
     { title: 'Top Performer', icon: <Award size={20} />, path: '/dashboard/top-performer' },
   ];
