@@ -49,8 +49,8 @@ const MentorStudents: React.FC = () => {
     student.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleBatchChange = async (studentId: number, newBatch: string) => {
-    const updated = students.map(s => s.id === studentId ? { ...s, batch: newBatch } : s);
+  const handleBatchChange = async (studentIdentifier: number | string, newBatch: string) => {
+    const updated = students.map(s => (s.id === studentIdentifier || s.email === studentIdentifier) ? { ...s, batch: newBatch } : s);
     setStudents(updated);
     
     // Save both to local and cloud to keep everything in sync
@@ -58,9 +58,9 @@ const MentorStudents: React.FC = () => {
     await saveToCloudflare('registeredStudents', updated);
   };
 
-  const handleRemoveStudent = async (studentId: number) => {
+  const handleRemoveStudent = async (studentIdentifier: number | string) => {
     if (!window.confirm("Are you sure you want to remove this student?")) return;
-    const updated = students.filter(s => s.id !== studentId);
+    const updated = students.filter(s => s.id !== studentIdentifier && s.email !== studentIdentifier);
     setStudents(updated);
     localStorage.setItem('registeredStudents', JSON.stringify(updated));
     await saveToCloudflare('registeredStudents', updated);
@@ -194,16 +194,17 @@ const MentorStudents: React.FC = () => {
             >
               <div className="absolute top-4 right-4 flex items-center gap-2">
                 <select 
-                  value={student.batch || 'Unassigned'}
-                  onChange={(e) => handleBatchChange(student.id, e.target.value)}
+                  value={student.batch === 'Pending' ? 'Pending' : (student.batch || 'Unassigned')}
+                  onChange={(e) => handleBatchChange(student.id || student.email, e.target.value)}
                   className="text-xs border border-gray-200 rounded-md px-2 py-1 bg-gray-50 text-gray-700 font-medium focus:outline-none focus:border-primary"
                 >
                   <option value="Unassigned" disabled>Select Batch</option>
+                  <option value="Pending" disabled>Select Batch</option>
                   <option value="Morning">Morning Batch</option>
                   <option value="Evening">Evening Batch</option>
                 </select>
                 <button 
-                  onClick={() => handleRemoveStudent(student.id)}
+                  onClick={() => handleRemoveStudent(student.id || student.email)}
                   className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
                   title="Remove Student"
                 >
