@@ -223,12 +223,14 @@ const MentorStudents: React.FC = () => {
                       <Mail size={14} className="text-gray-400 shrink-0" />
                       <span className="truncate">{student.email}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Calendar size={14} className="text-gray-400 shrink-0" />
-                      <span>{new Date(student.registeredAt || Date.now()).toLocaleDateString(undefined, {
-                        year: 'numeric', month: 'short', day: 'numeric'
-                      })}</span>
-                    </div>
+                    {student.registeredAt && (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Calendar size={14} className="text-gray-400 shrink-0" />
+                        <span>{new Date(student.registeredAt).toLocaleDateString(undefined, {
+                          year: 'numeric', month: 'short', day: 'numeric'
+                        })}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
