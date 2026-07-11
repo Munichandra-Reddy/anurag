@@ -148,7 +148,7 @@ const Login: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative">
       {/* Background Image & Dark Navy Overlay */}
-      <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center bg-no-repeat z-0"></div>
+      <div className="absolute inset-0 bg-[url('/anurag.avif')] bg-cover bg-center bg-no-repeat z-0"></div>
       <div className="absolute inset-0 bg-hero z-0"></div>
 
       <motion.div 
