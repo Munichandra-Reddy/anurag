@@ -225,9 +225,9 @@ const MentorStudents: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Calendar size={14} className="text-gray-400 shrink-0" />
-                      <span>{student.registeredAt ? new Date(student.registeredAt).toLocaleDateString(undefined, {
+                      <span>{new Date(student.registeredAt || Date.now()).toLocaleDateString(undefined, {
                         year: 'numeric', month: 'short', day: 'numeric'
-                      }) : 'N/A'}</span>
+                      })}</span>
                     </div>
                   </div>
                 </div>
