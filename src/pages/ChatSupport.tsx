@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { MessageSquare, Send, Users, ChevronRight, Loader2, User } from 'lucide-react';
+import { MessageSquare, Send, Users, ChevronRight, Loader2, User, Search } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
 
 interface ChatMessage {
@@ -38,6 +38,7 @@ const ChatSupport: React.FC = () => {
   const [mentorActiveType, setMentorActiveType] = useState<'batch' | 'personal'>('batch');
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [selectedStudentEmail, setSelectedStudentEmail] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -317,7 +318,14 @@ const ChatSupport: React.FC = () => {
   const selectedBatchObj = mentorActiveType === 'batch' ? batches.find(b => b.id === selectedBatchId) : null;
   const selectedStudentObj = mentorActiveType === 'personal' ? registeredStudents.find(s => s.email === selectedStudentEmail) : null;
 
-  const studentsWithPersonalChats = Object.keys(personalChats);
+  const filteredBatches = batches.filter(b => 
+    (b.batchNumber || '').toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  
+  const filteredStudents = registeredStudents.filter(s => 
+    s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    s.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 pb-12 h-[calc(100vh-8rem)] flex flex-col">
@@ -329,15 +337,27 @@ const ChatSupport: React.FC = () => {
       <div className="flex-1 bg-white rounded-2xl border border-gray-200 shadow-sm flex overflow-hidden">
         {/* Sidebar */}
         <div className="w-1/3 border-r border-gray-100 flex flex-col">
+          <div className="p-4 border-b border-gray-100 bg-white shrink-0">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+              <input 
+                type="text"
+                placeholder="Search batches or students..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm"
+              />
+            </div>
+          </div>
           <div className="flex-1 overflow-y-auto">
             {/* Batch Chats Section */}
             <div className="p-4 border-b border-gray-100 bg-gray-50 sticky top-0 z-10">
               <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wider">Project Batches</h3>
             </div>
-            {batches.length === 0 && (
-              <div className="p-4 text-center text-gray-500 text-sm">No batches created.</div>
+            {filteredBatches.length === 0 && (
+              <div className="p-4 text-center text-gray-500 text-sm">No batches found.</div>
             )}
-            {batches.map(batch => {
+            {filteredBatches.map(batch => {
               const lastMsg = groupChats[batch.id]?.[groupChats[batch.id].length - 1];
               const isSelected = mentorActiveType === 'batch' && selectedBatchId === batch.id;
               
@@ -365,11 +385,11 @@ const ChatSupport: React.FC = () => {
             <div className="p-4 border-b border-gray-100 bg-gray-50 sticky top-0 z-10 mt-2">
               <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wider">Direct Messages</h3>
             </div>
-            {registeredStudents.length === 0 && (
-              <div className="p-4 text-center text-gray-500 text-sm">No students registered.</div>
+            {filteredStudents.length === 0 && (
+              <div className="p-4 text-center text-gray-500 text-sm">No students found.</div>
             )}
             {/* We show all students or just those who messaged. Showing all lets mentor initiate. */}
-            {registeredStudents.map(student => {
+            {filteredStudents.map(student => {
               const email = student.email;
               const lastMsg = personalChats[email]?.[personalChats[email].length - 1];
               const isSelected = mentorActiveType === 'personal' && selectedStudentEmail === email;
