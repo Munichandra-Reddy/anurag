@@ -20,7 +20,7 @@ const MentorStudents: React.FC = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentEmail, setNewStudentEmail] = useState('');
-  const [newStudentBatch, setNewStudentBatch] = useState('Morning');
+  const [newStudentBatch, setNewStudentBatch] = useState('');
 
   useEffect(() => {
     const loadStudents = async () => {
@@ -86,7 +86,7 @@ const MentorStudents: React.FC = () => {
     // Reset form
     setNewStudentName('');
     setNewStudentEmail('');
-    setNewStudentBatch('Morning');
+    setNewStudentBatch('');
     setShowAddForm(false);
   };
 
@@ -170,6 +170,7 @@ const MentorStudents: React.FC = () => {
                 value={newStudentBatch} onChange={e => setNewStudentBatch(e.target.value)}
                 className="w-full px-3 py-2 bg-white border border-orange-200 rounded-lg focus:outline-none focus:border-primary text-sm"
               >
+                <option value="" disabled>Select Batch</option>
                 <option value="Morning">Morning Batch</option>
                 <option value="Evening">Evening Batch</option>
               </select>
@@ -194,11 +195,11 @@ const MentorStudents: React.FC = () => {
             >
               <div className="absolute top-4 right-4 flex items-center gap-2">
                 <select 
-                  value={student.batch || 'Unassigned'}
+                  value={student.batch || ''}
                   onChange={(e) => handleBatchChange(student.id, e.target.value)}
                   className="text-xs border border-gray-200 rounded-md px-2 py-1 bg-gray-50 text-gray-700 font-medium focus:outline-none focus:border-primary"
                 >
-                  <option value="Unassigned" disabled>Select Batch</option>
+                  <option value="" disabled>Select Batch</option>
                   <option value="Morning">Morning Batch</option>
                   <option value="Evening">Evening Batch</option>
                 </select>
@@ -224,9 +225,9 @@ const MentorStudents: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Calendar size={14} className="text-gray-400 shrink-0" />
-                      <span>{new Date(student.registeredAt).toLocaleDateString(undefined, {
+                      <span>{student.registeredAt ? new Date(student.registeredAt).toLocaleDateString(undefined, {
                         year: 'numeric', month: 'short', day: 'numeric'
-                      })}</span>
+                      }) : 'N/A'}</span>
                     </div>
                   </div>
                 </div>
