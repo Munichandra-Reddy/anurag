@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
 
 const Login: React.FC = () => {
@@ -11,6 +12,7 @@ const Login: React.FC = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isLoginView, setIsLoginView] = useState(true);
+  const [showForm, setShowForm] = useState(false);
   const navigate = useNavigate();
 
   React.useEffect(() => {
@@ -153,12 +155,43 @@ const Login: React.FC = () => {
       {/* Top Left Logo */}
       <img src="/logo12.jpg" alt="Institute Logo" className="absolute top-6 left-6 md:top-8 md:left-12 h-24 md:h-32 z-20 object-contain" />
 
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-sm bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 p-6 relative z-10"
-      >
-        <div className="text-center mb-8">
+      {/* Top Right Navigation */}
+      {!showForm && (
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="absolute top-8 right-6 md:top-12 md:right-16 z-20 flex space-x-3 md:space-x-4"
+        >
+          <button 
+            onClick={() => { setIsLoginView(true); setShowForm(true); }}
+            className="px-5 py-2 md:px-8 md:py-3 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white border border-white/50 rounded-xl font-medium transition-all shadow-lg"
+          >
+            Login
+          </button>
+          <button 
+            onClick={() => { setIsLoginView(false); setShowForm(true); }}
+            className="px-5 py-2 md:px-8 md:py-3 bg-primary hover:bg-primary-dark text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all"
+          >
+            Sign Up
+          </button>
+        </motion.div>
+      )}
+
+      <AnimatePresence>
+        {showForm && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="w-full max-w-sm bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 p-6 relative z-10"
+          >
+            <button 
+              onClick={() => setShowForm(false)}
+              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              <X size={20} />
+            </button>
+            <div className="text-center mb-8">
           <div className="w-16 h-16 bg-primary text-white rounded-2xl mx-auto flex items-center justify-center text-2xl font-bold mb-4">
             AL
           </div>
@@ -290,7 +323,9 @@ const Login: React.FC = () => {
             </p>
           </>
         )}
-      </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
