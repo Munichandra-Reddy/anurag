@@ -151,8 +151,8 @@ const Login: React.FC = () => {
       <div className="absolute inset-0 bg-[url('/anurag.avif')] bg-cover bg-center bg-no-repeat z-0"></div>
       <div className="absolute inset-0 bg-hero z-0"></div>
       
-      {/* Top Right Logo */}
-      <img src="/logo12.jpg" alt="Institute Logo" className="absolute top-6 right-6 md:top-8 md:right-12 h-16 md:h-20 z-20 object-contain" />
+      {/* Top Left Logo */}
+      <img src="/logo12.jpg" alt="Institute Logo" className="absolute top-6 left-6 md:top-8 md:left-12 h-16 md:h-20 z-20 object-contain" />
 
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
