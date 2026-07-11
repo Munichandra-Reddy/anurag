@@ -146,7 +146,7 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative">
+    <div className="min-h-screen flex items-center justify-center md:justify-start md:pl-20 lg:pl-40 p-4 relative">
       {/* Background Image & Dark Navy Overlay */}
       <div className="absolute inset-0 bg-[url('/anurag.avif')] bg-cover bg-center bg-no-repeat z-0"></div>
       <div className="absolute inset-0 bg-hero z-0"></div>
