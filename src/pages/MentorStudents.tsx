@@ -82,20 +82,15 @@ const MentorStudents: React.FC = () => {
 
         // Fetch Attendance
         let presentCount = 0;
-        let totalSessions = 0;
         const localAttendance = JSON.parse(localStorage.getItem('attendanceRecords') || '{}');
         const cloudAttendance = await getFromCloudflare('attendanceRecords');
         const attendanceRecords = { ...localAttendance, ...(cloudAttendance || {}) };
         
-        let sessions: any[] = [];
-        const savedClasses = localStorage.getItem('anuragLmsClasses');
-        if (savedClasses) sessions = JSON.parse(savedClasses);
-
-        totalSessions = sessions.length;
+        const allDates = Object.keys(attendanceRecords);
+        let totalSessions = allDates.length;
         
-        sessions.forEach(session => {
-           const dayRecords = attendanceRecords[session.dateString] || {};
-           if (dayRecords[selectedStudent.email] === 'present') {
+        allDates.forEach(date => {
+           if (attendanceRecords[date][selectedStudent.email] === 'present') {
              presentCount++;
            }
         });
