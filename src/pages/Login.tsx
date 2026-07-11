@@ -164,7 +164,7 @@ const Login: React.FC = () => {
         >
           <button 
             onClick={() => { setIsLoginView(true); setShowForm(true); }}
-            className="px-5 py-2 md:px-8 md:py-3 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white border border-white/50 rounded-xl font-medium transition-all shadow-lg"
+            className="px-5 py-2 md:px-8 md:py-3 bg-[#f97316] hover:bg-[#ea580c] text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all"
           >
             Login
           </button>
@@ -174,6 +174,23 @@ const Login: React.FC = () => {
           >
             Sign Up
           </button>
+        </motion.div>
+      )}
+
+      {/* Hero Text */}
+      {!showForm && (
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+          className="absolute inset-0 flex flex-col items-center justify-center text-center text-white px-4 z-10 pointer-events-none"
+        >
+          <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold mb-6 max-w-5xl leading-tight" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.6)' }}>
+            Changing the world takes more than grades...
+          </h1>
+          <p className="text-xl md:text-2xl lg:text-3xl font-medium max-w-3xl opacity-90" style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.6)' }}>
+            And, we create the space for whatever it takes
+          </p>
         </motion.div>
       )}
 
