@@ -152,7 +152,7 @@ const Login: React.FC = () => {
       <div className="absolute inset-0 bg-hero z-0"></div>
       
       {/* Top Left Logo */}
-      <img src="/logo12.jpg" alt="Institute Logo" className="absolute top-6 left-6 md:top-8 md:left-12 h-16 md:h-20 z-20 object-contain" />
+      <img src="/logo12.jpg" alt="Institute Logo" className="absolute top-6 left-6 md:top-8 md:left-12 h-24 md:h-32 z-20 object-contain" />
 
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
