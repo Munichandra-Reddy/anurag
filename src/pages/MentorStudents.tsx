@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { Search, Mail, Calendar, User, Loader2, UserPlus, Trash2, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, Mail, Calendar, User, Loader2, UserPlus, Trash2, X, ClipboardList } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
 
 interface Student {
@@ -10,6 +10,12 @@ interface Student {
   registeredAt: string;
   batch?: string;
 }
+
+const examPatterns = [
+  'week1', 'week2', 'week3', 'week4', 'week5', 'week6', 
+  'week7', 'week8', 'week9', 'week10', 'week11', 'week12', 
+  'CIE1', 'CIE2', 'SEM'
+];
 
 const MentorStudents: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
@@ -21,6 +27,11 @@ const MentorStudents: React.FC = () => {
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentEmail, setNewStudentEmail] = useState('');
   const [newStudentBatch, setNewStudentBatch] = useState('');
+
+  // Modal State
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [studentDetails, setStudentDetails] = useState<any>(null);
+  const [isDetailsLoading, setIsDetailsLoading] = useState(false);
 
   useEffect(() => {
     const loadStudents = async () => {
@@ -43,6 +54,62 @@ const MentorStudents: React.FC = () => {
     };
     loadStudents();
   }, []);
+
+  useEffect(() => {
+    if (!selectedStudent) return;
+    
+    const loadDetails = async () => {
+      setIsDetailsLoading(true);
+      try {
+        // Fetch Marks
+        const marks: Record<string, number | string> = {};
+        for (const pattern of examPatterns) {
+          const key = `weeklyReport_${selectedStudent.email}_${pattern}`;
+          const localStr = localStorage.getItem(key);
+          let marksObj = localStr ? JSON.parse(localStr) : await getFromCloudflare(key);
+          
+          if (marksObj) {
+             const isCie = pattern.startsWith('CIE') || pattern.startsWith('SEM');
+             marks[pattern] = Number(marksObj.project || 0) + 
+                             (isCie ? 0 : Number(marksObj.portfolio || 0)) + 
+                             Number(marksObj.theory || 0) + 
+                             Number(marksObj.attendance || 0) + 
+                             Number(marksObj.mentor || 0);
+          } else {
+             marks[pattern] = '-';
+          }
+        }
+
+        // Fetch Attendance
+        let presentCount = 0;
+        let totalSessions = 0;
+        const localAttendance = JSON.parse(localStorage.getItem('attendanceRecords') || '{}');
+        const cloudAttendance = await getFromCloudflare('attendanceRecords');
+        const attendanceRecords = { ...localAttendance, ...(cloudAttendance || {}) };
+        
+        let sessions: any[] = [];
+        const savedClasses = localStorage.getItem('anuragLmsClasses');
+        if (savedClasses) sessions = JSON.parse(savedClasses);
+
+        totalSessions = sessions.length;
+        
+        sessions.forEach(session => {
+           const dayRecords = attendanceRecords[session.dateString] || {};
+           if (dayRecords[selectedStudent.email] === 'present') {
+             presentCount++;
+           }
+        });
+
+        setStudentDetails({ marks, attendance: { present: presentCount, total: totalSessions } });
+      } catch(e) {
+         console.error("Failed to load student details:", e);
+      } finally {
+        setIsDetailsLoading(false);
+      }
+    };
+    
+    loadDetails();
+  }, [selectedStudent]);
 
   const filteredStudents = students.filter(student => 
     student.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -136,51 +203,54 @@ const MentorStudents: React.FC = () => {
       </div>
 
       {/* Add Student Form */}
-      {showAddForm && (
-        <motion.div 
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          className="bg-orange-50 border border-orange-100 p-6 rounded-2xl shadow-sm"
-        >
-          <h3 className="font-bold text-orange-900 mb-4 flex items-center gap-2">
-            <UserPlus size={18} /> Add New Student
-          </h3>
-          <form onSubmit={handleAddStudent} className="flex flex-col md:flex-row gap-4 items-end">
-            <div className="w-full md:flex-1">
-              <label className="block text-xs font-bold text-orange-800 mb-1">Full Name</label>
-              <input 
-                type="text" required
-                value={newStudentName} onChange={e => setNewStudentName(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-orange-200 rounded-lg focus:outline-none focus:border-primary text-sm"
-                placeholder="e.g. Raju"
-              />
-            </div>
-            <div className="w-full md:flex-1">
-              <label className="block text-xs font-bold text-orange-800 mb-1">Email Address</label>
-              <input 
-                type="email" required
-                value={newStudentEmail} onChange={e => setNewStudentEmail(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-orange-200 rounded-lg focus:outline-none focus:border-primary text-sm"
-                placeholder="e.g. raju@anurag.com"
-              />
-            </div>
-            <div className="w-full md:w-48 shrink-0">
-              <label className="block text-xs font-bold text-orange-800 mb-1">Assign Batch</label>
-              <select 
-                value={newStudentBatch} onChange={e => setNewStudentBatch(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-orange-200 rounded-lg focus:outline-none focus:border-primary text-sm"
-              >
-                <option value="" disabled>Select Batch</option>
-                <option value="Morning">Morning Batch</option>
-                <option value="Evening">Evening Batch</option>
-              </select>
-            </div>
-            <button type="submit" className="w-full md:w-auto px-6 py-2 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-700 transition-colors text-sm">
-              Save Student
-            </button>
-          </form>
-        </motion.div>
-      )}
+      <AnimatePresence>
+        {showAddForm && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="bg-orange-50 border border-orange-100 p-6 rounded-2xl shadow-sm overflow-hidden"
+          >
+            <h3 className="font-bold text-orange-900 mb-4 flex items-center gap-2">
+              <UserPlus size={18} /> Add New Student
+            </h3>
+            <form onSubmit={handleAddStudent} className="flex flex-col md:flex-row gap-4 items-end">
+              <div className="w-full md:flex-1">
+                <label className="block text-xs font-bold text-orange-800 mb-1">Full Name</label>
+                <input 
+                  type="text" required
+                  value={newStudentName} onChange={e => setNewStudentName(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-orange-200 rounded-lg focus:outline-none focus:border-primary text-sm"
+                  placeholder="e.g. Raju"
+                />
+              </div>
+              <div className="w-full md:flex-1">
+                <label className="block text-xs font-bold text-orange-800 mb-1">Email Address</label>
+                <input 
+                  type="email" required
+                  value={newStudentEmail} onChange={e => setNewStudentEmail(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-orange-200 rounded-lg focus:outline-none focus:border-primary text-sm"
+                  placeholder="e.g. raju@anurag.com"
+                />
+              </div>
+              <div className="w-full md:w-48 shrink-0">
+                <label className="block text-xs font-bold text-orange-800 mb-1">Assign Batch</label>
+                <select 
+                  value={newStudentBatch} onChange={e => setNewStudentBatch(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-orange-200 rounded-lg focus:outline-none focus:border-primary text-sm"
+                >
+                  <option value="" disabled>Select Batch</option>
+                  <option value="Morning">Morning Batch</option>
+                  <option value="Evening">Evening Batch</option>
+                </select>
+              </div>
+              <button type="submit" className="w-full md:w-auto px-6 py-2 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-700 transition-colors text-sm">
+                Save Student
+              </button>
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Students Grid */}
       {filteredStudents.length > 0 ? (
@@ -191,9 +261,10 @@ const MentorStudents: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}
               key={student.id}
-              className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow relative"
+              onClick={() => setSelectedStudent(student)}
+              className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow relative cursor-pointer"
             >
-              <div className="absolute top-4 right-4 flex items-center gap-2">
+              <div className="absolute top-4 right-4 flex items-center gap-2" onClick={e => e.stopPropagation()}>
                 <select 
                   value={student.batch || ''}
                   onChange={(e) => handleBatchChange(student.id, e.target.value)}
@@ -250,6 +321,92 @@ const MentorStudents: React.FC = () => {
           </p>
         </div>
       )}
+
+      {/* Student Details Modal */}
+      <AnimatePresence>
+        {selectedStudent && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSelectedStudent(null)}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 sticky top-0 z-10">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-primary font-bold text-lg shrink-0">
+                    {selectedStudent.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">{selectedStudent.name}</h2>
+                    <p className="text-sm text-gray-500">{selectedStudent.email}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedStudent(null)}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="p-6 overflow-y-auto">
+                {isDetailsLoading ? (
+                  <div className="flex flex-col items-center justify-center h-48">
+                      <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
+                      <p className="text-sm text-gray-500 font-medium">Loading student records...</p>
+                  </div>
+                ) : studentDetails && (
+                  <div className="space-y-8">
+                      {/* Basic Info */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-gray-50 p-5 rounded-xl border border-gray-100 flex items-start gap-3">
+                            <Calendar className="text-gray-400 mt-0.5 shrink-0" size={18} />
+                            <div>
+                              <p className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Registration Date</p>
+                              <p className="font-medium text-gray-900 text-lg">
+                                {selectedStudent.registeredAt ? new Date(selectedStudent.registeredAt).toLocaleDateString(undefined, {
+                                  year: 'numeric', month: 'long', day: 'numeric'
+                                }) : '-'}
+                              </p>
+                            </div>
+                        </div>
+                        <div className="bg-orange-50 p-5 rounded-xl border border-orange-100 flex items-start gap-3">
+                            <CheckCircle2 className="text-orange-500 mt-0.5 shrink-0" size={18} />
+                            <div>
+                              <p className="text-xs text-orange-600 uppercase font-bold tracking-wider mb-1">Total Attendance</p>
+                              <p className="font-bold text-orange-900 text-lg">
+                                {studentDetails.attendance.present} / {studentDetails.attendance.total}
+                                <span className="text-sm ml-2 font-medium text-orange-700">
+                                  ({studentDetails.attendance.total > 0 ? Math.round((studentDetails.attendance.present / studentDetails.attendance.total) * 100) : 0}%)
+                                </span>
+                              </p>
+                            </div>
+                        </div>
+                      </div>
+
+                      {/* Marks */}
+                      <div>
+                        <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2 border-b border-gray-100 pb-2">
+                          <ClipboardList size={18} className="text-primary" /> Examination Marks
+                        </h3>
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                            {examPatterns.map(pattern => (
+                              <div key={pattern} className={`border rounded-lg p-3 text-center shadow-sm ${studentDetails.marks[pattern] === '-' ? 'bg-gray-50 border-gray-100' : 'bg-white border-gray-200'}`}>
+                                  <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">{pattern}</p>
+                                  <p className={`font-bold ${studentDetails.marks[pattern] === '-' ? 'text-gray-400' : 'text-gray-900 text-lg'}`}>{studentDetails.marks[pattern]}</p>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
