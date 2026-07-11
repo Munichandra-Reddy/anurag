@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Mail, Calendar, User, Loader2, UserPlus, Trash2, X, ClipboardList } from 'lucide-react';
+import { Search, Mail, Calendar, User, Loader2, UserPlus, Trash2, X, ClipboardList, CheckCircle2 } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
 
 interface Student {
