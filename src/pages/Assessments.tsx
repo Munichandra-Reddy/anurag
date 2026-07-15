@@ -385,6 +385,10 @@ const Assessments: React.FC = () => {
             </div>
           </div>
         </div>
+
+        <div className="mt-12">
+          <PreAssessmentFlow isMentor={isMentor} loggedInEmail={loggedInEmail} />
+        </div>
       </div>
     );
   }
@@ -449,9 +453,7 @@ const Assessments: React.FC = () => {
         </div>
       )}
 
-      <div className="mb-8">
-        <PreAssessmentFlow isMentor={isMentor} loggedInEmail={loggedInEmail} />
-      </div>
+
 
       <div className="mb-12">
         <WeeklyAssessmentFlow isMentor={isMentor} loggedInEmail={loggedInEmail} />
