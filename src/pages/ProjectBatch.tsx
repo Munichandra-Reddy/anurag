@@ -48,14 +48,14 @@ const ProjectBatch: React.FC = () => {
         } else if (cloudBatches && Array.isArray(cloudBatches)) {
           finalBatches = cloudBatches;
         } else if (cloudBatches && Object.keys(cloudBatches).length > 0) {
-          finalBatches = [{ ...cloudBatches, id: 'legacy_1' }];
+          finalBatches = [{ ...cloudBatches, id: 'legacy_1' } as any];
         }
         setBatches(finalBatches);
 
         // Merge Students
         const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
         const allStudentsMap = new Map();
-        [...localStudents, ...(cloudStudents || [])].forEach(s => {
+        [...localStudents, ...((cloudStudents as any[]) || [])].forEach(s => {
           if (s && s.email) allStudentsMap.set(s.email, s);
         });
         setRegisteredStudents(Array.from(allStudentsMap.values()));

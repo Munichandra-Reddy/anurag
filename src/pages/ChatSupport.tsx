@@ -75,7 +75,7 @@ const ChatSupport: React.FC = () => {
         } else if (batchesData && Array.isArray(batchesData)) {
           finalBatches = batchesData;
         } else if (batchesData && Object.keys(batchesData).length > 0) {
-          finalBatches = [{ ...batchesData, id: 'legacy_1' }];
+          finalBatches = [{ ...batchesData, id: 'legacy_1' } as any];
         }
         setBatches(finalBatches);
 

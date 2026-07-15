@@ -76,7 +76,7 @@ const Login: React.FC = () => {
         const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
         
         const allStudentsMap = new Map();
-        [...localStudents, ...cloudStudents].forEach(s => {
+        [...localStudents, ...(cloudStudents as any[])].forEach(s => {
           if (s && s.email) allStudentsMap.set(s.email.toLowerCase(), s);
         });
         

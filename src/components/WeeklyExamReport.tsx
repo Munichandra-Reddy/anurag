@@ -83,7 +83,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         const localReport = JSON.parse(localStorage.getItem(key) || 'null');
         
         if (cloudReport) {
-          setStudentReport(cloudReport);
+          setStudentReport(cloudReport as any);
         } else if (localReport) {
           setStudentReport(localReport);
         } else {
@@ -113,7 +113,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         } else {
            const cloudReport = await getFromCloudflare(key);
            if (cloudReport) {
-             loadedMarks = cloudReport;
+             loadedMarks = cloudReport as any;
            } else if (localReport) {
              loadedMarks = localReport;
            }
