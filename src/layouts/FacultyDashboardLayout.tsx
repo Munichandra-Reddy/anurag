@@ -12,7 +12,8 @@ const FacultyDashboardLayout: React.FC = () => {
 
   React.useEffect(() => {
     // Route Guard: strict access only for faculty
-    if (userEmail !== 'munidhoni@72') {
+    const facultyEmails = ['munidhoni@72', 'naveence@anurag.edu.in', 'shekarreddyce@anurag.edu.in', 'hodce@anurag.edu.in'];
+    if (!facultyEmails.includes(userEmail)) {
       navigate('/login');
     }
   }, [userEmail, navigate]);
@@ -83,7 +84,7 @@ const FacultyDashboardLayout: React.FC = () => {
             </div>
             <div className="min-w-0">
               <p className="font-medium text-gray-900 text-sm truncate">Faculty</p>
-              <p className="text-xs text-gray-500 truncate" title="munidhoni@72">munidhoni@72</p>
+              <p className="text-xs text-gray-500 truncate" title={userEmail}>{userEmail}</p>
             </div>
           </div>
           <button 

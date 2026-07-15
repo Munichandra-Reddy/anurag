@@ -27,7 +27,8 @@ const Login: React.FC = () => {
   React.useEffect(() => {
     const loggedInEmail = sessionStorage.getItem('loggedInEmail');
     if (loggedInEmail) {
-      if (loggedInEmail === 'munidhoni@72') {
+      const facultyEmails = ['munidhoni@72', 'naveence@anurag.edu.in', 'shekarreddyce@anurag.edu.in', 'hodce@anurag.edu.in'];
+      if (facultyEmails.includes(loggedInEmail)) {
         navigate('/faculty-dashboard');
       } else if (
         loggedInEmail === 'maheshk@geonixa.com' || 
@@ -59,7 +60,15 @@ const Login: React.FC = () => {
     const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
     
-    if (cleanEmail === 'munidhoni@72' && cleanPassword === 'Muni@72') {
+    const facultyAccounts = [
+      { email: 'munidhoni@72', pass: 'Muni@72' },
+      { email: 'naveence@anurag.edu.in', pass: 'naveen' },
+      { email: 'shekarreddyce@anurag.edu.in', pass: 'shekarreddy' },
+      { email: 'hodce@anurag.edu.in', pass: 'hod' }
+    ];
+
+    const matchedFaculty = facultyAccounts.find(f => f.email === cleanEmail && f.pass === cleanPassword);
+    if (matchedFaculty) {
       sessionStorage.setItem('loggedInEmail', cleanEmail);
       navigate('/faculty-dashboard');
       return;
