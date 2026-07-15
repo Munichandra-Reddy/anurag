@@ -95,7 +95,7 @@ const MentorDashboardLayout: React.FC = () => {
                   </button>
                   {isAssessmentsExpanded && (
                     <div className="pl-11 pr-3 py-2 flex flex-col gap-2.5 mt-1 border-l-2 border-primary/20 ml-5">
-                      {['weekly Exam Pattern', 'CIE Exam Pattern', 'SEM Exam Pattern', 'week1', 'week2', 'week3', 'week4', 'week5', 'week6', 'CIE1', 'week7', 'week8', 'week9', 'week10', 'week11', 'week12', 'CIE2', 'SEM'].map((subItem, idx) => (
+                      {['weekly Exam Pattern', 'CIE Exam Pattern', 'SEM Exam Pattern', 'Pre Assessment Pattern', 'week1', 'week2', 'week3', 'week4', 'week5', 'week6', 'CIE1', 'week7', 'week8', 'week9', 'week10', 'week11', 'week12', 'CIE2', 'SEM'].map((subItem, idx) => (
                         <button 
                           key={idx} 
                           onClick={() => navigate(`/mentor-dashboard/assessments?pattern=${encodeURIComponent(subItem)}`)}

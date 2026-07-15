@@ -3,6 +3,7 @@ import { FileText, ArrowLeft, Award, PlayCircle, Plus, Trash2, X } from 'lucide-
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { WeeklyExamReport } from '../components/WeeklyExamReport';
 import { WeeklyAssessmentFlow } from '../components/WeeklyAssessmentFlow';
+import { PreAssessmentFlow } from '../components/PreAssessmentFlow';
 import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
 
 const defaultAssessments: { id: number, title: string, description: string }[] = [];
@@ -352,6 +353,41 @@ const Assessments: React.FC = () => {
       </div>
     );
   }
+  if (pattern === 'Pre Assessment Pattern') {
+    return (
+      <div className="w-full max-w-3xl mx-auto space-y-6 pb-12">
+        <div className="flex items-center gap-3 text-gray-900 font-bold text-2xl mb-8">
+          <FileText className="text-orange-500" size={28} /> 
+          Pre Assessment Pattern
+        </div>
+        
+        <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+          <div className="space-y-4 text-lg">
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+              <span className="font-medium text-gray-700">Section A - Multiple choice questions</span>
+              <span className="font-bold text-primary">10M</span>
+            </div>
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+              <span className="font-medium text-gray-700">Section B - True/False</span>
+              <span className="font-bold text-primary">5M</span>
+            </div>
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+              <span className="font-medium text-gray-700">Section C - Fill in the blanks</span>
+              <span className="font-bold text-primary">5M</span>
+            </div>
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+              <span className="font-medium text-gray-700">Section D - Short Answer Question</span>
+              <span className="font-bold text-primary">10M</span>
+            </div>
+            <div className="flex justify-between items-center pt-4">
+              <span className="font-black text-gray-900 text-xl">Total</span>
+              <span className="font-black text-primary text-2xl">30M</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   if (pattern && pattern.startsWith('week') && pattern !== 'weekly Exam Pattern') {
     return <WeeklyExamReport pattern={pattern} isMentor={isMentor} loggedInEmail={loggedInEmail} />;
   }
@@ -412,6 +448,10 @@ const Assessments: React.FC = () => {
           </form>
         </div>
       )}
+
+      <div className="mb-8">
+        <PreAssessmentFlow isMentor={isMentor} loggedInEmail={loggedInEmail} />
+      </div>
 
       <div className="mb-12">
         <WeeklyAssessmentFlow isMentor={isMentor} loggedInEmail={loggedInEmail} />
