@@ -62,5 +62,6 @@ export const AUTHORIZED_STUDENTS = [
   { roll: '25EG501B31', name: 'GADE RAGHAVENDRA', email: '25eg501b31@anurag.edu.in' },
   { roll: '25EG501B32', name: 'THULLA THIRUPATHI', email: '25eg501b32@anurag.edu.in' },
   { roll: '25EG501B33', name: 'GADDEPOGU SATEESH', email: '25eg501b33@anurag.edu.in' },
-  { roll: '25EG501B34', name: 'SHAMMANAM KARTHIK REDDY', email: '25eg501b34@anurag.edu.in' }
+  { roll: '25EG501B34', name: 'SHAMMANAM KARTHIK REDDY', email: '25eg501b34@anurag.edu.in' },
+  { roll: 'anurag@123', name: 'NEW STUDENT', email: '22eg110d44@anurag.edu.in' }
 ];
