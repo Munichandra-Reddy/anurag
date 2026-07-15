@@ -126,7 +126,7 @@ const LmsAccess: React.FC = () => {
     }
   };
 
-  const activeYoutubeId = getYoutubeId(activeVideo?.videoUrl);
+  const activeYoutubeId = getYoutubeId(activeVideo?.videoUrl || '');
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 pb-12">

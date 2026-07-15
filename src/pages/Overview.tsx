@@ -62,6 +62,10 @@ const Overview: React.FC = () => {
     return 'UPCOMING';
   };
 
+  const attendancePercentage = attendance.total > 0 
+    ? Math.round((attendance.attended / attendance.total) * 100) 
+    : 0;
+
   React.useEffect(() => {
     const loadOverviewData = async () => {
       // Load Profile
