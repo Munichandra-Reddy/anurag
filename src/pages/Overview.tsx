@@ -4,7 +4,7 @@ import {
   Linkedin, Globe, MessageSquare, X, Upload,
   Video, LogOut, Clock, CreditCard, Laptop, FileText
 } from 'lucide-react';
-// Removed static sessions import
+import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
 
 interface ProfileData {
   name: string;
@@ -43,56 +43,18 @@ const Overview: React.FC = () => {
   const loggedInEmail = sessionStorage.getItem('loggedInEmail') || 'student@anurag.edu.in';
   const profileKey = `anuragLmsProfile_${loggedInEmail}`;
 
-  const [profile, setProfile] = useState<ProfileData>(() => {
-    const saved = localStorage.getItem(profileKey);
-    if (saved) return JSON.parse(saved);
-    
-    // Check if we have registered student info to populate the default name
-    const students = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
-    const student = students.find((s: any) => s.email === loggedInEmail);
-    
-    return {
-      ...defaultProfile,
-      name: student ? student.name : loggedInEmail.split('@')[0],
-      avatarUrl: '',
-      bannerUrl: ''
-    };
-  });
+  const [profile, setProfile] = useState<ProfileData>(defaultProfile);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editForm, setEditForm] = useState<ProfileData>(profile);
 
-  const savedProjects = localStorage.getItem('anuragLmsProjects');
-  const projectsData = savedProjects ? JSON.parse(savedProjects) : Array(5).fill({ submittedUrl: undefined });
-  const completedAssignments = projectsData.filter((p: any) => p.submittedUrl).length;
-  const totalAssignments = projectsData.length || 5;
-
-  const [attendance, setAttendance] = useState(() => {
-    const records = JSON.parse(localStorage.getItem('attendanceRecords') || '{}');
-    const allDates = Object.keys(records);
-    
-    let attended = 0;
-    allDates.forEach(date => {
-      if (records[date][loggedInEmail] === 'present') {
-        attended++;
-      }
-    });
-
-    return { attended, total: allDates.length };
-  });
-
-  const attendancePercentage = attendance.total > 0 
-    ? Math.round((attendance.attended / attendance.total) * 100) 
-    : 0;
-
-  const handleJoinLive = () => {
-    // No-op: Attendance is now handled purely by mentors
-  };
-
-  const handleCheckOut = () => {
-    // No-op: Attendance is now handled purely by mentors
-  };
+  const [completedAssignments, setCompletedAssignments] = useState(0);
+  const [totalAssignments, setTotalAssignments] = useState(5);
+  const [attendance, setAttendance] = useState({ attended: 0, total: 0 });
+  const [currentSession, setCurrentSession] = useState<any>({ topic: 'No sessions scheduled' });
+  const [userBatch, setUserBatch] = useState('Unassigned');
 
   const getSessionStatus = (dateString: string) => {
+    if (!dateString) return 'COMPLETED';
     const sessionDate = new Date(dateString).toDateString();
     const today = new Date().toDateString();
     if (sessionDate === today) return 'TODAY';
@@ -100,17 +62,69 @@ const Overview: React.FC = () => {
     return 'UPCOMING';
   };
 
-  const savedClasses = localStorage.getItem('anuragLmsClasses');
-  const sessionsList = savedClasses ? JSON.parse(savedClasses) : [];
-  
-  const currentSession = sessionsList.find((s: any) => {
-    const status = getSessionStatus(s.dateString);
-    return status === 'TODAY' || status === 'UPCOMING';
-  }) || sessionsList[0] || { topic: 'No sessions scheduled' };
-  
-  const allStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
-  const currentStudent = allStudents.find((s: any) => s.email === loggedInEmail);
-  const userBatch = currentStudent?.batch || 'Unassigned';
+  React.useEffect(() => {
+    const loadOverviewData = async () => {
+      // Load Profile
+      const cloudProfile = await getFromCloudflare(profileKey);
+      if (cloudProfile) {
+        setProfile(cloudProfile);
+      } else {
+        const saved = localStorage.getItem(profileKey);
+        if (saved) {
+          setProfile(JSON.parse(saved));
+        } else {
+          const students = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
+          const student = students.find((s: any) => s.email === loggedInEmail);
+          setProfile({
+            ...defaultProfile,
+            name: student ? student.name : loggedInEmail.split('@')[0],
+            avatarUrl: '',
+            bannerUrl: ''
+          });
+        }
+      }
+
+      // Load Projects
+      const cloudProjects = await getFromCloudflare(`anuragLmsProjects_${loggedInEmail}`);
+      const localProjects = JSON.parse(localStorage.getItem(`anuragLmsProjects_${loggedInEmail}`) || localStorage.getItem('anuragLmsProjects') || 'null');
+      const projectsData = cloudProjects || localProjects || Array(5).fill({ submittedUrl: undefined });
+      setCompletedAssignments(projectsData.filter((p: any) => p && p.submittedUrl).length);
+      setTotalAssignments(projectsData.length || 5);
+
+      // Load Attendance
+      const cloudAttendance = await getFromCloudflare('attendanceRecords');
+      const localAttendance = JSON.parse(localStorage.getItem('attendanceRecords') || '{}');
+      const records = { ...localAttendance, ...(cloudAttendance || {}) };
+      const allDates = Object.keys(records);
+      let attended = 0;
+      allDates.forEach(date => {
+        if (records[date][loggedInEmail] === 'present') {
+          attended++;
+        }
+      });
+      setAttendance({ attended, total: allDates.length });
+
+      // Load Classes
+      const cloudClasses = await getFromCloudflare('anuragLmsClasses');
+      const localClasses = JSON.parse(localStorage.getItem('anuragLmsClasses') || '[]');
+      const sessionsList = (cloudClasses && cloudClasses.length > 0) ? cloudClasses : localClasses;
+      
+      const upcoming = sessionsList.find((s: any) => {
+        const status = getSessionStatus(s.dateString);
+        return status === 'TODAY' || status === 'UPCOMING';
+      }) || sessionsList[0] || { topic: 'No sessions scheduled' };
+      setCurrentSession(upcoming);
+
+      // Load Batch
+      const cloudStudents = await getFromCloudflare('registeredStudents');
+      const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
+      const studentsData = cloudStudents && cloudStudents.length > 0 ? cloudStudents : localStudents;
+      const currentStudent = studentsData.find((s: any) => s.email === loggedInEmail);
+      setUserBatch(currentStudent?.batch || 'Unassigned');
+    };
+
+    loadOverviewData();
+  }, [profileKey, loggedInEmail]);
   
   const [avatarFileName, setAvatarFileName] = useState('No file chosen');
   const [bannerFileName, setBannerFileName] = useState('No file chosen');
@@ -122,10 +136,11 @@ const Overview: React.FC = () => {
     setIsEditModalOpen(true);
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     setProfile(editForm);
     localStorage.setItem(profileKey, JSON.stringify(editForm));
+    await saveToCloudflare(profileKey, editForm);
     window.dispatchEvent(new Event('profileUpdated'));
     setIsEditModalOpen(false);
   };

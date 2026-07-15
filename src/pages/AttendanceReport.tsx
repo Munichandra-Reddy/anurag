@@ -33,9 +33,11 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ isFacultyView = fal
         }
 
         // --- Mentor View: Load live data ---
-        const [cloudStudents, cloudAttendance] = await Promise.all([
+        const [cloudStudents, cloudAttendance, cloudClasses, cloudHash] = await Promise.all([
           getFromCloudflare('registeredStudents'),
-          getFromCloudflare('attendanceRecords')
+          getFromCloudflare('attendanceRecords'),
+          getFromCloudflare('anuragLmsClasses'),
+          getFromCloudflare('facultySnapshotHash_Attendance')
         ]);
         
         const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
@@ -50,16 +52,13 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ isFacultyView = fal
         const currentAttendance = { ...localAttendance, ...(cloudAttendance || {}) };
         setAttendanceRecords(currentAttendance);
 
-        let currentSessions: any[] = [];
-        const savedClasses = localStorage.getItem('anuragLmsClasses');
-        if (savedClasses) {
-          currentSessions = JSON.parse(savedClasses);
-          setSessions(currentSessions);
-        }
+        const localClasses = JSON.parse(localStorage.getItem('anuragLmsClasses') || '[]');
+        const currentSessions = cloudClasses && cloudClasses.length > 0 ? cloudClasses : localClasses;
+        setSessions(currentSessions);
         
         // Check if current live data matches the last submitted snapshot
         const currentDataString = JSON.stringify({ attendanceRecords: currentAttendance, students: currentStudents, sessions: currentSessions });
-        const lastSubmittedHash = localStorage.getItem('facultySnapshotHash_Attendance');
+        const lastSubmittedHash = cloudHash || localStorage.getItem('facultySnapshotHash_Attendance');
         
         if (lastSubmittedHash === currentDataString) {
           setIsSubmitted(true);
@@ -106,6 +105,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ isFacultyView = fal
     
     // Save hash locally to know when data changes again
     localStorage.setItem('facultySnapshotHash_Attendance', currentDataString);
+    await saveToCloudflare('facultySnapshotHash_Attendance', currentDataString);
     
     setIsSubmitted(true);
     setIsSubmitting(false);

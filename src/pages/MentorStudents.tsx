@@ -65,8 +65,9 @@ const MentorStudents: React.FC = () => {
         const marks: Record<string, number | string> = {};
         for (const pattern of examPatterns) {
           const key = `weeklyReport_${selectedStudent.email}_${pattern}`;
+          const cloudData = await getFromCloudflare(key);
           const localStr = localStorage.getItem(key);
-          let marksObj = localStr ? JSON.parse(localStr) : await getFromCloudflare(key);
+          let marksObj = cloudData || (localStr ? JSON.parse(localStr) : null);
           
           if (marksObj) {
              const isCie = pattern.startsWith('CIE') || pattern.startsWith('SEM');

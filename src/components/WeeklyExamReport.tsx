@@ -43,6 +43,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
   const [studentSubmission, setStudentSubmission] = useState<any>(null);
   const [targetExam, setTargetExam] = useState<any>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [submissionStatuses, setSubmissionStatuses] = useState<Record<string, { isCompleted: boolean, hasSubmitted: boolean }>>({});
 
   const [projectEvalInput, setProjectEvalInput] = useState<string>('');
   const [portfolioEvalInput, setPortfolioEvalInput] = useState<string>('');
@@ -51,9 +52,16 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
 
   // Load the target exam to evaluate objective questions
   useEffect(() => {
-    const savedExams = JSON.parse(localStorage.getItem('anuragLmsWeeklyExams') || '[]');
-    const exam = savedExams.find((e: any) => e.id === pattern);
-    setTargetExam(exam);
+    const loadExam = async () => {
+      const cloudExams = await getFromCloudflare('anuragLmsWeeklyExams');
+      let exams = cloudExams && Array.isArray(cloudExams) ? cloudExams : [];
+      if (exams.length === 0) {
+        exams = JSON.parse(localStorage.getItem('anuragLmsWeeklyExams') || '[]');
+      }
+      const exam = exams.find((e: any) => e.id === pattern);
+      setTargetExam(exam);
+    };
+    loadExam();
   }, [pattern]);
 
   // Load students for mentor
@@ -152,8 +160,9 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         setMarks(loadedMarks);
 
         const submissionKey = `weeklyReportSubmission_${selectedStudent.email}_${pattern}`;
-        const submissionData = JSON.parse(localStorage.getItem(submissionKey) || 'null');
-        setStudentSubmission(submissionData);
+        const localSubmissionData = JSON.parse(localStorage.getItem(submissionKey) || 'null');
+        const cloudSubmissionData = await getFromCloudflare(submissionKey);
+        setStudentSubmission(cloudSubmissionData || localSubmissionData);
         
         // reset inline inputs based on marks loaded
         setProjectEvalInput('');
@@ -168,6 +177,35 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
       setIsLoaded(false);
     }
   }, [isMentor, selectedStudent, pattern]);
+
+  // Load all student submission statuses asynchronously
+  useEffect(() => {
+    if (isMentor && students.length > 0) {
+      const loadStatuses = async () => {
+        const newStatuses: Record<string, { isCompleted: boolean, hasSubmitted: boolean }> = {};
+        
+        const promises = students.map(async (student) => {
+          let isCompleted = localStorage.getItem(`weeklyReport_${student.email}_${pattern}`) !== null;
+          let hasSubmitted = localStorage.getItem(`weeklyReportSubmission_${student.email}_${pattern}`) !== null;
+
+          if (!isCompleted) {
+            const cloudReport = await getFromCloudflare(`weeklyReport_${student.email}_${pattern}`);
+            if (cloudReport) isCompleted = true;
+          }
+
+          if (!hasSubmitted) {
+            const cloudSub = await getFromCloudflare(`weeklyReportSubmission_${student.email}_${pattern}`);
+            if (cloudSub) hasSubmitted = true;
+          }
+          newStatuses[student.email] = { isCompleted, hasSubmitted };
+        });
+
+        await Promise.all(promises);
+        setSubmissionStatuses(newStatuses);
+      };
+      loadStatuses();
+    }
+  }, [isMentor, students, pattern]);
 
   // Auto-save draft when marks change
   useEffect(() => {
@@ -277,12 +315,11 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
   
   if (isMentor && !selectedStudent) {
     filteredStudents.forEach(student => {
-      const isCompleted = localStorage.getItem(`weeklyReport_${student.email}_${pattern}`) !== null;
-      const hasSubmitted = localStorage.getItem(`weeklyReportSubmission_${student.email}_${pattern}`) !== null;
+      const status = submissionStatuses[student.email] || { isCompleted: false, hasSubmitted: false };
       
-      if (isCompleted) {
+      if (status.isCompleted) {
         stats.completed++;
-      } else if (hasSubmitted) {
+      } else if (status.hasSubmitted) {
         stats.pending++;
       } else {
         stats.notSubmitted++;
@@ -345,8 +382,9 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
           <div className="divide-y divide-gray-100">
             {filteredStudents.length > 0 ? (
               filteredStudents.map(student => {
-                const isCompleted = localStorage.getItem(`weeklyReport_${student.email}_${pattern}`) !== null;
-                const hasSubmitted = localStorage.getItem(`weeklyReportSubmission_${student.email}_${pattern}`) !== null;
+                const status = submissionStatuses[student.email] || { isCompleted: false, hasSubmitted: false };
+                const isCompleted = status.isCompleted;
+                const hasSubmitted = status.hasSubmitted;
                 
                 return (
                   <div 

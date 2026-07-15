@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BookOpen, ChevronDown, ChevronUp, PlayCircle, FileText, CheckCircle, Plus, Trash2, X, Upload } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
+import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
 
 const defaultSessions = [
   { id: 1, title: 'Introduction to Autodesk Revit & BIM', content: 'Understand the concept of Building Information Modeling (BIM) and how Revit fits into the architectural workflow. Learn about project templates and basic setup.' },
@@ -18,10 +19,26 @@ const CourseContent: React.FC = () => {
   const location = useLocation();
   const isMentor = location.pathname.includes('/mentor-dashboard');
 
-  const [sessionsData, setSessionsData] = useState(() => {
-    const saved = localStorage.getItem('anuragLmsCoursesRevit');
-    return saved ? JSON.parse(saved) : defaultSessions;
-  });
+  const [sessionsData, setSessionsData] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadCourses = async () => {
+      const cloudCourses = await getFromCloudflare('anuragLmsCoursesRevit');
+      if (cloudCourses && Array.isArray(cloudCourses) && cloudCourses.length > 0) {
+        setSessionsData(cloudCourses);
+      } else {
+        const saved = localStorage.getItem('anuragLmsCoursesRevit');
+        setSessionsData(saved ? JSON.parse(saved) : defaultSessions);
+      }
+    };
+    loadCourses();
+  }, []);
+
+  const saveCourses = async (newSessions: any[]) => {
+    setSessionsData(newSessions);
+    localStorage.setItem('anuragLmsCoursesRevit', JSON.stringify(newSessions));
+    await saveToCloudflare('anuragLmsCoursesRevit', newSessions);
+  };
 
   const [isAdding, setIsAdding] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -43,9 +60,7 @@ const CourseContent: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    localStorage.setItem('anuragLmsCoursesRevit', JSON.stringify(sessionsData));
-  }, [sessionsData]);
+  // Removed the useEffect that auto-saves to localStorage
 
   const handleAddCourse = (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,7 +75,7 @@ const CourseContent: React.FC = () => {
       videoUrl: newVideoUrl
     };
 
-    setSessionsData([...sessionsData, newSession]);
+    saveCourses([...sessionsData, newSession]);
     setNewTitle('');
     setNewContent('');
     setNewPdfName('');
@@ -71,7 +86,7 @@ const CourseContent: React.FC = () => {
 
   const handleRemoveCourse = (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
-    setSessionsData(sessionsData.filter((s: any) => s.id !== id));
+    saveCourses(sessionsData.filter((s: any) => s.id !== id));
   };
 
   return (

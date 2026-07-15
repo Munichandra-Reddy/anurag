@@ -5,23 +5,8 @@ import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
 
 const Attendance: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [sessions, setSessions] = useState<any[]>(() => {
-    const savedClasses = localStorage.getItem('anuragLmsClasses');
-    return savedClasses ? JSON.parse(savedClasses) : [];
-  });
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const d = new Date();
-    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const savedClasses = localStorage.getItem('anuragLmsClasses');
-    if (savedClasses) {
-      const parsed = JSON.parse(savedClasses);
-      if (parsed.length > 0) {
-        const hasToday = parsed.some((s: any) => s.dateString === today);
-        return hasToday ? today : parsed[0].dateString;
-      }
-    }
-    return '';
-  });
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [selectedDate, setSelectedDate] = useState('');
   const [batchFilter, setBatchFilter] = useState('All');
   const [isLoading, setIsLoading] = useState(true);
   
@@ -31,10 +16,22 @@ const Attendance: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [cloudStudents, cloudAttendance] = await Promise.all([
+        const [cloudStudents, cloudAttendance, cloudClasses] = await Promise.all([
           getFromCloudflare('registeredStudents'),
-          getFromCloudflare('attendanceRecords')
+          getFromCloudflare('attendanceRecords'),
+          getFromCloudflare('anuragLmsClasses')
         ]);
+        
+        const localClasses = JSON.parse(localStorage.getItem('anuragLmsClasses') || '[]');
+        const allClasses = cloudClasses && cloudClasses.length > 0 ? cloudClasses : localClasses;
+        setSessions(allClasses);
+        
+        if (allClasses && allClasses.length > 0) {
+          const d = new Date();
+          const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          const hasToday = allClasses.some((s: any) => s.dateString === today);
+          setSelectedDate(hasToday ? today : allClasses[0].dateString);
+        }
         
         // Merge lingering local students to prevent data loss
         const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, Clock, Video, ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
+import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
 
 const courseName = "Full Stack Web Development";
 
@@ -31,14 +32,26 @@ const Classes: React.FC = () => {
   const location = useLocation();
   const isMentor = location.pathname.includes('mentor-dashboard');
 
-  const [sessions, setSessions] = useState(() => {
-    const saved = localStorage.getItem('anuragLmsClasses');
-    return saved ? JSON.parse(saved) : defaultSessions;
-  });
+  const [sessions, setSessions] = useState<any[]>([]);
 
   useEffect(() => {
-    localStorage.setItem('anuragLmsClasses', JSON.stringify(sessions));
-  }, [sessions]);
+    const loadClasses = async () => {
+      const cloudClasses = await getFromCloudflare('anuragLmsClasses');
+      if (cloudClasses && Array.isArray(cloudClasses) && cloudClasses.length > 0) {
+        setSessions(cloudClasses);
+      } else {
+        const saved = localStorage.getItem('anuragLmsClasses');
+        setSessions(saved ? JSON.parse(saved) : defaultSessions);
+      }
+    };
+    loadClasses();
+  }, []);
+
+  const saveSessions = async (newSessions: any[]) => {
+    setSessions(newSessions);
+    localStorage.setItem('anuragLmsClasses', JSON.stringify(newSessions));
+    await saveToCloudflare('anuragLmsClasses', newSessions);
+  };
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [expandedSession, setExpandedSession] = useState<number | null>(null);
@@ -63,7 +76,7 @@ const Classes: React.FC = () => {
     };
 
     const updatedSessions = [...sessions, newSession].sort((a, b) => new Date(a.dateString).getTime() - new Date(b.dateString).getTime());
-    setSessions(updatedSessions);
+    saveSessions(updatedSessions);
     setIsAdding(false);
     setNewTitle('');
     setNewTopic('');
@@ -73,7 +86,7 @@ const Classes: React.FC = () => {
 
   const handleRemoveSession = (id: number) => {
     if (window.confirm('Are you sure you want to delete this session?')) {
-      setSessions(sessions.filter((s: any) => s.id !== id));
+      saveSessions(sessions.filter((s: any) => s.id !== id));
     }
   };
 

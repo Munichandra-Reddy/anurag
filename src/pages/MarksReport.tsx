@@ -36,7 +36,10 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
           return;
         }
 
-        const cloudStudents = await getFromCloudflare('registeredStudents');
+        const [cloudStudents, cloudHash] = await Promise.all([
+          getFromCloudflare('registeredStudents'),
+          getFromCloudflare('facultySnapshotHash_Marks')
+        ]);
         
         // Merge lingering local students to prevent data loss
         const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
@@ -87,7 +90,7 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
         
         // Check if current live data matches the last submitted snapshot
         const currentDataString = JSON.stringify({ marksData: allMarks, students: registeredStudents });
-        const lastSubmittedHash = localStorage.getItem('facultySnapshotHash_Marks');
+        const lastSubmittedHash = cloudHash || localStorage.getItem('facultySnapshotHash_Marks');
         
         if (lastSubmittedHash === currentDataString) {
           setIsSubmitted(true);
@@ -134,6 +137,7 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
     
     // Save hash locally to know when data changes again
     localStorage.setItem('facultySnapshotHash_Marks', currentDataString);
+    await saveToCloudflare('facultySnapshotHash_Marks', currentDataString);
     
     setIsSubmitted(true);
     setIsSubmitting(false);

@@ -5,6 +5,7 @@ import {
   Key, FileText, LogOut, Users, MessageSquare, BarChart, Award, Menu, X, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { getFromCloudflare } from '../utils/cloudflare';
 
 const getInitials = (name: string) => {
   if (!name) return '??';
@@ -23,17 +24,27 @@ const DashboardLayout: React.FC = () => {
   const [profile, setProfile] = useState<any>(null);
 
   React.useEffect(() => {
-    const loadProfile = () => {
-      const saved = localStorage.getItem(profileKey);
-      if (saved) {
-        setProfile(JSON.parse(saved));
+    const loadProfile = async () => {
+      const [cloudProfile, cloudStudents] = await Promise.all([
+        getFromCloudflare(profileKey),
+        getFromCloudflare('registeredStudents')
+      ]);
+
+      if (cloudProfile) {
+        setProfile(cloudProfile);
       } else {
-        const students = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
-        const student = students.find((s: any) => s.email === userEmail);
-        setProfile({
-          name: student ? student.name : userEmail.split('@')[0],
-          avatarUrl: ''
-        });
+        const saved = localStorage.getItem(profileKey);
+        if (saved) {
+          setProfile(JSON.parse(saved));
+        } else {
+          const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
+          const students = cloudStudents && cloudStudents.length > 0 ? cloudStudents : localStudents;
+          const student = students.find((s: any) => s.email === userEmail);
+          setProfile({
+            name: student ? student.name : userEmail.split('@')[0],
+            avatarUrl: ''
+          });
+        }
       }
     };
     

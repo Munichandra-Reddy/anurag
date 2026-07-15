@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PlayCircle, Clock, Video, Plus, Trash2, ExternalLink } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
+import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
 
 interface RecordedVideo {
   id: string;
@@ -59,17 +60,31 @@ const LmsAccess: React.FC = () => {
   const location = useLocation();
   const isMentor = location.pathname.includes('mentor-dashboard');
 
-  const [videos, setVideos] = useState<RecordedVideo[]>(() => {
-    const saved = localStorage.getItem('anuragLmsVideosRevitValid');
-    return saved ? JSON.parse(saved) : defaultVideos;
-  });
+  const [videos, setVideos] = useState<RecordedVideo[]>([]);
+  const [activeVideo, setActiveVideo] = useState<RecordedVideo | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem('anuragLmsVideosRevitValid', JSON.stringify(videos));
-  }, [videos]);
+    const loadVideos = async () => {
+      const cloudVideos = await getFromCloudflare('anuragLmsVideosRevitValid');
+      if (cloudVideos && Array.isArray(cloudVideos) && cloudVideos.length > 0) {
+        setVideos(cloudVideos);
+        setActiveVideo(cloudVideos[0]);
+      } else {
+        const saved = localStorage.getItem('anuragLmsVideosRevitValid');
+        const parsed = saved ? JSON.parse(saved) : defaultVideos;
+        setVideos(parsed);
+        setActiveVideo(parsed[0]);
+      }
+    };
+    loadVideos();
+  }, []);
 
-  const [activeVideo, setActiveVideo] = useState<RecordedVideo>(videos[0] || defaultVideos[0]);
-  const [isAdding, setIsAdding] = useState(false);
+  const saveVideos = async (newVideos: RecordedVideo[]) => {
+    setVideos(newVideos);
+    localStorage.setItem('anuragLmsVideosRevitValid', JSON.stringify(newVideos));
+    await saveToCloudflare('anuragLmsVideosRevitValid', newVideos);
+  };
 
   // Form State
   const [newTitle, setNewTitle] = useState('');
@@ -89,7 +104,7 @@ const LmsAccess: React.FC = () => {
       videoUrl: newVideoUrl
     };
 
-    setVideos([...videos, newVid]);
+    saveVideos([...videos, newVid]);
     setIsAdding(false);
     setNewTitle('');
     setNewTopic('');
@@ -102,9 +117,11 @@ const LmsAccess: React.FC = () => {
     e.stopPropagation();
     if (window.confirm('Are you sure you want to delete this recording?')) {
       const updated = videos.filter(v => v.id !== id);
-      setVideos(updated);
-      if (activeVideo.id === id && updated.length > 0) {
+      saveVideos(updated);
+      if (activeVideo?.id === id && updated.length > 0) {
         setActiveVideo(updated[0]);
+      } else if (activeVideo?.id === id) {
+        setActiveVideo(null);
       }
     }
   };
@@ -195,55 +212,55 @@ const LmsAccess: React.FC = () => {
         </div>
       )}
       
-      {videos.length > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Video Player Area */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-black rounded-2xl overflow-hidden aspect-video shadow-lg relative border border-gray-200">
-              {activeYoutubeId ? (
-                <iframe 
-                  width="100%" 
-                  height="100%" 
-                  src={`https://www.youtube.com/embed/${activeYoutubeId}?autoplay=1`}
-                  title={activeVideo.title}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                  allowFullScreen
-                  className="absolute top-0 left-0 w-full h-full"
-                ></iframe>
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-6 text-center">
-                  <Video size={64} className="text-gray-600 mb-4" />
-                  <h3 className="text-xl font-bold mb-2">External Recording</h3>
-                  <p className="text-gray-400 text-sm max-w-md mb-6">
-                    This recording is hosted on an external platform (like Zoom or Google Drive) and cannot be embedded securely.
-                  </p>
-                  <a 
-                    href={activeVideo.videoUrl} 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="flex items-center gap-2 bg-primary hover:bg-orange-600 transition-colors px-6 py-3 rounded-xl font-bold shadow-md"
-                  >
-                    <ExternalLink size={18} /> Watch on External Site
-                  </a>
-                </div>
-              )}
-            </div>
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900">{activeVideo.title}</h2>
-              <div className="flex items-center gap-4 mt-3 text-sm text-gray-600 font-medium">
-                <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs tracking-wide">{activeVideo.topic}</span>
-                <span className="flex items-center gap-1.5"><Clock size={16} className="text-gray-400" /> {activeVideo.duration}</span>
-                <span className="text-gray-300">•</span>
-                <span>Mentor: Anjali Sharma</span>
-              </div>
-              <div className="mt-5 pt-5 border-t border-gray-100">
-                <p className="text-gray-600 leading-relaxed text-sm">
-                  Catch up on the latest session recording. This video covers essential concepts in <strong className="text-gray-800">{activeVideo.topic}</strong>, including hands-on examples and industry best practices. 
-                  Review the materials carefully and remember to submit your corresponding assignments in the Projects section.
+    {activeVideo ? (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main Video Player Area */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-black rounded-2xl overflow-hidden aspect-video shadow-lg relative border border-gray-200">
+            {activeYoutubeId ? (
+              <iframe 
+                width="100%" 
+                height="100%" 
+                src={`https://www.youtube.com/embed/${activeYoutubeId}?autoplay=1`}
+                title={activeVideo.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                allowFullScreen
+                className="absolute top-0 left-0 w-full h-full"
+              ></iframe>
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-6 text-center">
+                <Video size={64} className="text-gray-600 mb-4" />
+                <h3 className="text-xl font-bold mb-2">External Recording</h3>
+                <p className="text-gray-400 text-sm max-w-md mb-6">
+                  This recording is hosted on an external platform (like Zoom or Google Drive) and cannot be embedded securely.
                 </p>
+                <a 
+                  href={activeVideo.videoUrl} 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="flex items-center gap-2 bg-primary hover:bg-orange-600 transition-colors px-6 py-3 rounded-xl font-bold shadow-md"
+                >
+                  <ExternalLink size={18} /> Watch on External Site
+                </a>
               </div>
+            )}
+          </div>
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+            <h2 className="text-2xl font-bold text-gray-900">{activeVideo.title}</h2>
+            <div className="flex items-center gap-4 mt-3 text-sm text-gray-600 font-medium">
+              <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs tracking-wide">{activeVideo.topic}</span>
+              <span className="flex items-center gap-1.5"><Clock size={16} className="text-gray-400" /> {activeVideo.duration}</span>
+              <span className="text-gray-300">•</span>
+              <span>Mentor: Anjali Sharma</span>
+            </div>
+            <div className="mt-5 pt-5 border-t border-gray-100">
+              <p className="text-gray-600 leading-relaxed text-sm">
+                Catch up on the latest session recording. This video covers essential concepts in <strong className="text-gray-800">{activeVideo.topic}</strong>, including hands-on examples and industry best practices. 
+                Review the materials carefully and remember to submit your corresponding assignments in the Projects section.
+              </p>
             </div>
           </div>
+        </div>
 
           {/* Video Playlist / Queue */}
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 h-fit sticky top-6">
