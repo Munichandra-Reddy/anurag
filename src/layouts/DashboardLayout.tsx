@@ -65,6 +65,7 @@ const DashboardLayout: React.FC = () => {
     { title: 'LMS Access', icon: <Key size={20} />, path: '/dashboard/access' },
     { title: 'Project Batch', icon: <Users size={20} />, path: '/dashboard/project-batch' },
     { title: 'Chat Support', icon: <MessageSquare size={20} />, path: '/dashboard/chat-support' },
+    { title: 'Assessments', icon: <FileText size={20} />, path: '/dashboard/assessments' },
     { title: 'Exam Reports', icon: <FileText size={20} />, path: '/dashboard/assessments' },
     { title: 'Top Performer', icon: <Award size={20} />, path: '/dashboard/top-performer' },
   ];
