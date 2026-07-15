@@ -66,6 +66,9 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
   const [evaluatingStudentEmail, setEvaluatingStudentEmail] = useState<string | null>(null);
   const [sectionDMarks, setSectionDMarks] = useState<number>(0);
 
+  // Student report state
+  const [viewingReportId, setViewingReportId] = useState<string | null>(null);
+
   const [studentDetails, setStudentDetails] = useState<any>(null);
 
   useEffect(() => {
@@ -279,6 +282,57 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
         )}
       </div>
     );
+  }
+
+  if (viewingReportId && !isMentor) {
+    const exam = exams.find(e => e.id === viewingReportId);
+    const sub = submissions[viewingReportId];
+    if (exam && sub && sub.marks) {
+      return (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 space-y-6 relative">
+          <button onClick={() => setViewingReportId(null)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 p-1">
+            <X size={20} />
+          </button>
+          
+          <div className="flex items-center gap-3 mb-6">
+            <FileText className="text-orange-500" size={28} />
+            <h2 className="text-2xl font-bold text-gray-900">{exam.title} - Score Report</h2>
+          </div>
+          
+          <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 space-y-4 text-lg">
+            <div className="flex justify-between items-center border-b border-gray-200 pb-3">
+              <span className="font-medium text-gray-700">Section A - Multiple choice questions</span>
+              <span className="font-bold text-primary">{sub.marks.sectionA} / 10M</span>
+            </div>
+            <div className="flex justify-between items-center border-b border-gray-200 pb-3">
+              <span className="font-medium text-gray-700">Section B - True/False</span>
+              <span className="font-bold text-primary">{sub.marks.sectionB} / 5M</span>
+            </div>
+            <div className="flex justify-between items-center border-b border-gray-200 pb-3">
+              <span className="font-medium text-gray-700">Section C - Fill in the blanks</span>
+              <span className="font-bold text-primary">{sub.marks.sectionC} / 5M</span>
+            </div>
+            <div className="flex justify-between items-center border-b border-gray-200 pb-3">
+              <span className="font-medium text-gray-700">Section D - Short Answer Question</span>
+              <span className="font-bold text-primary">{sub.marks.sectionD} / 10M</span>
+            </div>
+            <div className="flex justify-between items-center pt-4">
+              <span className="font-black text-gray-900 text-xl">Total Marks Obtained</span>
+              <span className="font-black text-green-600 text-2xl">{sub.marks.total} / 30M</span>
+            </div>
+          </div>
+
+          <div className="flex justify-center pt-4">
+            <button 
+              onClick={() => setViewingReportId(null)}
+              className="px-8 py-3 bg-primary text-white font-bold rounded-xl shadow-sm hover:bg-orange-600 transition-colors"
+            >
+              Back to Assessments
+            </button>
+          </div>
+        </div>
+      );
+    }
   }
 
   if (takingExamId) {
@@ -557,11 +611,18 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
                 </>
               ) : (
                 submissions[exam.id] ? (
-                  <div className="flex items-center justify-center gap-3 px-6 py-2.5 bg-green-50 text-green-700 font-bold rounded-xl border border-green-100 shadow-sm">
+                  <div className="flex items-center justify-center gap-3">
                     {submissions[exam.id].marks ? (
-                      <span className="flex items-center gap-2"><Award size={18}/> Score: {submissions[exam.id].marks!.total}/30</span>
+                      <button 
+                        onClick={() => setViewingReportId(exam.id)}
+                        className="flex items-center gap-2 px-6 py-2.5 bg-green-50 text-green-700 font-bold rounded-xl border border-green-100 shadow-sm hover:bg-green-100 transition-colors"
+                      >
+                        <Award size={18}/> View Report (Score: {submissions[exam.id].marks!.total}/30)
+                      </button>
                     ) : (
-                      <span className="flex items-center gap-2"><CheckCircle2 size={18}/> Pending Evaluation</span>
+                      <span className="flex items-center gap-2 px-6 py-2.5 bg-gray-50 text-gray-600 font-bold rounded-xl border border-gray-200 shadow-sm">
+                        <CheckCircle2 size={18}/> Pending Evaluation
+                      </span>
                     )}
                   </div>
                 ) : (
