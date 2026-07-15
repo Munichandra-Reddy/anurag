@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, X, Upload, Link as LinkIcon, FileText, CheckCircle2, Award, PlayCircle } from 'lucide-react';
 import { WeeklyExamReport } from './WeeklyExamReport';
+import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
 
 interface TheoryQuestion {
   question: string;
@@ -59,32 +60,46 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
   const [studentDetails, setStudentDetails] = useState<any>(null);
 
   useEffect(() => {
-    // Load created exams
-    const savedExams = localStorage.getItem('anuragLmsWeeklyExams');
-    if (savedExams) {
-      setExams(JSON.parse(savedExams));
-    }
+    const fetchData = async () => {
+      // Load created exams
+      const cloudExams = await getFromCloudflare('anuragLmsWeeklyExams');
+      if (cloudExams && Array.isArray(cloudExams)) {
+        setExams(cloudExams);
+      } else {
+        const savedExams = localStorage.getItem('anuragLmsWeeklyExams');
+        if (savedExams) setExams(JSON.parse(savedExams));
+      }
 
-    // Load Project Batches
-    const savedBatches = localStorage.getItem('anuragLmsProjectBatchData');
-    if (savedBatches) {
-      setProjectBatches(JSON.parse(savedBatches));
-    }
-    
-    // Load student submissions & details
-    if (!isMentor) {
-      const savedSubmissions = localStorage.getItem(`weeklyExamSubmissions_${loggedInEmail}`);
-      if (savedSubmissions) {
-        setSubmissions(JSON.parse(savedSubmissions));
+      // Load Project Batches
+      const cloudBatches = await getFromCloudflare('anuragLmsProjectBatchData');
+      if (cloudBatches) {
+        setProjectBatches(cloudBatches as any);
+      } else {
+        const savedBatches = localStorage.getItem('anuragLmsProjectBatchData');
+        if (savedBatches) setProjectBatches(JSON.parse(savedBatches));
       }
       
-      const students = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
-      const me = students.find((s: any) => s.email === loggedInEmail);
-      setStudentDetails(me);
-    }
+      // Load student submissions & details
+      if (!isMentor) {
+        const subKey = `weeklyExamSubmissions_${loggedInEmail}`;
+        const cloudSubmissions = await getFromCloudflare(subKey);
+        if (cloudSubmissions) {
+          setSubmissions(cloudSubmissions);
+        } else {
+          const savedSubmissions = localStorage.getItem(subKey);
+          if (savedSubmissions) setSubmissions(JSON.parse(savedSubmissions));
+        }
+        
+        const cloudStudents = await getFromCloudflare('registeredStudents');
+        const students = cloudStudents ? cloudStudents as any[] : JSON.parse(localStorage.getItem('registeredStudents') || '[]');
+        const me = students.find((s: any) => s.email === loggedInEmail);
+        setStudentDetails(me);
+      }
+    };
+    fetchData();
   }, [isMentor, loggedInEmail]);
 
-  const handleAddExam = (e: React.FormEvent) => {
+  const handleAddExam = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const newExam: WeeklyExamData = {
@@ -99,7 +114,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
 
     const updatedExams = [...exams.filter(ex => ex.id !== selectedWeek), newExam];
     setExams(updatedExams);
-    localStorage.setItem('anuragLmsWeeklyExams', JSON.stringify(updatedExams));
+    await saveToCloudflare('anuragLmsWeeklyExams', updatedExams);
     
     setIsAdding(false);
     // Reset
@@ -110,7 +125,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     setTargetBatch('All Batches');
   };
 
-  const handleStudentSubmit = () => {
+  const handleStudentSubmit = async () => {
     if (!takingExamId) return;
     const exam = exams.find(e => e.id === takingExamId);
     if (!exam) return;
@@ -139,10 +154,10 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
 
     const newSubmissions = { ...submissions, [takingExamId]: submission };
     setSubmissions(newSubmissions);
-    localStorage.setItem(`weeklyExamSubmissions_${loggedInEmail}`, JSON.stringify(newSubmissions));
+    await saveToCloudflare(`weeklyExamSubmissions_${loggedInEmail}`, newSubmissions);
     
     // Also save a raw version for the mentor to read in Exam Reports
-    localStorage.setItem(`weeklyReportSubmission_${loggedInEmail}_${takingExamId}`, JSON.stringify(submission));
+    await saveToCloudflare(`weeklyReportSubmission_${loggedInEmail}_${takingExamId}`, submission);
 
     setTakingExamId(null);
     setStudentProjectUrl('');
@@ -519,10 +534,10 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                     Evaluate Submissions
                   </button>
                   <button 
-                    onClick={() => {
+                    onClick={async () => {
                       const newExams = exams.filter(e => e.id !== exam.id);
                       setExams(newExams);
-                      localStorage.setItem('anuragLmsWeeklyExams', JSON.stringify(newExams));
+                      await saveToCloudflare('anuragLmsWeeklyExams', newExams);
                     }}
                     className="px-4 py-2 text-red-500 bg-red-50 hover:bg-red-100 rounded-xl font-medium text-sm transition-colors text-center"
                   >

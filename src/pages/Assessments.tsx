@@ -3,6 +3,7 @@ import { FileText, ArrowLeft, Award, PlayCircle, Plus, Trash2, X } from 'lucide-
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { WeeklyExamReport } from '../components/WeeklyExamReport';
 import { WeeklyAssessmentFlow } from '../components/WeeklyAssessmentFlow';
+import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
 
 const defaultAssessments: { id: number, title: string, description: string }[] = [];
 
@@ -31,10 +32,8 @@ const Assessments: React.FC = () => {
 
   const isMentor = location.pathname.includes('/mentor-dashboard');
 
-  const [assessmentsData, setAssessmentsData] = useState(() => {
-    const saved = localStorage.getItem('anuragLmsAssessmentsListEmpty3');
-    return saved ? JSON.parse(saved) : defaultAssessments;
-  });
+  const [assessmentsData, setAssessmentsData] = useState<any[]>(defaultAssessments);
+  const [completedAssessments, setCompletedAssessments] = useState<Record<number, { score: number, percentage: number, answers: Record<number, number> }>>({});
 
   const [isAdding, setIsAdding] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -47,16 +46,32 @@ const Assessments: React.FC = () => {
   const loggedInEmail = sessionStorage.getItem('loggedInEmail') || 'student@anurag.edu.in';
   const assessmentsKey = `anuragLmsAssessments_${loggedInEmail}`;
 
-  const [completedAssessments, setCompletedAssessments] = useState<Record<number, { score: number, percentage: number, answers: Record<number, number> }>>(() => {
-    const saved = localStorage.getItem(assessmentsKey);
-    return saved ? JSON.parse(saved) : {};
-  });
-
   useEffect(() => {
-    localStorage.setItem('anuragLmsAssessmentsListEmpty3', JSON.stringify(assessmentsData));
-  }, [assessmentsData]);
+    const fetchData = async () => {
+      // Load practice assessments
+      const cloudAssessments = await getFromCloudflare('anuragLmsPracticeAssessments');
+      if (cloudAssessments && Array.isArray(cloudAssessments)) {
+        setAssessmentsData(cloudAssessments);
+      } else {
+        const localSaved = localStorage.getItem('anuragLmsAssessmentsListEmpty3');
+        if (localSaved) setAssessmentsData(JSON.parse(localSaved));
+      }
 
-  const handleAddAssessment = (e: React.FormEvent) => {
+      // Load student completions
+      if (!isMentor) {
+        const cloudCompletions = await getFromCloudflare(assessmentsKey);
+        if (cloudCompletions) {
+          setCompletedAssessments(cloudCompletions);
+        } else {
+          const localCompletions = localStorage.getItem(assessmentsKey);
+          if (localCompletions) setCompletedAssessments(JSON.parse(localCompletions));
+        }
+      }
+    };
+    fetchData();
+  }, [isMentor, assessmentsKey]);
+
+  const handleAddAssessment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !newDescription.trim()) return;
 
@@ -66,14 +81,19 @@ const Assessments: React.FC = () => {
       description: newDescription
     };
 
-    setAssessmentsData([...assessmentsData, newAssessment]);
+    const updatedData = [...assessmentsData, newAssessment];
+    setAssessmentsData(updatedData);
+    await saveToCloudflare('anuragLmsPracticeAssessments', updatedData);
+    
     setNewTitle('');
     setNewDescription('');
     setIsAdding(false);
   };
 
-  const handleRemoveAssessment = (id: number) => {
-    setAssessmentsData(assessmentsData.filter((a: any) => a.id !== id));
+  const handleRemoveAssessment = async (id: number) => {
+    const updatedData = assessmentsData.filter((a: any) => a.id !== id);
+    setAssessmentsData(updatedData);
+    await saveToCloudflare('anuragLmsPracticeAssessments', updatedData);
   };
 
   const handleSelectAssessment = (id: number) => {
@@ -92,7 +112,7 @@ const Assessments: React.FC = () => {
     setAnswers({ ...answers, [questionId]: optionIndex });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (Object.keys(answers).length < questions.length) {
       alert("Please answer all questions before submitting.");
       return;
@@ -108,7 +128,8 @@ const Assessments: React.FC = () => {
       };
       
       setCompletedAssessments(updated);
-      localStorage.setItem(assessmentsKey, JSON.stringify(updated));
+      await saveToCloudflare(assessmentsKey, updated);
+      localStorage.setItem(assessmentsKey, JSON.stringify(updated)); // Fallback
     }
     
     setIsSubmitted(true);
