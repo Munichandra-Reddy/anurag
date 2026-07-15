@@ -149,10 +149,10 @@ const Login: React.FC = () => {
           transition={{ duration: 0.8, delay: 0.2 }}
           className="absolute inset-0 flex flex-col items-center justify-center text-center text-white px-4 z-10 pointer-events-none"
         >
-          <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold mb-6 max-w-5xl leading-tight" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.6)' }}>
+          <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold mb-6 max-w-5xl leading-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]">
             Changing the world takes more than grades...
           </h1>
-          <p className="text-xl md:text-2xl lg:text-3xl font-medium max-w-3xl opacity-90" style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.6)' }}>
+          <p className="text-xl md:text-2xl lg:text-3xl font-medium max-w-3xl opacity-90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
             And, we create the space for whatever it takes
           </p>
         </motion.div>
@@ -169,6 +169,7 @@ const Login: React.FC = () => {
             <button 
               onClick={() => setShowForm(false)}
               className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+              aria-label="Close login form"
             >
               <X size={20} />
             </button>
