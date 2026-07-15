@@ -20,7 +20,7 @@ interface ProfileData {
 
 const defaultProfile: ProfileData = {
   name: 'Jithendra Varma',
-  avatarUrl: '', // empty means show initials 'JV'
+  avatarUrl: '', // empty means show initials
   bannerUrl: '', // empty means show gray background
   professionalTag: 'Web Developer Intern',
   collegeName: 'Geonixa Institute of Technology',
@@ -28,6 +28,15 @@ const defaultProfile: ProfileData = {
   portfolioLink: 'https://jithendra.dev',
   linkedinLink: 'https://linkedin.com/in/jithendra',
   githubLink: 'https://github.com/jithendra'
+};
+
+const getInitials = (name: string) => {
+  if (!name) return '??';
+  const parts = name.trim().split(' ').filter(p => p.length > 0);
+  if (parts.length === 0) return '??';
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+  if (parts.length === 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return (parts[0][0] + parts[1][0] + parts[2][0]).toUpperCase();
 };
 
 const Overview: React.FC = () => {
@@ -117,6 +126,7 @@ const Overview: React.FC = () => {
     e.preventDefault();
     setProfile(editForm);
     localStorage.setItem(profileKey, JSON.stringify(editForm));
+    window.dispatchEvent(new Event('profileUpdated'));
     setIsEditModalOpen(false);
   };
 
@@ -167,11 +177,11 @@ const Overview: React.FC = () => {
           
           {/* Avatar */}
           <div className="absolute -top-16 left-8">
-            <div className="w-32 h-32 rounded-full border-4 border-white bg-[#0f0f0f] flex items-center justify-center text-4xl font-bold text-white shadow-sm outline outline-1 outline-amber-100/50 overflow-hidden relative">
+            <div className="w-32 h-32 rounded-full border-4 border-white bg-[#0f0f0f] flex items-center justify-center text-3xl sm:text-4xl font-bold text-white shadow-sm outline outline-1 outline-amber-100/50 overflow-hidden relative">
               {profile.avatarUrl ? (
                 <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
-                'JV'
+                getInitials(profile.name)
               )}
             </div>
           </div>

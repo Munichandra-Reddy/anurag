@@ -6,10 +6,41 @@ import {
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 
+const getInitials = (name: string) => {
+  if (!name) return '??';
+  const parts = name.trim().split(' ').filter(p => p.length > 0);
+  if (parts.length === 0) return '??';
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+  if (parts.length === 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return (parts[0][0] + parts[1][0] + parts[2][0]).toUpperCase();
+};
+
 const DashboardLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const userEmail = sessionStorage.getItem('loggedInEmail') || '';
+  const profileKey = `anuragLmsProfile_${userEmail}`;
+  const [profile, setProfile] = useState<any>(null);
+
+  React.useEffect(() => {
+    const loadProfile = () => {
+      const saved = localStorage.getItem(profileKey);
+      if (saved) {
+        setProfile(JSON.parse(saved));
+      } else {
+        const students = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
+        const student = students.find((s: any) => s.email === userEmail);
+        setProfile({
+          name: student ? student.name : userEmail.split('@')[0],
+          avatarUrl: ''
+        });
+      }
+    };
+    
+    loadProfile();
+    window.addEventListener('profileUpdated', loadProfile);
+    return () => window.removeEventListener('profileUpdated', loadProfile);
+  }, [profileKey, userEmail]);
 
   React.useEffect(() => {
     // Route Guard: strict access only for logged in users
@@ -128,13 +159,17 @@ const DashboardLayout: React.FC = () => {
 
         {/* Profile and Signout Widget */}
         <div className="p-4 border-t border-gray-100 shrink-0">
-          <div className="border border-gray-200 rounded-xl p-3 flex items-center gap-3 mb-2 bg-white shadow-sm">
-            <div className="w-9 h-9 rounded-full bg-gray-800 flex items-center justify-center text-white font-semibold shrink-0 text-sm uppercase">
-              {userEmail.charAt(0)}
+          <div className="border border-gray-200 rounded-xl p-3 flex items-center gap-3 mb-2 bg-white shadow-sm overflow-hidden">
+            <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-white font-bold shrink-0 text-xs sm:text-sm uppercase overflow-hidden">
+              {profile?.avatarUrl ? (
+                <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                getInitials(profile?.name || userEmail)
+              )}
             </div>
-            <div className="overflow-hidden">
-              <p className="text-gray-900 text-sm font-bold truncate">{userEmail.split('@')[0]}</p>
-              <p className="text-gray-500 text-xs truncate">{userEmail}</p>
+            <div className="overflow-hidden min-w-0 flex-1">
+              <p className="text-gray-900 text-sm font-bold truncate">{profile?.name || userEmail.split('@')[0]}</p>
+              <p className="text-gray-500 text-[11px] truncate leading-tight mt-0.5">{userEmail}</p>
             </div>
           </div>
           
