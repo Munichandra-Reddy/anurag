@@ -23,7 +23,9 @@ const COLLECTION_NAME = 'lms_data';
 export const saveToCloudflare = async (key: string, data: any) => {
   try {
     const docRef = doc(db, COLLECTION_NAME, key);
-    await setDoc(docRef, data, { merge: true });
+    // Firestore setDoc doesn't accept top-level arrays. Wrap them.
+    const payload = Array.isArray(data) ? { __isArray: true, data: data } : data;
+    await setDoc(docRef, payload, { merge: true });
     console.log(`Successfully saved ${key} to Firebase Firestore`);
   } catch (error) {
     console.error(`Error saving ${key} to Firebase:`, error);
@@ -39,7 +41,11 @@ export const getFromCloudflare = async (key: string): Promise<any> => {
     const docSnap = await getDoc(docRef);
     
     if (docSnap.exists()) {
-      return docSnap.data() as any;
+      const docData = docSnap.data();
+      if (docData && docData.__isArray) {
+        return docData.data;
+      }
+      return docData as any;
     } else {
       return null;
     }
