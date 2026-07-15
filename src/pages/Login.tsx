@@ -3,15 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
+import { AUTHORIZED_STUDENTS } from '../data/students';
 
 const Login: React.FC = () => {
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isLoginView, setIsLoginView] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const navigate = useNavigate();
 
@@ -57,24 +55,58 @@ const Login: React.FC = () => {
       setIsLoading(true);
       setError('');
       try {
+        // 1. Check against AUTHORIZED_STUDENTS
+        const authorizedStudent = AUTHORIZED_STUDENTS.find(s => s.email === cleanEmail);
+        
+        if (!authorizedStudent) {
+          setError('Access Denied: Your email is not authorized for this portal.');
+          setIsLoading(false);
+          return;
+        }
+
+        // 2. Validate password (must be exact Roll Number, case insensitive or just match)
+        if (cleanPassword.toLowerCase() !== authorizedStudent.roll.toLowerCase()) {
+          setError('Invalid password. Hint: Use your Roll Number.');
+          setIsLoading(false);
+          return;
+        }
+
+        // 3. Authenticated successfully. Now clean up database and register if needed.
         const cloudStudents = await getFromCloudflare('registeredStudents') || [];
         const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
         
-        // Merge students based on email to prevent losing old data
         const allStudentsMap = new Map();
         [...localStudents, ...cloudStudents].forEach(s => {
           if (s && s.email) allStudentsMap.set(s.email.toLowerCase(), s);
         });
-        const existingStudents = Array.from(allStudentsMap.values());
-
-        const student = existingStudents.find((s: any) => s.email.toLowerCase() === cleanEmail && s.password === cleanPassword);
         
-        if (student) {
-          sessionStorage.setItem('loggedInEmail', cleanEmail);
-          navigate('/dashboard');
-        } else {
-          setError('Invalid username or password. Please create an account first.');
+        const existingStudents = Array.from(allStudentsMap.values());
+        
+        // Purge unauthorized students
+        const authorizedEmails = new Set(AUTHORIZED_STUDENTS.map(s => s.email));
+        let validDatabaseStudents = existingStudents.filter((s: any) => authorizedEmails.has(s.email.toLowerCase()));
+
+        // Ensure current student is in database
+        const studentInDb = validDatabaseStudents.find((s: any) => s.email.toLowerCase() === cleanEmail);
+        
+        if (!studentInDb) {
+          const newStudent = {
+            id: Date.now(),
+            name: authorizedStudent.name,
+            email: authorizedStudent.email,
+            password: authorizedStudent.roll,
+            registeredAt: new Date().toISOString(),
+            batch: ''
+          };
+          validDatabaseStudents.push(newStudent);
         }
+
+        // Save cleaned and updated list
+        localStorage.setItem('registeredStudents', JSON.stringify(validDatabaseStudents));
+        await saveToCloudflare('registeredStudents', validDatabaseStudents);
+
+        sessionStorage.setItem('loggedInEmail', cleanEmail);
+        navigate('/dashboard');
       } catch (err) {
         setError('Failed to connect to server. Please try again.');
       } finally {
@@ -82,68 +114,6 @@ const Login: React.FC = () => {
       }
     } else {
       setError('Access restricted to @anurag emails, mentors, and faculty.');
-    }
-  };
-
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanPassword = password.trim();
-
-    if (!cleanEmail.includes('@anurag')) {
-      setError('Only @anurag domain emails are allowed to register.');
-      return;
-    }
-    if (cleanPassword !== confirmPassword.trim()) {
-      setError('Passwords do not match.');
-      return;
-    }
-    
-    setIsLoading(true);
-    setError('');
-    
-    try {
-      const cloudStudents = await getFromCloudflare('registeredStudents') || [];
-      const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
-      
-      // Merge students based on email to prevent losing old data
-      const allStudentsMap = new Map();
-      [...localStudents, ...cloudStudents].forEach(s => {
-        if (s && s.email) allStudentsMap.set(s.email.toLowerCase(), s);
-      });
-      const existingStudents = Array.from(allStudentsMap.values());
-
-      const studentExists = existingStudents.some((s: any) => s.email.toLowerCase() === cleanEmail);
-      
-      if (studentExists) {
-        setError('An account with this email already exists. Please sign in.');
-        setIsLoading(false);
-        return;
-      }
-      
-      // Store signed up student
-      const newStudent = {
-        id: Date.now(),
-        name,
-        email: cleanEmail,
-        password: cleanPassword,
-        registeredAt: new Date().toISOString(),
-        batch: ''
-      };
-      
-      const updatedStudents = [...existingStudents, newStudent];
-      
-      // Keep local storage in sync as the primary instant datastore
-      localStorage.setItem('registeredStudents', JSON.stringify(updatedStudents));
-      
-      // Sync to cloud in the background
-      await saveToCloudflare('registeredStudents', updatedStudents);
-
-      sessionStorage.setItem('loggedInEmail', cleanEmail);
-      navigate('/dashboard');
-    } catch (err) {
-      setError('Failed to connect to server. Please try again.');
-      setIsLoading(false);
     }
   };
 
@@ -163,16 +133,10 @@ const Login: React.FC = () => {
           className="absolute top-8 right-6 md:top-12 md:right-16 z-20 flex space-x-3 md:space-x-4"
         >
           <button 
-            onClick={() => { setIsLoginView(true); setShowForm(true); }}
+            onClick={() => setShowForm(true)}
             className="px-5 py-2 md:px-8 md:py-3 bg-[#f97316] hover:bg-[#ea580c] text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all"
           >
             Login
-          </button>
-          <button 
-            onClick={() => { setIsLoginView(false); setShowForm(true); }}
-            className="px-5 py-2 md:px-8 md:py-3 bg-primary hover:bg-primary-dark text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all"
-          >
-            Sign Up
           </button>
         </motion.div>
       )}
@@ -209,17 +173,15 @@ const Login: React.FC = () => {
               <X size={20} />
             </button>
             <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-primary text-white rounded-2xl mx-auto flex items-center justify-center text-2xl font-bold mb-4">
-            AL
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Anurag LMS Portal</h1>
-          <p className="text-sm text-gray-500 mt-2">
-            {isLoginView ? 'Sign in to your account' : 'Create a new account'}
-          </p>
-        </div>
+              <div className="w-16 h-16 bg-primary text-white rounded-2xl mx-auto flex items-center justify-center text-2xl font-bold mb-4">
+                AL
+              </div>
+              <h1 className="text-2xl font-bold text-gray-900">Anurag LMS Portal</h1>
+              <p className="text-sm text-gray-500 mt-2">
+                Sign in to your account
+              </p>
+            </div>
 
-        {isLoginView ? (
-          <>
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
@@ -236,7 +198,6 @@ const Login: React.FC = () => {
               <div>
                 <div className="flex justify-between items-center mb-1">
                   <label className="block text-sm font-medium text-gray-700">Password</label>
-                  <a href="#" onClick={(e) => e.preventDefault()} className="text-sm font-medium text-primary hover:text-orange-600 transition-colors">Forgot Password?</a>
                 </div>
                 <input 
                   type="password"
@@ -263,83 +224,6 @@ const Login: React.FC = () => {
                 )}
               </button>
             </form>
-
-            <p className="mt-8 text-center text-sm text-gray-600">
-              Don't have an account? <a href="#" onClick={(e) => { e.preventDefault(); setIsLoginView(false); setError(''); }} className="font-medium text-primary hover:text-orange-600 transition-colors">Create an account</a>
-            </p>
-          </>
-        ) : (
-          <>
-            <form onSubmit={handleSignup} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                <input 
-                  type="text" 
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="John Doe"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors disabled:opacity-50"
-                  required
-                  disabled={isLoading}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input 
-                  type="email" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="student@anurag.edu.in"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors disabled:opacity-50"
-                  required
-                  disabled={isLoading}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                <input 
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors disabled:opacity-50"
-                  required
-                  disabled={isLoading}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
-                <input 
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors disabled:opacity-50"
-                  required
-                  disabled={isLoading}
-                />
-              </div>
-
-              {error && <p className="text-red-500 text-sm">{error}</p>}
-
-              <button 
-                type="submit"
-                disabled={isLoading}
-                className="w-full py-3 bg-primary text-white rounded-xl font-medium hover:bg-orange-600 transition-colors mt-4 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-              >
-                {isLoading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  'Sign Up'
-                )}
-              </button>
-            </form>
-
-            <p className="mt-8 text-center text-sm text-gray-600">
-              Already have an account? <a href="#" onClick={(e) => { e.preventDefault(); setIsLoginView(true); setError(''); }} className="font-medium text-primary hover:text-orange-600 transition-colors">Sign In</a>
-            </p>
-          </>
-        )}
           </motion.div>
         )}
       </AnimatePresence>
