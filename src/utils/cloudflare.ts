@@ -33,13 +33,13 @@ export const saveToCloudflare = async (key: string, data: any) => {
 /**
  * Retrieves JSON data from a specific document (key) in your Firestore collection.
  */
-export const getFromCloudflare = async (key: string) => {
+export const getFromCloudflare = async (key: string): Promise<any> => {
   try {
     const docRef = doc(db, COLLECTION_NAME, key);
     const docSnap = await getDoc(docRef);
     
     if (docSnap.exists()) {
-      return docSnap.data();
+      return docSnap.data() as any;
     } else {
       return null;
     }
