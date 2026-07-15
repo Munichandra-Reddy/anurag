@@ -19,6 +19,7 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [preAssessments, setPreAssessments] = useState<any[]>([]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -28,6 +29,7 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
           if (snapshot) {
             setStudents(snapshot.students || []);
             setMarksData(snapshot.marksData || {});
+            setPreAssessments(snapshot.preAssessments || []);
             setIsSubmitted(true);
           } else {
             setIsSubmitted(false);
@@ -36,10 +38,14 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
           return;
         }
 
-        const [cloudStudents, cloudHash] = await Promise.all([
+        const [cloudStudents, cloudHash, cloudPreAssessments] = await Promise.all([
           getFromCloudflare('registeredStudents'),
-          getFromCloudflare('facultySnapshotHash_Marks')
+          getFromCloudflare('facultySnapshotHash_Marks'),
+          getFromCloudflare('anuragLmsPreAssessmentsData')
         ]);
+        
+        const loadedPreAssessments = cloudPreAssessments && Array.isArray(cloudPreAssessments) ? cloudPreAssessments : [];
+        setPreAssessments(loadedPreAssessments);
         
         // Merge lingering local students to prevent data loss
         const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
@@ -84,12 +90,30 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
               allMarks[student.email][pattern] = '-';
             }
           }
+
+          // Pre Assessments
+          const preSubKey = `preAssessmentSubmissions_${student.email}`;
+          let preSubData: any = null;
+          const localPreSubStr = localStorage.getItem(preSubKey);
+          if (localPreSubStr) {
+            preSubData = JSON.parse(localPreSubStr);
+          } else {
+            preSubData = await getFromCloudflare(preSubKey);
+          }
+
+          for (const pre of loadedPreAssessments) {
+            if (preSubData && preSubData[pre.id] && preSubData[pre.id].marks) {
+              allMarks[student.email][pre.title] = preSubData[pre.id].marks.total;
+            } else {
+              allMarks[student.email][pre.title] = '-';
+            }
+          }
         }
         
         setMarksData(allMarks);
         
         // Check if current live data matches the last submitted snapshot
-        const currentDataString = JSON.stringify({ marksData: allMarks, students: registeredStudents });
+        const currentDataString = JSON.stringify({ marksData: allMarks, students: registeredStudents, preAssessments: loadedPreAssessments });
         const lastSubmittedHash = cloudHash || localStorage.getItem('facultySnapshotHash_Marks');
         
         if (lastSubmittedHash === currentDataString) {
@@ -129,7 +153,7 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     
-    const snapshotData = { marksData, students };
+    const snapshotData = { marksData, students, preAssessments };
     const currentDataString = JSON.stringify(snapshotData);
     
     // Save snapshot for faculty
@@ -186,6 +210,11 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
                     {pattern.toUpperCase()}
                   </th>
                 ))}
+                {preAssessments.map((pre, i) => (
+                  <th key={`pre_th_${i}`} className="px-4 py-4 text-xs font-bold text-gray-600 text-center whitespace-nowrap min-w-[80px] bg-orange-50/50">
+                    {pre.title.toUpperCase()}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -216,12 +245,24 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
                       </td>
                     );
                   })}
+                  {preAssessments.map((pre, i) => {
+                    const mark = marksData[student.email]?.[pre.title];
+                    return (
+                      <td key={`pre_td_${i}`} className="px-4 py-3 text-center text-sm font-semibold text-primary border-r border-gray-50 last:border-r-0 bg-orange-50/20">
+                        {mark !== '-' && mark !== undefined ? (
+                          <span>{mark}</span>
+                        ) : (
+                          <span className="text-gray-300 font-normal">-</span>
+                        )}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
               
               {students.length === 0 && (
                 <tr>
-                  <td colSpan={examPatterns.length + 2} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={examPatterns.length + preAssessments.length + 2} className="px-6 py-12 text-center text-gray-500">
                     No students registered yet.
                   </td>
                 </tr>
