@@ -50,9 +50,7 @@ const Login: React.FC = () => {
       if (s && s.email) allStudentsMap.set(s.email.toLowerCase(), s);
     });
     
-    const existingStudents = Array.from(allStudentsMap.values());
-    const authorizedEmails = new Set(AUTHORIZED_STUDENTS.map(s => s.email));
-    return existingStudents.filter((s: any) => authorizedEmails.has(s.email.toLowerCase()));
+    return Array.from(allStudentsMap.values());
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -87,28 +85,27 @@ const Login: React.FC = () => {
       setIsLoading(true);
       setError('');
       try {
+        let validDatabaseStudents = await fetchDatabaseStudents();
+        const studentInDb = validDatabaseStudents.find((s: any) => s.email.toLowerCase() === cleanEmail);
         const authorizedStudent = AUTHORIZED_STUDENTS.find(s => s.email === cleanEmail);
         
-        if (!authorizedStudent) {
+        if (!studentInDb && !authorizedStudent) {
           setError('Access Denied: Your email is not authorized for this portal.');
           setIsLoading(false);
           return;
         }
-
-        let validDatabaseStudents = await fetchDatabaseStudents();
-        const studentInDb = validDatabaseStudents.find((s: any) => s.email.toLowerCase() === cleanEmail);
         
-        // Use password from DB if it exists (meaning they changed it), otherwise use Roll Number
-        const expectedPassword = studentInDb ? studentInDb.password : authorizedStudent.roll;
+        // Use password from DB if it exists (meaning they changed it or were manually added), otherwise use Roll Number
+        const expectedPassword = studentInDb ? studentInDb.password : authorizedStudent?.roll;
 
-        if (cleanPassword !== expectedPassword && cleanPassword.toLowerCase() !== expectedPassword.toLowerCase()) {
+        if (cleanPassword !== expectedPassword && cleanPassword.toLowerCase() !== expectedPassword?.toLowerCase()) {
           setError('Invalid password. If you haven\'t changed it, it is your Roll Number.');
           setIsLoading(false);
           return;
         }
 
-        // Register if first time
-        if (!studentInDb) {
+        // Register if first time (only if they aren't in DB yet)
+        if (!studentInDb && authorizedStudent) {
           const newStudent = {
             id: Date.now(),
             name: authorizedStudent.name,
@@ -143,9 +140,12 @@ const Login: React.FC = () => {
       return;
     }
 
+    let validDatabaseStudents = await fetchDatabaseStudents();
+    const studentInDb = validDatabaseStudents.find((s: any) => s.email.toLowerCase() === cleanEmail);
     const authorizedStudent = AUTHORIZED_STUDENTS.find(s => s.email === cleanEmail);
-    if (!authorizedStudent) {
-      setError('Email not found in authorized students list.');
+    
+    if (!studentInDb && !authorizedStudent) {
+      setError('Email not found in authorized students list or database.');
       return;
     }
 
@@ -163,7 +163,7 @@ const Login: React.FC = () => {
         body: JSON.stringify({
           to: cleanEmail,
           subject: 'Anurag LMS - Password Reset OTP',
-          text: `Hello ${authorizedStudent.name},\n\nYour One-Time Password (OTP) for resetting your Anurag LMS password is: ${newOtp}\n\nIf you did not request this, please ignore this email.\n\nThanks,\nAnurag University Admin`
+          text: `Hello ${studentInDb?.name || authorizedStudent?.name},\n\nYour One-Time Password (OTP) for resetting your Anurag LMS password is: ${newOtp}\n\nIf you did not request this, please ignore this email.\n\nThanks,\nAnurag University Admin`
         })
       });
 
