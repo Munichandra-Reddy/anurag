@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  STUDENT
+  FACULTY
+  PLACEMENT
+  MENTOR
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(STUDENT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  courses         Course[]
+  enrollments     Enrollment[]
+  profile         StudentProfile?
+  createdExams    Exam[]           @relation("MentorExams")
+  examSubmissions ExamSubmission[]
+}
+
+model StudentProfile {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  attendance Float    @default(0)
+  credits    Int      @default(0)
+  user       User     @relation(fields: [userId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Course {
+  id        String   @id @default(uuid())
+  title     String
+  code      String   @unique
+  credits   Int
+  facultyId String
+  faculty   User     @relation(fields: [facultyId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  enrollments Enrollment[]
+}
+
+model Enrollment {
+  id        String   @id @default(uuid())
+  studentId String
+  courseId  String
+  progress  Int      @default(0)
+  student   User     @relation(fields: [studentId], references: [id])
+  course    Course   @relation(fields: [courseId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, courseId])
+}
+
+model Exam {
+  id        String   @id @default(uuid())
+  title     String
+  mentorId  String
+  mentor    User     @relation("MentorExams", fields: [mentorId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  submissions ExamSubmission[]
+}
+
+model ExamSubmission {
+  id        String   @id @default(uuid())
+  examId    String
+  studentId String
+  grade     String?
+  isPosted  Boolean  @default(false)
+  
+  exam      Exam     @relation(fields: [examId], references: [id])
+  student   User     @relation(fields: [studentId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([examId, studentId])
+}
