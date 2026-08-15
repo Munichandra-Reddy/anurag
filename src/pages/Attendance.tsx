@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Check, X, Search, Calendar as CalendarIcon, Filter, Loader2 } from 'lucide-react';
-import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, getStudentsKey } from '../utils/cloudflare';
 
 const Attendance: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -16,8 +16,9 @@ const Attendance: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
+        const studentsKey = getStudentsKey();
         const [cloudStudents, cloudAttendance, cloudClasses] = await Promise.all([
-          getFromCloudflare('registeredStudents'),
+          getFromCloudflare(studentsKey),
           getFromCloudflare('attendanceRecords'),
           getFromCloudflare('anuragLmsClasses')
         ]);
@@ -34,7 +35,7 @@ const Attendance: React.FC = () => {
         }
         
         // Merge lingering local students to prevent data loss
-        const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
+        const localStudents = JSON.parse(localStorage.getItem(studentsKey) || '[]');
         const allStudentsMap = new Map();
         [...localStudents, ...(cloudStudents || [])].forEach(s => {
           if (s && s.email) allStudentsMap.set(s.email, s);

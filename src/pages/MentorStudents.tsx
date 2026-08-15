@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Mail, Calendar, User, Loader2, UserPlus, Trash2, X, ClipboardList, CheckCircle2 } from 'lucide-react';
-import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, getStudentsKey } from '../utils/cloudflare';
 
 interface Student {
   id: number;
@@ -36,9 +36,9 @@ const MentorStudents: React.FC = () => {
   useEffect(() => {
     const loadStudents = async () => {
       try {
-        const cloudStudents = await getFromCloudflare('registeredStudents') || [];
-        // Optional fallback to merge if there are lingering local students
-        const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
+        const key = getStudentsKey();
+        const cloudStudents = await getFromCloudflare(key) || [];
+        const localStudents = JSON.parse(localStorage.getItem(key) || '[]');
         
         const allStudentsMap = new Map();
         [...localStudents, ...cloudStudents].forEach(s => {
@@ -116,17 +116,19 @@ const MentorStudents: React.FC = () => {
     const updated = students.map(s => s.id === studentId ? { ...s, batch: newBatch } : s);
     setStudents(updated);
     
-    // Save both to local and cloud to keep everything in sync
-    localStorage.setItem('registeredStudents', JSON.stringify(updated));
-    await saveToCloudflare('registeredStudents', updated);
+    const key = getStudentsKey();
+    localStorage.setItem(key, JSON.stringify(updated));
+    await saveToCloudflare(key, updated);
   };
 
   const handleRemoveStudent = async (studentId: number) => {
     if (!window.confirm("Are you sure you want to remove this student?")) return;
     const updated = students.filter(s => s.id !== studentId);
     setStudents(updated);
-    localStorage.setItem('registeredStudents', JSON.stringify(updated));
-    await saveToCloudflare('registeredStudents', updated);
+    
+    const key = getStudentsKey();
+    localStorage.setItem(key, JSON.stringify(updated));
+    await saveToCloudflare(key, updated);
   };
 
   const handleAddStudent = async (e: React.FormEvent) => {
@@ -143,8 +145,10 @@ const MentorStudents: React.FC = () => {
 
     const updated = [newStudent, ...students];
     setStudents(updated);
-    localStorage.setItem('registeredStudents', JSON.stringify(updated));
-    await saveToCloudflare('registeredStudents', updated);
+    
+    const key = getStudentsKey();
+    localStorage.setItem(key, JSON.stringify(updated));
+    await saveToCloudflare(key, updated);
 
     // Reset form
     setNewStudentName('');

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, ClipboardList, Search } from 'lucide-react';
-import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, getStudentsKey } from '../utils/cloudflare';
 
 interface MarksReportProps {
   isFacultyView?: boolean;
@@ -38,8 +38,9 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
           return;
         }
 
+        const studentsKey = getStudentsKey();
         const [cloudStudents, cloudHash, cloudPreAssessments] = await Promise.all([
-          getFromCloudflare('registeredStudents'),
+          getFromCloudflare(studentsKey),
           getFromCloudflare('facultySnapshotHash_Marks'),
           getFromCloudflare('anuragLmsPreAssessmentsData')
         ]);
@@ -48,7 +49,7 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
         setPreAssessments(loadedPreAssessments);
         
         // Merge lingering local students to prevent data loss
-        const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
+        const localStudents = JSON.parse(localStorage.getItem(studentsKey) || '[]');
         const allStudentsMap = new Map();
         [...localStudents, ...(cloudStudents || [])].forEach(s => {
           if (s && s.email) allStudentsMap.set(s.email, s);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Video, ShieldCheck, Mail, Linkedin, Github, Edit, Check, X, Plus, Trash2, Loader2 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
-import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, getStudentsKey } from '../utils/cloudflare';
 
 interface Batch {
   id: string;
@@ -27,9 +27,10 @@ const ProjectBatch: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
+        const studentsKey = getStudentsKey();
         const [cloudBatches, cloudStudents] = await Promise.all([
           getFromCloudflare('anuragLmsProjectBatchData'),
-          getFromCloudflare('registeredStudents')
+          getFromCloudflare(studentsKey)
         ]);
         
         // Merge Batches
@@ -53,7 +54,7 @@ const ProjectBatch: React.FC = () => {
         setBatches(finalBatches);
 
         // Merge Students
-        const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
+        const localStudents = JSON.parse(localStorage.getItem(studentsKey) || '[]');
         const allStudentsMap = new Map();
         [...localStudents, ...((cloudStudents as any[]) || [])].forEach(s => {
           if (s && s.email) allStudentsMap.set(s.email, s);

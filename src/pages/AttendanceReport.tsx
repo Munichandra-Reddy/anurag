@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, ClipboardList, CheckCircle2, XCircle, Search } from 'lucide-react';
-import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, getStudentsKey } from '../utils/cloudflare';
 
 interface AttendanceReportProps {
   isFacultyView?: boolean;
@@ -33,14 +33,15 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ isFacultyView = fal
         }
 
         // --- Mentor View: Load live data ---
+        const studentsKey = getStudentsKey();
         const [cloudStudents, cloudAttendance, cloudClasses, cloudHash] = await Promise.all([
-          getFromCloudflare('registeredStudents'),
+          getFromCloudflare(studentsKey),
           getFromCloudflare('attendanceRecords'),
           getFromCloudflare('anuragLmsClasses'),
           getFromCloudflare('facultySnapshotHash_Attendance')
         ]);
         
-        const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
+        const localStudents = JSON.parse(localStorage.getItem(studentsKey) || '[]');
         const allStudentsMap = new Map();
         [...localStudents, ...(cloudStudents || [])].forEach(s => {
           if (s && s.email) allStudentsMap.set(s.email, s);

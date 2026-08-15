@@ -54,3 +54,12 @@ export const getFromCloudflare = async (key: string): Promise<any> => {
     return null;
   }
 };
+
+export const getStudentsKey = (): string => {
+  const userEmail = (sessionStorage.getItem('loggedInEmail') || '').toLowerCase();
+  if (userEmail === 'muni@geonixa.com') {
+    return 'registeredStudents_muni@geonixa.com';
+  }
+  return 'registeredStudents';
+};
+
