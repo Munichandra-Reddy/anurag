@@ -1,11 +1,15 @@
-<<<<<<< HEAD
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --color-primary: #262F4B;
+  --color-secondary: #E53935;
+}
+
 @layer base {
   body {
-    @apply bg-[#F8F9FA] text-[#333333];
+    @apply bg-[#F8F9FA] text-[#333333] antialiased font-sans m-0 p-0;
   }
 }
 
@@ -18,19 +22,3 @@
   display: inline-block;
   animation: marquee 25s linear infinite;
 }
-=======
-@import "tailwindcss";
-
-@theme {
-  --color-primary: #262F4B;
-  --color-secondary: #E53935;
-  --font-sans: 'Inter', 'Roboto', sans-serif;
-  --font-heading: 'Funnel', 'Inter', sans-serif;
-}
-
-@layer base {
-  body {
-    @apply bg-gray-50 text-gray-900 antialiased font-sans m-0 p-0;
-  }
-}
->>>>>>> 9b80860 (Add mentor dashboard with default credentials)
