@@ -13,7 +13,8 @@ const MentorDashboardLayout: React.FC = () => {
 
   React.useEffect(() => {
     // Route Guard: strict access only for authorized mentors
-    if (userEmail !== 'maheshk@geonixa.com' && userEmail !== 'jithendravarma.l@gmail.com') {
+    const mentorEmails = ['maheshk@geonixa.com', 'jithendravarma.l@gmail.com', 'muni@geonixa.com'];
+    if (!mentorEmails.includes(userEmail)) {
       navigate('/login');
     }
   }, [userEmail, navigate]);
