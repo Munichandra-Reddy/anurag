@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { MessageSquare, Send, Users, ChevronRight, Loader2, User, Search } from 'lucide-react';
-import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, getStudentsKey, getMentorKey } from '../utils/cloudflare';
 
 interface ChatMessage {
   sender: 'student' | 'mentor';
@@ -46,15 +46,17 @@ const ChatSupport: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
+        const studentsKey = getStudentsKey();
+        const batchKey = getMentorKey('anuragLmsProjectBatchData');
         const [studentsData, groupChatsData, personalChatsData, batchesData] = await Promise.all([
-          getFromCloudflare('registeredStudents'),
+          getFromCloudflare(studentsKey),
           getFromCloudflare('anuragLmsGroupChats'),
-          getFromCloudflare('anuragLmsChats'), // original 1-to-1 chats
-          getFromCloudflare('anuragLmsProjectBatchData')
+          getFromCloudflare('anuragLmsChats'),
+          getFromCloudflare(batchKey)
         ]);
         
         // Merge Students
-        const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
+        const localStudents = JSON.parse(localStorage.getItem(studentsKey) || '[]');
         const allStudentsMap = new Map();
         [...localStudents, ...(studentsData || [])].forEach(s => {
           if (s && s.email) allStudentsMap.set(s.email, s);
@@ -62,7 +64,7 @@ const ChatSupport: React.FC = () => {
         setRegisteredStudents(Array.from(allStudentsMap.values()));
 
         // Merge Batches
-        const localBatches = JSON.parse(localStorage.getItem('anuragLmsProjectBatchData') || '[]');
+        const localBatches = JSON.parse(localStorage.getItem(batchKey) || '[]');
         let finalBatches: Batch[] = [];
         if (Array.isArray(localBatches)) {
           const batchMap = new Map();

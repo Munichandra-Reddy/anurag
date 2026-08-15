@@ -4,7 +4,7 @@ import { useLocation, useSearchParams } from 'react-router-dom';
 import { WeeklyExamReport } from '../components/WeeklyExamReport';
 import { WeeklyAssessmentFlow } from '../components/WeeklyAssessmentFlow';
 import { PreAssessmentFlow } from '../components/PreAssessmentFlow';
-import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, getMentorKey } from '../utils/cloudflare';
 
 const defaultAssessments: { id: number, title: string, description: string }[] = [];
 
@@ -50,12 +50,14 @@ const Assessments: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       // Load practice assessments
-      const cloudAssessments = await getFromCloudflare('anuragLmsPracticeAssessments');
+      const key = getMentorKey('anuragLmsPracticeAssessments');
+      const cloudAssessments = await getFromCloudflare(key);
       if (cloudAssessments && Array.isArray(cloudAssessments)) {
         setAssessmentsData(cloudAssessments);
       } else {
-        const localSaved = localStorage.getItem('anuragLmsAssessmentsListEmpty3');
+        const localSaved = localStorage.getItem(key);
         if (localSaved) setAssessmentsData(JSON.parse(localSaved));
+        else setAssessmentsData([]);
       }
 
       // Load student completions

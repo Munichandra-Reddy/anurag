@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, Clock, Video, ChevronLeft, ChevronRight, Plus, Trash2, Edit2 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
-import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
-
-
+import { getFromCloudflare, saveToCloudflare, getMentorKey } from '../utils/cloudflare';
 
 // Helper to get 13 upcoming/past Thursdays starting from a specific date
 const getThursdays = (startDate: Date, count: number) => {
@@ -36,12 +34,13 @@ const Classes: React.FC = () => {
 
   useEffect(() => {
     const loadClasses = async () => {
-      const cloudClasses = await getFromCloudflare('anuragLmsClasses');
+      const classKey = getMentorKey('anuragLmsClasses');
+      const cloudClasses = await getFromCloudflare(classKey);
       if (cloudClasses && Array.isArray(cloudClasses) && cloudClasses.length > 0) {
         setSessions(cloudClasses);
       } else {
-        const saved = localStorage.getItem('anuragLmsClasses');
-        setSessions(saved ? JSON.parse(saved) : defaultSessions);
+        const saved = localStorage.getItem(classKey);
+        setSessions(saved ? JSON.parse(saved) : (classKey.includes('_muni') ? [] : defaultSessions));
       }
     };
     loadClasses();
@@ -49,8 +48,9 @@ const Classes: React.FC = () => {
 
   const saveSessions = async (newSessions: any[]) => {
     setSessions(newSessions);
-    localStorage.setItem('anuragLmsClasses', JSON.stringify(newSessions));
-    await saveToCloudflare('anuragLmsClasses', newSessions);
+    const classKey = getMentorKey('anuragLmsClasses');
+    localStorage.setItem(classKey, JSON.stringify(newSessions));
+    await saveToCloudflare(classKey, newSessions);
   };
 
   const [currentMonth, setCurrentMonth] = useState(new Date());

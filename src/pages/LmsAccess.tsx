@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PlayCircle, Clock, Video, Plus, Trash2, ExternalLink } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
-import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, getMentorKey } from '../utils/cloudflare';
 
 interface RecordedVideo {
   id: string;
@@ -66,20 +66,21 @@ const LmsAccess: React.FC = () => {
 
   useEffect(() => {
     const loadVideos = async () => {
-      const cloudVideos = await getFromCloudflare('anuragLmsVideosRevitValid');
+      const videoKey = getMentorKey('anuragLmsVideosRevitValid');
+      const cloudVideos = await getFromCloudflare(videoKey);
       if (cloudVideos && Array.isArray(cloudVideos)) {
         setVideos(cloudVideos);
         setActiveVideo(cloudVideos.length > 0 ? cloudVideos[0] : null);
       } else {
-        const saved = localStorage.getItem('anuragLmsVideosRevitValid');
+        const saved = localStorage.getItem(videoKey);
         const parsed = saved ? JSON.parse(saved) : null;
         if (parsed && Array.isArray(parsed)) {
           setVideos(parsed);
           setActiveVideo(parsed.length > 0 ? parsed[0] : null);
         } else {
-          // Only use defaults if there is no data at all
-          setVideos([]);
-          setActiveVideo(null);
+          const initial = videoKey.includes('_muni') ? [] : defaultVideos;
+          setVideos(initial);
+          setActiveVideo(initial.length > 0 ? initial[0] : null);
         }
       }
     };
@@ -88,8 +89,9 @@ const LmsAccess: React.FC = () => {
 
   const saveVideos = async (newVideos: RecordedVideo[]) => {
     setVideos(newVideos);
-    localStorage.setItem('anuragLmsVideosRevitValid', JSON.stringify(newVideos));
-    await saveToCloudflare('anuragLmsVideosRevitValid', newVideos);
+    const videoKey = getMentorKey('anuragLmsVideosRevitValid');
+    localStorage.setItem(videoKey, JSON.stringify(newVideos));
+    await saveToCloudflare(videoKey, newVideos);
   };
 
   // Form State

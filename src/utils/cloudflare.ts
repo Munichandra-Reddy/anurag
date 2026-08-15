@@ -63,3 +63,11 @@ export const getStudentsKey = (): string => {
   return 'registeredStudents';
 };
 
+export const getMentorKey = (baseKey: string): string => {
+  const userEmail = (sessionStorage.getItem('loggedInEmail') || '').toLowerCase();
+  if (userEmail === 'muni@geonixa.com') {
+    return `${baseKey}_muni@geonixa.com`;
+  }
+  return baseKey;
+};
+
