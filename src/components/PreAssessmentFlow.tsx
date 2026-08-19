@@ -601,7 +601,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
           if (!exam.targetBatch || exam.targetBatch === 'All Batches') return true;
           if (!studentDetails) return false;
           
-          if (isMuni && ['A1', 'A2', 'B1', 'B2'].includes(exam.targetBatch)) {
+          if (isMuni && exam.targetBatch && ['A1', 'A2', 'B1', 'B2'].includes(exam.targetBatch)) {
             const muniStudent = MUNI_STUDENTS.find(s => s.email === loggedInEmail);
             return muniStudent?.batch === exam.targetBatch;
           }
