@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, FileText, ArrowLeft, Send, CheckCircle2, Edit, X } from 'lucide-react';
-import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, getMentorKey, getStudentsKey } from '../utils/cloudflare';
 
 interface Student {
   id: number;
@@ -54,16 +54,18 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
   // Load the target exam to evaluate objective questions
   useEffect(() => {
     const loadExam = async () => {
-      const cloudExams = await getFromCloudflare('anuragLmsWeeklyExams');
+      const examKey = getMentorKey('anuragLmsWeeklyExams');
+      const cloudExams = await getFromCloudflare(examKey) || await getFromCloudflare('anuragLmsWeeklyExams');
       let exams = cloudExams && Array.isArray(cloudExams) ? cloudExams : [];
       if (exams.length === 0) {
-        exams = JSON.parse(localStorage.getItem('anuragLmsWeeklyExams') || '[]');
+        exams = JSON.parse(localStorage.getItem(examKey) || localStorage.getItem('anuragLmsWeeklyExams') || '[]');
       }
       let exam = exams.find((e: any) => e.id === pattern);
       
       if (!exam && !isMentor) {
-        const cloudStudents = await getFromCloudflare('registeredStudents') || [];
-        const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
+        const studentsKey = getStudentsKey();
+        const cloudStudents = await getFromCloudflare(studentsKey) || [];
+        const localStudents = JSON.parse(localStorage.getItem(studentsKey) || '[]');
         const student = [...localStudents, ...cloudStudents].find(s => s?.email === loggedInEmail);
         
         if (student && student.batch) {
@@ -77,14 +79,15 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
       setTargetExam(exam);
     };
     loadExam();
-  }, [pattern]);
+  }, [pattern, isMentor, loggedInEmail]);
 
   // Load students for mentor
   useEffect(() => {
     if (isMentor) {
       const loadStudents = async () => {
-        const cloudStudents = await getFromCloudflare('registeredStudents') || [];
-        const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
+        const studentsKey = getStudentsKey();
+        const cloudStudents = await getFromCloudflare(studentsKey) || [];
+        const localStudents = JSON.parse(localStorage.getItem(studentsKey) || '[]');
         
         const allStudentsMap = new Map();
         [...localStudents, ...cloudStudents].forEach(s => {

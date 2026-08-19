@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, X, Upload, Link as LinkIcon, FileText, CheckCircle2, Award, PlayCircle } from 'lucide-react';
 import { WeeklyExamReport } from './WeeklyExamReport';
-import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, getMentorKey, getStudentsKey } from '../utils/cloudflare';
 
 interface TheoryQuestion {
   question: string;
@@ -14,6 +14,7 @@ interface WeeklyExamData {
   title: string; // e.g., 'Week 1 Exam'
   projectTitle: string;
   portfolioTopic: string;
+  assessmentMode?: 'pdf' | 'mcq';
   theoryPdfName: string;
   theoryPdfDataUrl?: string;
   theoryQuestions: TheoryQuestion[];
@@ -50,11 +51,12 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
   const [selectedWeek, setSelectedWeek] = useState('week1');
   const [projectTitle, setProjectTitle] = useState('');
   const [portfolioTopic, setPortfolioTopic] = useState('');
+  const [assessmentMode, setAssessmentMode] = useState<'pdf' | 'mcq'>('mcq');
   const [theoryPdfName, setTheoryPdfName] = useState('theory_assignment.pdf');
   const [theoryPdfDataUrl, setTheoryPdfDataUrl] = useState('');
-  const [questionCount, setQuestionCount] = useState<number>(10);
+  const [questionCount, setQuestionCount] = useState<number>(60);
   const [theoryQuestions, setTheoryQuestions] = useState<TheoryQuestion[]>(
-    Array.from({ length: 10 }, () => ({ question: '', options: ['', '', '', ''], answerIndex: 0 }))
+    Array.from({ length: 60 }, (_, i) => ({ question: `Question ${i + 1}`, options: ['', '', '', ''], answerIndex: 0 }))
   );
 
   // Student form state
@@ -77,21 +79,36 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
 
   useEffect(() => {
     const fetchData = async () => {
+      let examsKey = 'anuragLmsWeeklyExams';
+      let batchesKey = 'anuragLmsProjectBatchData';
+
+      if (isMentor) {
+        examsKey = getMentorKey('anuragLmsWeeklyExams');
+        batchesKey = getMentorKey('anuragLmsProjectBatchData');
+      } else {
+        const muniStudents = await getFromCloudflare('registeredStudents_muni@geonixa.com') || [];
+        const isMuniStudent = (muniStudents as any[]).some((s: any) => s.email === loggedInEmail);
+        if (isMuniStudent) {
+          examsKey = 'anuragLmsWeeklyExams_muni@geonixa.com';
+          batchesKey = 'anuragLmsProjectBatchData_muni@geonixa.com';
+        }
+      }
+
       // Load created exams
-      const cloudExams = await getFromCloudflare('anuragLmsWeeklyExams');
+      const cloudExams = await getFromCloudflare(examsKey);
       if (cloudExams && Array.isArray(cloudExams)) {
         setExams(cloudExams);
       } else {
-        const savedExams = localStorage.getItem('anuragLmsWeeklyExams');
+        const savedExams = localStorage.getItem(examsKey);
         if (savedExams) setExams(JSON.parse(savedExams));
       }
 
       // Load Project Batches
-      const cloudBatches = await getFromCloudflare('anuragLmsProjectBatchData');
+      const cloudBatches = await getFromCloudflare(batchesKey);
       if (cloudBatches) {
         setProjectBatches(cloudBatches as any);
       } else {
-        const savedBatches = localStorage.getItem('anuragLmsProjectBatchData');
+        const savedBatches = localStorage.getItem(batchesKey);
         if (savedBatches) setProjectBatches(JSON.parse(savedBatches));
       }
       
@@ -106,8 +123,9 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           if (savedSubmissions) setSubmissions(JSON.parse(savedSubmissions));
         }
         
-        const cloudStudents = await getFromCloudflare('registeredStudents');
-        const students = cloudStudents ? cloudStudents as any[] : JSON.parse(localStorage.getItem('registeredStudents') || '[]');
+        const studentsKey = getStudentsKey();
+        const cloudStudents = await getFromCloudflare(studentsKey);
+        const students = cloudStudents ? cloudStudents as any[] : JSON.parse(localStorage.getItem(studentsKey) || '[]');
         const me = students.find((s: any) => s.email === loggedInEmail);
         setStudentDetails(me);
       }
@@ -125,16 +143,19 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       title: `${selectedWeek.toUpperCase()} Exam`,
       projectTitle,
       portfolioTopic,
-      theoryPdfName,
-      theoryPdfDataUrl,
-      theoryQuestions,
+      assessmentMode,
+      theoryPdfName: assessmentMode === 'pdf' ? theoryPdfName : '',
+      theoryPdfDataUrl: assessmentMode === 'pdf' ? theoryPdfDataUrl : '',
+      theoryQuestions: assessmentMode === 'mcq' ? theoryQuestions.slice(0, questionCount) : [],
       targetBatch
     };
 
     const updatedExams = [...exams.filter(ex => ex.id !== examId), newExam];
     setExams(updatedExams);
-    localStorage.setItem('anuragLmsWeeklyExams', JSON.stringify(updatedExams));
-    await saveToCloudflare('anuragLmsWeeklyExams', updatedExams);
+    
+    const examsKey = getMentorKey('anuragLmsWeeklyExams');
+    localStorage.setItem(examsKey, JSON.stringify(updatedExams));
+    await saveToCloudflare(examsKey, updatedExams);
     
     setIsAdding(false);
     // Reset
@@ -142,8 +163,8 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     setPortfolioTopic('');
     setTheoryPdfName('theory_assignment.pdf');
     setTheoryPdfDataUrl('');
-    setTheoryQuestions(Array.from({ length: 10 }, () => ({ question: '', options: ['', '', '', ''], answerIndex: 0 })));
-    setQuestionCount(10);
+    setQuestionCount(60);
+    setTheoryQuestions(Array.from({ length: 60 }, (_, i) => ({ question: `Question ${i + 1}`, options: ['', '', '', ''], answerIndex: 0 })));
     setTargetBatch('All Batches');
   };
 
@@ -323,8 +344,49 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           </div>
         )}
 
-        {/* Theory Section */}
-        {exam.theoryPdfName && (
+        {/* Theory / MCQ Section */}
+        {exam.theoryQuestions && exam.theoryQuestions.length > 0 ? (
+          <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 space-y-6">
+            <h3 className="font-bold text-lg text-gray-900 border-b border-gray-200 pb-2">
+              {exam.portfolioTopic ? '3' : '2'}. Multiple Choice Questions ({exam.theoryQuestions.length} Questions)
+            </h3>
+            
+            <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2">
+              {exam.theoryQuestions.map((q, qIdx) => (
+                <div key={qIdx} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-3">
+                  <p className="font-bold text-gray-900 text-sm">
+                    {qIdx + 1}. {q.question || `Question ${qIdx + 1}`}
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {q.options.map((opt, optIdx) => (
+                      <label 
+                        key={optIdx} 
+                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer text-sm transition-colors ${
+                          studentTheoryAnswers[qIdx] === optIdx 
+                            ? 'bg-primary/10 border-primary text-primary font-bold' 
+                            : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        <input 
+                          type="radio" 
+                          name={`question_${qIdx}`}
+                          checked={studentTheoryAnswers[qIdx] === optIdx}
+                          onChange={() => {
+                            const newAns = [...studentTheoryAnswers];
+                            newAns[qIdx] = optIdx;
+                            setStudentTheoryAnswers(newAns);
+                          }}
+                          className="accent-primary"
+                        />
+                        <span><strong className="mr-1">{String.fromCharCode(65 + optIdx)}.</strong> {opt || `Option ${optIdx + 1}`}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : exam.theoryPdfName ? (
           <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 space-y-4">
             <h3 className="font-bold text-lg text-gray-900 border-b border-gray-200 pb-2">{exam.portfolioTopic ? '3' : '2'}. Theory Assignment</h3>
             
@@ -367,7 +429,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
               </div>
             </div>
           </div>
-        )}
+        ) : null}
 
         <div className="flex justify-end pt-4">
           <button 
@@ -475,33 +537,149 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                   </div>
                 )}
 
-                <div className="bg-gray-50 p-5 rounded-xl border border-gray-100">
-                  <h4 className="font-bold text-gray-900 mb-3 border-b border-gray-200 pb-2">{isAdding === 'weekly' ? '3' : '2'}. Theory Assignment</h4>
+                <div className="bg-gray-50 p-5 rounded-xl border border-gray-100 space-y-4">
+                  <h4 className="font-bold text-gray-900 border-b border-gray-200 pb-2">{isAdding === 'weekly' ? '3' : '2'}. Theory / Multiple Choice Assessment</h4>
                   
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Upload Reference PDF</label>
-                    <div className="flex items-center gap-3">
-                      <label className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 text-sm font-medium text-gray-700">
-                        <Upload size={16} /> Choose File
-                        <input type="file" className="hidden" onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            setTheoryPdfName(file.name);
-                            const reader = new FileReader();
-                            reader.onload = (event) => setTheoryPdfDataUrl(event.target?.result as string);
-                            reader.readAsDataURL(file);
-                          }
-                        }} />
-                      </label>
-                      <span className="text-sm text-primary font-medium">{theoryPdfName}</span>
-                      {theoryPdfDataUrl && (
-                        <button type="button" onClick={() => handleOpenPdf(theoryPdfDataUrl, theoryPdfName)} className="text-sm text-blue-600 hover:underline font-bold ml-2">
-                          View PDF
-                        </button>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">Students will download this PDF, complete the assignment, and upload their answers as a PDF.</p>
+                  {/* Select Type: 60 MCQs vs Theory PDF */}
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setAssessmentMode('mcq')}
+                      className={`px-4 py-2 rounded-xl font-bold text-sm border transition-all ${
+                        assessmentMode === 'mcq'
+                          ? 'bg-primary text-white border-primary shadow-sm'
+                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      Multiple Choice Questions (60 MCQs)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAssessmentMode('pdf')}
+                      className={`px-4 py-2 rounded-xl font-bold text-sm border transition-all ${
+                        assessmentMode === 'pdf'
+                          ? 'bg-primary text-white border-primary shadow-sm'
+                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      Theory Assignment (Upload Reference PDF)
+                    </button>
                   </div>
+
+                  {assessmentMode === 'pdf' ? (
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Upload Reference PDF</label>
+                      <div className="flex items-center gap-3">
+                        <label className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 text-sm font-medium text-gray-700">
+                          <Upload size={16} /> Choose File
+                          <input type="file" className="hidden" onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setTheoryPdfName(file.name);
+                              const reader = new FileReader();
+                              reader.onload = (event) => setTheoryPdfDataUrl(event.target?.result as string);
+                              reader.readAsDataURL(file);
+                            }
+                          }} />
+                        </label>
+                        <span className="text-sm text-primary font-medium">{theoryPdfName}</span>
+                        {theoryPdfDataUrl && (
+                          <button type="button" onClick={() => handleOpenPdf(theoryPdfDataUrl, theoryPdfName)} className="text-sm text-blue-600 hover:underline font-bold ml-2">
+                            View PDF
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">Students will download this PDF, complete the assignment, and upload their answers as a PDF.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200">
+                        <div className="flex items-center gap-2 text-sm font-bold text-gray-800">
+                          Total Questions: 
+                          <select 
+                            value={questionCount} 
+                            onChange={(e) => {
+                              const count = Number(e.target.value);
+                              setQuestionCount(count);
+                              if (theoryQuestions.length < count) {
+                                setTheoryQuestions(prev => [
+                                  ...prev, 
+                                  ...Array.from({ length: count - prev.length }, (_, i) => ({ question: `Question ${prev.length + i + 1}`, options: ['', '', '', ''], answerIndex: 0 }))
+                                ]);
+                              }
+                            }}
+                            className="ml-2 border border-gray-300 rounded px-2 py-1 bg-gray-50 font-semibold"
+                          >
+                            <option value={60}>60 MCQs (Standard)</option>
+                            <option value={40}>40 MCQs</option>
+                            <option value={20}>20 MCQs</option>
+                            <option value={10}>10 MCQs</option>
+                          </select>
+                        </div>
+                        <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded font-bold">
+                          🔒 Answers saved in mentor portal only (Hidden from students)
+                        </span>
+                      </div>
+
+                      <div className="max-h-[450px] overflow-y-auto space-y-4 pr-2">
+                        {theoryQuestions.slice(0, questionCount).map((q, qIdx) => (
+                          <div key={qIdx} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-3">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-primary uppercase">Question {qIdx + 1}</label>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-500 font-medium">Correct Answer:</span>
+                                <select 
+                                  value={q.answerIndex} 
+                                  onChange={(e) => {
+                                    const updated = [...theoryQuestions];
+                                    updated[qIdx].answerIndex = Number(e.target.value);
+                                    setTheoryQuestions(updated);
+                                  }}
+                                  className="text-xs border border-primary/40 bg-orange-50 text-orange-900 rounded font-bold px-2 py-1 focus:outline-none"
+                                >
+                                  <option value={0}>Option A</option>
+                                  <option value={1}>Option B</option>
+                                  <option value={2}>Option C</option>
+                                  <option value={3}>Option D</option>
+                                </select>
+                              </div>
+                            </div>
+                            <input 
+                              type="text" 
+                              value={q.question} 
+                              onChange={(e) => {
+                                const updated = [...theoryQuestions];
+                                updated[qIdx].question = e.target.value;
+                                setTheoryQuestions(updated);
+                              }}
+                              placeholder={`Enter question ${qIdx + 1} text...`}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:border-primary"
+                            />
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {['A', 'B', 'C', 'D'].map((label, optIdx) => (
+                                <div key={optIdx} className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-lg border border-gray-100">
+                                  <span className="text-xs font-bold text-gray-500 w-5 text-center">{label}</span>
+                                  <input 
+                                    type="text" 
+                                    value={q.options[optIdx] || ''} 
+                                    onChange={(e) => {
+                                      const updated = [...theoryQuestions];
+                                      const newOpts = [...updated[qIdx].options];
+                                      newOpts[optIdx] = e.target.value;
+                                      updated[qIdx].options = newOpts;
+                                      setTheoryQuestions(updated);
+                                    }}
+                                    placeholder={`Option ${label}`}
+                                    className="w-full px-2 py-1 bg-white border border-gray-200 rounded text-xs focus:outline-none focus:border-primary"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-end pt-2">
