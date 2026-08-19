@@ -737,14 +737,17 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
             return true;
           }
           if (!exam.targetBatch || exam.targetBatch === 'All Batches') return true;
-          if (!studentDetails) return false;
           
-          if (exam.targetBatch === 'Morning' || exam.targetBatch === 'Evening') {
-            return studentDetails.batch === exam.targetBatch;
+          const studentBatch = (studentDetails?.batch || 'Morning').toLowerCase();
+          const targetBatchClean = exam.targetBatch.toLowerCase().replace(' batch', '').trim();
+          const studentBatchClean = studentBatch.replace(' batch', '').trim();
+
+          if (targetBatchClean === 'morning' || targetBatchClean === 'evening') {
+            return studentBatchClean === targetBatchClean;
           }
           
           // Check if targetBatch is a project batch number
-          const targetProjectBatch = projectBatches.find(b => b.batchNumber === exam.targetBatch);
+          const targetProjectBatch = projectBatches.find(b => b.batchNumber.toLowerCase() === exam.targetBatch.toLowerCase());
           if (targetProjectBatch) {
             return targetProjectBatch.memberEmails.includes(loggedInEmail);
           }
