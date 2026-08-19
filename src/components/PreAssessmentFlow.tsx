@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, X, FileText, CheckCircle2, Award, PlayCircle } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
+import { MUNI_STUDENTS } from '../data/students';
 
 interface TheoryQuestion {
   question: string;
@@ -47,10 +48,12 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
   const [targetBatch, setTargetBatch] = useState('All Batches');
   const [projectBatches, setProjectBatches] = useState<{id: string, batchNumber: string, memberEmails: string[]}[]>([]);
 
-  const [sectionA, setSectionA] = useState<TheoryQuestion[]>(Array.from({ length: 10 }, () => ({ question: '', options: ['', '', '', ''], answerIndex: 0 })));
-  const [sectionB, setSectionB] = useState<TheoryQuestion[]>(Array.from({ length: 5 }, () => ({ question: '', options: ['True', 'False'], answerIndex: 0 })));
-  const [sectionC, setSectionC] = useState<TheoryQuestion[]>(Array.from({ length: 5 }, () => ({ question: '', options: ['', '', '', ''], answerIndex: 0 })));
-  const [sectionD, setSectionD] = useState<string[]>(Array.from({ length: 5 }, () => ''));
+  const isMuni = loggedInEmail === 'muni@geonixa.com' || MUNI_STUDENTS.some(s => s.email === loggedInEmail);
+
+  const [sectionA, setSectionA] = useState<TheoryQuestion[]>(Array.from({ length: isMuni ? 30 : 10 }, () => ({ question: '', options: ['', '', '', ''], answerIndex: 0 })));
+  const [sectionB, setSectionB] = useState<TheoryQuestion[]>(Array.from({ length: isMuni ? 0 : 5 }, () => ({ question: '', options: ['True', 'False'], answerIndex: 0 })));
+  const [sectionC, setSectionC] = useState<TheoryQuestion[]>(Array.from({ length: isMuni ? 0 : 5 }, () => ({ question: '', options: ['', '', '', ''], answerIndex: 0 })));
+  const [sectionD, setSectionD] = useState<string[]>(Array.from({ length: isMuni ? 0 : 5 }, () => ''));
 
   // Student form state
   const [takingExamId, setTakingExamId] = useState<string | null>(null);
@@ -171,8 +174,8 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
         sectionA: markA,
         sectionB: markB,
         sectionC: markC,
-        sectionD: sectionDMarks,
-        total: markA + markB + markC + sectionDMarks
+        sectionD: isMuni ? 0 : sectionDMarks,
+        total: markA + markB + markC + (isMuni ? 0 : sectionDMarks)
       }
     };
 
@@ -476,12 +479,24 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
                       value={targetBatch} onChange={(e) => setTargetBatch(e.target.value)}
                       className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-indigo-500 text-sm font-medium"
                     >
-                      <option value="All Batches">All Batches</option>
-                      <option value="Morning">Morning Batch</option>
-                      <option value="Evening">Evening Batch</option>
-                      {projectBatches.map(b => (
-                        <option key={b.id} value={b.batchNumber}>{b.batchNumber}</option>
-                      ))}
+                      {isMuni ? (
+                        <>
+                          <option value="All Batches">All Batches</option>
+                          <option value="A1">A1</option>
+                          <option value="A2">A2</option>
+                          <option value="B1">B1</option>
+                          <option value="B2">B2</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="All Batches">All Batches</option>
+                          <option value="Morning">Morning Batch</option>
+                          <option value="Evening">Evening Batch</option>
+                          {projectBatches.map(b => (
+                            <option key={b.id} value={b.batchNumber}>{b.batchNumber}</option>
+                          ))}
+                        </>
+                      )}
                     </select>
                   </div>
                 </div>
@@ -491,7 +506,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
                   
                   {/* Section A */}
                   <div>
-                    <h4 className="font-bold text-gray-900 mb-4 border-b border-gray-200 pb-2 sticky top-0 bg-gray-50 py-2">Section A: 10 MCQs (1M each)</h4>
+                    <h4 className="font-bold text-gray-900 mb-4 border-b border-gray-200 pb-2 sticky top-0 bg-gray-50 py-2">{isMuni ? 'Section A: 30 MCQs (1M each)' : 'Section A: 10 MCQs (1M each)'}</h4>
                     <div className="space-y-6">
                       {sectionA.map((q, qIndex) => (
                         <div key={qIndex} className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
@@ -511,9 +526,10 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
                   </div>
 
                   {/* Section B */}
-                  <div>
-                    <h4 className="font-bold text-gray-900 mb-4 border-b border-gray-200 pb-2 sticky top-0 bg-gray-50 py-2">Section B: 5 True/False (1M each)</h4>
-                    <div className="space-y-6">
+                  {sectionB.length > 0 && (
+                    <div>
+                      <h4 className="font-bold text-gray-900 mb-4 border-b border-gray-200 pb-2 sticky top-0 bg-gray-50 py-2">Section B: 5 True/False (1M each)</h4>
+                      <div className="space-y-6">
                       {sectionB.map((q, qIndex) => (
                         <div key={qIndex} className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
                           <label className="block text-xs font-bold text-gray-500 mb-2">Q{qIndex + 1}</label>
@@ -524,13 +540,15 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
                           </div>
                         </div>
                       ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Section C */}
-                  <div>
-                    <h4 className="font-bold text-gray-900 mb-4 border-b border-gray-200 pb-2 sticky top-0 bg-gray-50 py-2">Section C: 5 Fill in the blanks (1M each)</h4>
-                    <div className="space-y-6">
+                  {sectionC.length > 0 && (
+                    <div>
+                      <h4 className="font-bold text-gray-900 mb-4 border-b border-gray-200 pb-2 sticky top-0 bg-gray-50 py-2">Section C: 5 Fill in the blanks (1M each)</h4>
+                      <div className="space-y-6">
                       {sectionC.map((q, qIndex) => (
                         <div key={qIndex} className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
                           <label className="block text-xs font-bold text-gray-500 mb-2">Q{qIndex + 1}</label>
@@ -545,13 +563,15 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
                           </div>
                         </div>
                       ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Section D */}
-                  <div>
-                    <h4 className="font-bold text-gray-900 mb-4 border-b border-gray-200 pb-2 sticky top-0 bg-gray-50 py-2">Section D: 5 Short Answers (2M each)</h4>
-                    <div className="space-y-6">
+                  {sectionD.length > 0 && (
+                    <div>
+                      <h4 className="font-bold text-gray-900 mb-4 border-b border-gray-200 pb-2 sticky top-0 bg-gray-50 py-2">Section D: 5 Short Answers (2M each)</h4>
+                      <div className="space-y-6">
                       {sectionD.map((q, qIndex) => (
                         <div key={qIndex} className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
                           <label className="block text-xs font-bold text-gray-500 mb-2">Q{qIndex + 1}</label>
@@ -580,6 +600,12 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
           if (isMentor) return true;
           if (!exam.targetBatch || exam.targetBatch === 'All Batches') return true;
           if (!studentDetails) return false;
+          
+          if (isMuni && ['A1', 'A2', 'B1', 'B2'].includes(exam.targetBatch)) {
+            const muniStudent = MUNI_STUDENTS.find(s => s.email === loggedInEmail);
+            return muniStudent?.batch === exam.targetBatch;
+          }
+
           if (exam.targetBatch === 'Morning' || exam.targetBatch === 'Evening') return studentDetails.batch === exam.targetBatch;
           const targetProjectBatch = projectBatches.find(b => b.batchNumber === exam.targetBatch);
           if (targetProjectBatch) return targetProjectBatch.memberEmails.includes(loggedInEmail);

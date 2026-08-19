@@ -5,6 +5,7 @@ import { WeeklyExamReport } from '../components/WeeklyExamReport';
 import { WeeklyAssessmentFlow } from '../components/WeeklyAssessmentFlow';
 import { PreAssessmentFlow } from '../components/PreAssessmentFlow';
 import { getFromCloudflare, saveToCloudflare, getMentorKey } from '../utils/cloudflare';
+import { MUNI_STUDENTS } from '../data/students';
 
 const defaultAssessments: { id: number, title: string, description: string }[] = [];
 
@@ -356,6 +357,7 @@ const Assessments: React.FC = () => {
     );
   }
   if (pattern === 'Pre Assessment Pattern') {
+    const isMuni = loggedInEmail === 'muni@geonixa.com' || MUNI_STUDENTS.some(s => s.email === loggedInEmail);
     return (
       <div className="w-full max-w-3xl mx-auto space-y-6 pb-12">
         <div className="flex items-center gap-3 text-gray-900 font-bold text-2xl mb-8">
@@ -365,26 +367,41 @@ const Assessments: React.FC = () => {
         
         <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
           <div className="space-y-4 text-lg">
-            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-              <span className="font-medium text-gray-700">Section A - Multiple choice questions</span>
-              <span className="font-bold text-primary">10M</span>
-            </div>
-            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-              <span className="font-medium text-gray-700">Section B - True/False</span>
-              <span className="font-bold text-primary">5M</span>
-            </div>
-            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-              <span className="font-medium text-gray-700">Section C - Fill in the blanks</span>
-              <span className="font-bold text-primary">5M</span>
-            </div>
-            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-              <span className="font-medium text-gray-700">Section D - Short Answer Question</span>
-              <span className="font-bold text-primary">10M</span>
-            </div>
-            <div className="flex justify-between items-center pt-4">
-              <span className="font-black text-gray-900 text-xl">Total</span>
-              <span className="font-black text-primary text-2xl">30M</span>
-            </div>
+            {isMuni ? (
+              <>
+                <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+                  <span className="font-medium text-gray-700">Multiple choice questions</span>
+                  <span className="font-bold text-primary">30M</span>
+                </div>
+                <div className="flex justify-between items-center pt-4">
+                  <span className="font-black text-gray-900 text-xl">Total</span>
+                  <span className="font-black text-primary text-2xl">30M</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+                  <span className="font-medium text-gray-700">Section A - Multiple choice questions</span>
+                  <span className="font-bold text-primary">10M</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+                  <span className="font-medium text-gray-700">Section B - True/False</span>
+                  <span className="font-bold text-primary">5M</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+                  <span className="font-medium text-gray-700">Section C - Fill in the blanks</span>
+                  <span className="font-bold text-primary">5M</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+                  <span className="font-medium text-gray-700">Section D - Short Answer Question</span>
+                  <span className="font-bold text-primary">10M</span>
+                </div>
+                <div className="flex justify-between items-center pt-4">
+                  <span className="font-black text-gray-900 text-xl">Total</span>
+                  <span className="font-black text-primary text-2xl">30M</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
