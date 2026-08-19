@@ -132,6 +132,66 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     fetchData();
   }, [isMentor, loggedInEmail]);
 
+  // Auto-load draft progress when student opens an exam
+  useEffect(() => {
+    if (!takingExamId || isMentor) return;
+
+    const draftKey = `examDraft_${loggedInEmail}_${takingExamId}`;
+    const loadDraft = async () => {
+      try {
+        const cloudDraft = await getFromCloudflare(draftKey);
+        const localDraft = localStorage.getItem(draftKey);
+        const draft = cloudDraft || (localDraft ? JSON.parse(localDraft) : null);
+
+        if (draft) {
+          if (draft.studentProjectUrl) setStudentProjectUrl(draft.studentProjectUrl);
+          if (draft.studentProjectPdf) setStudentProjectPdf(draft.studentProjectPdf);
+          if (draft.studentProjectPdfDataUrl) setStudentProjectPdfDataUrl(draft.studentProjectPdfDataUrl);
+          if (draft.studentPortfolioPdf) setStudentPortfolioPdf(draft.studentPortfolioPdf);
+          if (draft.studentPortfolioPdfDataUrl) setStudentPortfolioPdfDataUrl(draft.studentPortfolioPdfDataUrl);
+          if (draft.studentTheoryAnswers && Array.isArray(draft.studentTheoryAnswers)) {
+            setStudentTheoryAnswers(draft.studentTheoryAnswers);
+          }
+          if (draft.studentTheoryTextAnswer) setStudentTheoryTextAnswer(draft.studentTheoryTextAnswer);
+          if (draft.studentTheoryPdf) setStudentTheoryPdf(draft.studentTheoryPdf);
+          if (draft.studentTheoryPdfDataUrl) setStudentTheoryPdfDataUrl(draft.studentTheoryPdfDataUrl);
+        }
+      } catch (err) {
+        console.error("Failed to load exam draft:", err);
+      }
+    };
+
+    loadDraft();
+  }, [takingExamId, isMentor, loggedInEmail]);
+
+  // Auto-save draft progress in real-time as student answers
+  useEffect(() => {
+    if (!takingExamId || isMentor) return;
+
+    const draftKey = `examDraft_${loggedInEmail}_${takingExamId}`;
+    const draft = {
+      studentProjectUrl,
+      studentProjectPdf,
+      studentProjectPdfDataUrl,
+      studentPortfolioPdf,
+      studentPortfolioPdfDataUrl,
+      studentTheoryAnswers,
+      studentTheoryTextAnswer,
+      studentTheoryPdf,
+      studentTheoryPdfDataUrl,
+      savedAt: new Date().toISOString()
+    };
+
+    localStorage.setItem(draftKey, JSON.stringify(draft));
+    saveToCloudflare(draftKey, draft);
+  }, [
+    takingExamId, isMentor, loggedInEmail,
+    studentProjectUrl, studentProjectPdf, studentProjectPdfDataUrl,
+    studentPortfolioPdf, studentPortfolioPdfDataUrl,
+    studentTheoryAnswers, studentTheoryTextAnswer,
+    studentTheoryPdf, studentTheoryPdfDataUrl
+  ]);
+
   const handleAddExam = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -200,6 +260,11 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     // Also save a raw version for the mentor to read in Exam Reports
     localStorage.setItem(`weeklyReportSubmission_${loggedInEmail}_${takingExamId}`, JSON.stringify(submission));
     await saveToCloudflare(`weeklyReportSubmission_${loggedInEmail}_${takingExamId}`, submission);
+
+    // Clear draft on successful submission
+    const draftKey = `examDraft_${loggedInEmail}_${takingExamId}`;
+    localStorage.removeItem(draftKey);
+    await saveToCloudflare(draftKey, null);
 
     setTakingExamId(null);
     setStudentProjectUrl('');
