@@ -1,3 +1,4 @@
+/* eslint-disable */
 export const AUTHORIZED_STUDENTS_TRUNCATED = [
   { roll: '24EG101B01', name: 'POOJITHA RANJITH KUMAR', email: '24eg101b01@anurag.edu.in' },
   { roll: '24EG101B02', name: 'BANOTHU RENUKA', email: '24eg101b02@anurag.edu.in' },
@@ -70,18 +71,6 @@ export const AUTHORIZED_STUDENTS_TRUNCATED = [
   { roll: '23EG101A35', name: 'PADALA SANATH KUMAR', email: '23eg101a35@anurag.edu.in' },
   { roll: '23EG101A40', name: 'PILLI VINAY KUMAR', email: '23eg101a40@anurag.edu.in' },
   { roll: '24EG101A01', name: 'AKULA SHIVACHANDRA PRASAD', email: '24eg101a01@anurag.edu.in' },
-  { roll: '24EG101A03', name: 'EEGA SIDDHARTHA', email: '24eg101a03@anurag.edu.in' },
-  { roll: '24EG101A04', name: 'PEDAPROLU MADHULIKA GAYATHRI', email: '24eg101a04@anurag.edu.in' },
-  { roll: '24EG101A06', name: 'V. VENKATESH', email: '24eg101a06@anurag.edu.in' },
-  { roll: '24EG101A07', name: 'VALLEPU HARISH RAJU', email: '24eg101a07@anurag.edu.in' },
-  { roll: '24EG101A09', name: 'ANREDDY YESHWANTH REDDY', email: '24eg101a09@anurag.edu.in' },
-  { roll: '24EG101A10', name: 'BADAVATH SRAVANTHI', email: '24eg101a10@anurag.edu.in' },
-  { roll: '24EG101A11', name: 'MALLADI VENKATA SURYA PRAKASH RAO', email: '24eg101a11@anurag.edu.in' },
-export const AUTHORIZED_STUDENTS = [
-  { roll: '24EG101B01', name: 'POOJITHA RANJITH KUMAR', email: '24eg101b01@anurag.edu.in' },
-  { roll: '24EG101B02', name: 'BANOTHU RENUKA', email: '24eg101b02@anurag.edu.in' },
-  { roll: '24EG101B03', name: 'MALOTH SANTHOSH KUMAR', email: '24eg101b03@anurag.edu.in' },
-  { roll: '24EG101B04', name: 'ANUMULA KOUSHIK YADAV', email: '24eg101b04@anurag.edu.in' },
   { roll: '24EG101B05', name: 'BANOTH RAKESH', email: '24eg101b05@anurag.edu.in' },
   { roll: '24EG101B06', name: 'GOPU SRINIDHI', email: '24eg101b06@anurag.edu.in' },
   { roll: '24EG101B07', name: 'MUDDAM NISHANTH REDDY', email: '24eg101b07@anurag.edu.in' },
