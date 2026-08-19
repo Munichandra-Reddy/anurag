@@ -852,35 +852,59 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                   </button>
                   <button 
                     onClick={async () => {
-                      if (window.confirm("Are you sure you want to remove this exam? This will also permanently delete all student submissions and marks for this exam.")) {
+                      if (window.confirm("Are you sure you want to remove this exam? This will permanently delete this exam paper for both mentor and all target students.")) {
                         const newExams = exams.filter(e => e.id !== exam.id);
                         setExams(newExams);
-                        await saveToCloudflare('anuragLmsWeeklyExams', newExams);
-                        
-                        // Delete related data for all students to prevent old marks from reappearing
-                        const cloudStudents = await getFromCloudflare('registeredStudents');
-                        const studentsList = cloudStudents ? cloudStudents as any[] : JSON.parse(localStorage.getItem('registeredStudents') || '[]');
-                        
-                        const promises: Promise<any>[] = [];
-                        
+
+                        const examsKey = getMentorKey('anuragLmsWeeklyExams');
+                        localStorage.setItem(examsKey, JSON.stringify(newExams));
+                        const promises: Promise<any>[] = [
+                          saveToCloudflare(examsKey, newExams)
+                        ];
+
+                        if (examsKey !== 'anuragLmsWeeklyExams') {
+                          localStorage.setItem('anuragLmsWeeklyExams', JSON.stringify(newExams));
+                          promises.push(saveToCloudflare('anuragLmsWeeklyExams', newExams));
+                        }
+
+                        // Fetch all students (both standard & muni mentor list) to purge deleted exam data
+                        const [cloudStudents, muniStudents] = await Promise.all([
+                          getFromCloudflare('registeredStudents'),
+                          getFromCloudflare('registeredStudents_muni@geonixa.com')
+                        ]);
+
+                        const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
+                        const localMuniStudents = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
+
+                        const allStudentsMap = new Map();
+                        [...localStudents, ...localMuniStudents, ...(cloudStudents || []), ...(muniStudents || [])].forEach(s => {
+                          if (s && s.email) allStudentsMap.set(s.email.toLowerCase(), s);
+                        });
+
+                        const studentsList = Array.from(allStudentsMap.values());
+
                         for (const student of studentsList) {
                           if (!student || !student.email) continue;
-                          const email = student.email;
-                          
-                          // 1. Delete marks report
+                          const email = student.email.toLowerCase();
+
+                          // 1. Delete active exam drafts
+                          const draftKey1 = `examDraft_${email}_${exam.id}`;
+                          const draftKey2 = `weeklyReportDraft_${email}_${exam.id}`;
+                          localStorage.removeItem(draftKey1);
+                          localStorage.removeItem(draftKey2);
+                          promises.push(saveToCloudflare(draftKey1, null));
+                          promises.push(saveToCloudflare(draftKey2, null));
+
+                          // 2. Delete marks report
                           const reportKey = `weeklyReport_${email}_${exam.id}`;
                           localStorage.removeItem(reportKey);
                           promises.push(saveToCloudflare(reportKey, null));
-                          
-                          // 2. Delete draft
-                          const draftKey = `weeklyReportDraft_${email}_${exam.id}`;
-                          localStorage.removeItem(draftKey);
-                          
+
                           // 3. Delete raw submission
                           const rawSubKey = `weeklyReportSubmission_${email}_${exam.id}`;
                           localStorage.removeItem(rawSubKey);
                           promises.push(saveToCloudflare(rawSubKey, null));
-                          
+
                           // 4. Delete from student's submission record list
                           const subRecordKey = `weeklyExamSubmissions_${email}`;
                           const localSub = JSON.parse(localStorage.getItem(subRecordKey) || '{}');
@@ -898,7 +922,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                             })
                           );
                         }
-                        
+
                         await Promise.all(promises);
                       }
                     }}
