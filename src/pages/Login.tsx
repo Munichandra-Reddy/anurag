@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, KeyRound, Mail, ArrowRight, ArrowLeft } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
-import { AUTHORIZED_STUDENTS, MUNI_A1_STUDENTS } from '../data/students';
+import { AUTHORIZED_STUDENTS, MUNI_STUDENTS } from '../data/students';
 
 type AuthState = 'LOGIN' | 'FORGOT_EMAIL' | 'FORGOT_OTP' | 'FORGOT_NEW_PWD';
 
@@ -87,9 +87,9 @@ const Login: React.FC = () => {
       setIsLoading(true);
       setError('');
       try {
-        const muniA1Match = MUNI_A1_STUDENTS.find(s => s.email.toLowerCase() === cleanEmail);
-        if (muniA1Match) {
-          if (cleanPassword !== muniA1Match.roll && cleanPassword.toLowerCase() !== muniA1Match.roll.toLowerCase()) {
+        const muniMatch = MUNI_STUDENTS.find(s => s.email.toLowerCase() === cleanEmail);
+        if (muniMatch) {
+          if (cleanPassword !== muniMatch.roll && cleanPassword.toLowerCase() !== muniMatch.roll.toLowerCase()) {
             setError('Invalid password. Your password is your Hall Ticket Number.');
             setIsLoading(false);
             return;
@@ -104,12 +104,12 @@ const Login: React.FC = () => {
 
           if (!allMuniMap.has(cleanEmail)) {
             const newMuniStudent = {
-              id: muniA1Match.id || Date.now(),
-              name: muniA1Match.name,
-              email: muniA1Match.email,
-              password: muniA1Match.roll,
+              id: muniMatch.id || Date.now(),
+              name: muniMatch.name,
+              email: muniMatch.email,
+              password: muniMatch.roll,
               registeredAt: new Date().toISOString(),
-              batch: 'A1'
+              batch: muniMatch.batch || 'A2'
             };
             const updatedMuni = [newMuniStudent, ...Array.from(allMuniMap.values())];
             localStorage.setItem('registeredStudents_muni@geonixa.com', JSON.stringify(updatedMuni));

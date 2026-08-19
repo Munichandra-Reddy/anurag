@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Mail, Calendar, User, Loader2, UserPlus, Trash2, X, ClipboardList, CheckCircle2 } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare, getStudentsKey, getMentorBatches } from '../utils/cloudflare';
-import { MUNI_A1_STUDENTS } from '../data/students';
+import { MUNI_STUDENTS } from '../data/students';
 
 interface Student {
   id: number;
@@ -48,7 +48,7 @@ const MentorStudents: React.FC = () => {
         });
         
         if (key === 'registeredStudents_muni@geonixa.com') {
-          MUNI_A1_STUDENTS.forEach(s => {
+          MUNI_STUDENTS.forEach(s => {
             if (!allStudentsMap.has(s.email)) {
               allStudentsMap.set(s.email, s);
             }
