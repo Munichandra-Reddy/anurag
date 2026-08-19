@@ -180,7 +180,29 @@ export const AUTHORIZED_STUDENTS = [
   { roll: '24EG103A63', name: 'CHEMUDALA SPOORTHI', email: '24eg103a63@anurag.edu.in' },
   { roll: '24EG103A64', name: 'THATITHOTI GANESH', email: '24eg103a64@anurag.edu.in' },
   { roll: '24EG103A65', name: 'DARAVATH AVINASH', email: '24eg103a65@anurag.edu.in' },
-  { roll: '24EG103A66', name: 'GARIKAPATI BALA YOGI', email: '24eg103a66@anurag.edu.in' }
+  { roll: '24EG103A66', name: 'GARIKAPATI BALA YOGI', email: '24eg103a66@anurag.edu.in' },
+  // Muni Mentor B1 Batch 21 Students
+  { roll: '24EG103B01', name: 'KOLLIPARA AKSHAY', email: '24eg103b01@anurag.edu.in' },
+  { roll: '24EG103B02', name: 'BANDI NAVEEN KUMAR', email: '24eg103b02@anurag.edu.in' },
+  { roll: '24EG103B04', name: 'RATHLAVATH VIKRAM RATHOD', email: '24eg103b04@anurag.edu.in' },
+  { roll: '24EG103B05', name: 'ADDEPALLI VENKATA KRISHNALAASYA', email: '24eg103b05@anurag.edu.in' },
+  { roll: '24EG103B06', name: 'AERRA SRAVANTH KUMAR', email: '24eg103b06@anurag.edu.in' },
+  { roll: '24EG103B07', name: 'KOMMU PALEM VYSHNAVI', email: '24eg103b07@anurag.edu.in' },
+  { roll: '24EG103B08', name: 'RAJANAK BHAVYASRI', email: '24eg103b08@anurag.edu.in' },
+  { roll: '24EG103B09', name: 'MANNE SAI KRISHNA', email: '24eg103b09@anurag.edu.in' },
+  { roll: '24EG103B10', name: 'PABBATHI SANTHOSH REDDY', email: '24eg103b10@anurag.edu.in' },
+  { roll: '24EG103B11', name: 'NAMPELLY VARUN TEJA', email: '24eg103b11@anurag.edu.in' },
+  { roll: '24EG103B12', name: 'SHENIGARAM SRINATH', email: '24eg103b12@anurag.edu.in' },
+  { roll: '24EG103B13', name: 'BANDI SRIVARDHAN', email: '24eg103b13@anurag.edu.in' },
+  { roll: '24EG103B14', name: 'KARUN KADIAN', email: '24eg103b14@anurag.edu.in' },
+  { roll: '24EG103B16', name: 'RACHERLA JAHANAVI', email: '24eg103b16@anurag.edu.in' },
+  { roll: '24EG103B17', name: 'KASARAPU ABHI RAM', email: '24eg103b17@anurag.edu.in' },
+  { roll: '24EG103B18', name: 'DOBBALA SHASHI KUMAR', email: '24eg103b18@anurag.edu.in' },
+  { roll: '24EG103B19', name: 'SHAIK SALMAN', email: '24eg103b19@anurag.edu.in' },
+  { roll: '24EG103B20', name: 'GOLLA PAVAN KUMAR', email: '24eg103b20@anurag.edu.in' },
+  { roll: '24EG103B21', name: 'SAPAVATH SUDHEER', email: '24eg103b21@anurag.edu.in' },
+  { roll: '24EG103B22', name: 'KONDA YUVANJAN', email: '24eg103b22@anurag.edu.in' },
+  { roll: '24EG103B23', name: 'PIRANGI RAGHU', email: '24eg103b23@anurag.edu.in' }
 ];
 
 export const MUNI_A1_STUDENTS = [
@@ -239,4 +261,28 @@ export const MUNI_A2_STUDENTS = [
   { id: 2014, roll: '24EG103A66', name: 'GARIKAPATI BALA YOGI', email: '24eg103a66@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' }
 ];
 
-export const MUNI_STUDENTS = [...MUNI_A1_STUDENTS, ...MUNI_A2_STUDENTS];
+export const MUNI_B1_STUDENTS = [
+  { id: 3001, roll: '24EG103B01', name: 'KOLLIPARA AKSHAY', email: '24eg103b01@anurag.edu.in', batch: 'B1', registeredAt: '2026-08-19' },
+  { id: 3002, roll: '24EG103B02', name: 'BANDI NAVEEN KUMAR', email: '24eg103b02@anurag.edu.in', batch: 'B1', registeredAt: '2026-08-19' },
+  { id: 3003, roll: '24EG103B04', name: 'RATHLAVATH VIKRAM RATHOD', email: '24eg103b04@anurag.edu.in', batch: 'B1', registeredAt: '2026-08-19' },
+  { id: 3004, roll: '24EG103B05', name: 'ADDEPALLI VENKATA KRISHNALAASYA', email: '24eg103b05@anurag.edu.in', batch: 'B1', registeredAt: '2026-08-19' },
+  { id: 3005, roll: '24EG103B06', name: 'AERRA SRAVANTH KUMAR', email: '24eg103b06@anurag.edu.in', batch: 'B1', registeredAt: '2026-08-19' },
+  { id: 3006, roll: '24EG103B07', name: 'KOMMU PALEM VYSHNAVI', email: '24eg103b07@anurag.edu.in', batch: 'B1', registeredAt: '2026-08-19' },
+  { id: 3007, roll: '24EG103B08', name: 'RAJANAK BHAVYASRI', email: '24eg103b08@anurag.edu.in', batch: 'B1', registeredAt: '2026-08-19' },
+  { id: 3008, roll: '24EG103B09', name: 'MANNE SAI KRISHNA', email: '24eg103b09@anurag.edu.in', batch: 'B1', registeredAt: '2026-08-19' },
+  { id: 3009, roll: '24EG103B10', name: 'PABBATHI SANTHOSH REDDY', email: '24eg103b10@anurag.edu.in', batch: 'B1', registeredAt: '2026-08-19' },
+  { id: 3010, roll: '24EG103B11', name: 'NAMPELLY VARUN TEJA', email: '24eg103b11@anurag.edu.in', batch: 'B1', registeredAt: '2026-08-19' },
+  { id: 3011, roll: '24EG103B12', name: 'SHENIGARAM SRINATH', email: '24eg103b12@anurag.edu.in', batch: 'B1', registeredAt: '2026-08-19' },
+  { id: 3012, roll: '24EG103B13', name: 'BANDI SRIVARDHAN', email: '24eg103b13@anurag.edu.in', batch: 'B1', registeredAt: '2026-08-19' },
+  { id: 3013, roll: '24EG103B14', name: 'KARUN KADIAN', email: '24eg103b14@anurag.edu.in', batch: 'B1', registeredAt: '2026-08-19' },
+  { id: 3014, roll: '24EG103B16', name: 'RACHERLA JAHANAVI', email: '24eg103b16@anurag.edu.in', batch: 'B1', registeredAt: '2026-08-19' },
+  { id: 3015, roll: '24EG103B17', name: 'KASARAPU ABHI RAM', email: '24eg103b17@anurag.edu.in', batch: 'B1', registeredAt: '2026-08-19' },
+  { id: 3016, roll: '24EG103B18', name: 'DOBBALA SHASHI KUMAR', email: '24eg103b18@anurag.edu.in', batch: 'B1', registeredAt: '2026-08-19' },
+  { id: 3017, roll: '24EG103B19', name: 'SHAIK SALMAN', email: '24eg103b19@anurag.edu.in', batch: 'B1', registeredAt: '2026-08-19' },
+  { id: 3018, roll: '24EG103B20', name: 'GOLLA PAVAN KUMAR', email: '24eg103b20@anurag.edu.in', batch: 'B1', registeredAt: '2026-08-19' },
+  { id: 3019, roll: '24EG103B21', name: 'SAPAVATH SUDHEER', email: '24eg103b21@anurag.edu.in', batch: 'B1', registeredAt: '2026-08-19' },
+  { id: 3020, roll: '24EG103B22', name: 'KONDA YUVANJAN', email: '24eg103b22@anurag.edu.in', batch: 'B1', registeredAt: '2026-08-19' },
+  { id: 3021, roll: '24EG103B23', name: 'PIRANGI RAGHU', email: '24eg103b23@anurag.edu.in', batch: 'B1', registeredAt: '2026-08-19' }
+];
+
+export const MUNI_STUDENTS = [...MUNI_A1_STUDENTS, ...MUNI_A2_STUDENTS, ...MUNI_B1_STUDENTS];
