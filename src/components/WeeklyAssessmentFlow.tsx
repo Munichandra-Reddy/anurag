@@ -354,7 +354,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
               {exam.theoryQuestions.map((q, qIdx) => (
                 <div key={qIdx} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-3">
                   <p className="font-bold text-gray-900 text-sm">
-                    {qIdx + 1}. {q.question || `Question ${qIdx + 1}`}
+                    {qIdx + 1}. {(q.question || `Question ${qIdx + 1}`).replace(/^\d+[\.\)]\s*/, '')}
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {q.options.map((opt, optIdx) => (
