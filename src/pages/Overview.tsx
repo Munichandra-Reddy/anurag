@@ -19,15 +19,15 @@ interface ProfileData {
 }
 
 const defaultProfile: ProfileData = {
-  name: 'Jithendra Varma',
+  name: 'Student',
   avatarUrl: '', // empty means show initials
   bannerUrl: '', // empty means show gray background
-  professionalTag: 'Web Developer Intern',
-  collegeName: 'Geonixa Institute of Technology',
-  bio: 'Passionate full stack developer learning modern web frameworks and building scalable client portals.',
-  portfolioLink: 'https://jithendra.dev',
-  linkedinLink: 'https://linkedin.com/in/jithendra',
-  githubLink: 'https://github.com/jithendra'
+  professionalTag: 'Student',
+  collegeName: 'Anurag University',
+  bio: '',
+  portfolioLink: '',
+  linkedinLink: '',
+  githubLink: ''
 };
 
 const getInitials = (name: string) => {
@@ -70,22 +70,31 @@ const Overview: React.FC = () => {
     const loadOverviewData = async () => {
       // Load Profile
       const cloudProfile = await getFromCloudflare(profileKey);
-      if (cloudProfile) {
-        setProfile(cloudProfile);
-      } else {
+      let activeProfile = cloudProfile;
+      if (!activeProfile) {
         const saved = localStorage.getItem(profileKey);
         if (saved) {
-          setProfile(JSON.parse(saved));
+          activeProfile = JSON.parse(saved);
         } else {
           const students = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
           const student = students.find((s: any) => s.email === loggedInEmail);
-          setProfile({
+          activeProfile = {
             ...defaultProfile,
             name: student ? student.name : loggedInEmail.split('@')[0],
             avatarUrl: '',
             bannerUrl: ''
-          });
+          };
         }
+      }
+
+      if (activeProfile) {
+        if (!activeProfile.collegeName || activeProfile.collegeName === 'Geonixa Institute of Technology') {
+          activeProfile.collegeName = 'Anurag University';
+        }
+        if (activeProfile.bio === 'Passionate full stack developer learning modern web frameworks and building scalable client portals.') {
+          activeProfile.bio = '';
+        }
+        setProfile(activeProfile);
       }
 
       // Load Projects
@@ -234,9 +243,11 @@ const Overview: React.FC = () => {
             </div>
 
             {/* Bio */}
-            <p className="text-gray-500 italic text-sm max-w-3xl mb-6">
-              "{profile.bio}"
-            </p>
+            {profile.bio && (
+              <p className="text-gray-500 italic text-sm max-w-3xl mb-6">
+                "{profile.bio}"
+              </p>
+            )}
 
             {/* Actions & Socials */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
