@@ -580,6 +580,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
                       ))}
                     </div>
                   </div>
+                  )}
 
                 </div>
 
