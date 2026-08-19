@@ -132,16 +132,19 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     fetchData();
   }, [isMentor, loggedInEmail]);
 
+  const [isDraftLoaded, setIsDraftLoaded] = useState(false);
+
   // Auto-load draft progress when student opens an exam
   useEffect(() => {
     if (!takingExamId || isMentor) return;
 
+    setIsDraftLoaded(false);
     const draftKey = `examDraft_${loggedInEmail}_${takingExamId}`;
     const loadDraft = async () => {
       try {
-        const cloudDraft = await getFromCloudflare(draftKey);
         const localDraft = localStorage.getItem(draftKey);
-        const draft = cloudDraft || (localDraft ? JSON.parse(localDraft) : null);
+        const cloudDraft = await getFromCloudflare(draftKey);
+        const draft = (localDraft ? JSON.parse(localDraft) : null) || cloudDraft;
 
         if (draft) {
           if (draft.studentProjectUrl) setStudentProjectUrl(draft.studentProjectUrl);
@@ -158,15 +161,17 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
         }
       } catch (err) {
         console.error("Failed to load exam draft:", err);
+      } finally {
+        setIsDraftLoaded(true);
       }
     };
 
     loadDraft();
   }, [takingExamId, isMentor, loggedInEmail]);
 
-  // Auto-save draft progress in real-time as student answers
+  // Auto-save draft progress in real-time as student answers (only after draft is loaded)
   useEffect(() => {
-    if (!takingExamId || isMentor) return;
+    if (!takingExamId || isMentor || !isDraftLoaded) return;
 
     const draftKey = `examDraft_${loggedInEmail}_${takingExamId}`;
     const draft = {
@@ -185,7 +190,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     localStorage.setItem(draftKey, JSON.stringify(draft));
     saveToCloudflare(draftKey, draft);
   }, [
-    takingExamId, isMentor, loggedInEmail,
+    takingExamId, isMentor, isDraftLoaded, loggedInEmail,
     studentProjectUrl, studentProjectPdf, studentProjectPdfDataUrl,
     studentPortfolioPdf, studentPortfolioPdfDataUrl,
     studentTheoryAnswers, studentTheoryTextAnswer,
