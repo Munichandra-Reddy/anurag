@@ -129,11 +129,26 @@ const Overview: React.FC = () => {
       setCurrentSession(upcoming);
 
       // Load Batch
-      const cloudStudents = await getFromCloudflare('registeredStudents');
+      const [cloudStudents, muniStudents] = await Promise.all([
+        getFromCloudflare('registeredStudents'),
+        getFromCloudflare('registeredStudents_muni@geonixa.com')
+      ]);
       const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
-      const studentsData = cloudStudents && cloudStudents.length > 0 ? cloudStudents : localStudents;
-      const currentStudent = studentsData.find((s: any) => s.email === loggedInEmail);
-      setUserBatch(currentStudent?.batch || 'Morning');
+      const localMuniStudents = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
+
+      const allStudentsMap = new Map();
+      [...localStudents, ...localMuniStudents, ...(cloudStudents || []), ...(muniStudents || [])].forEach(s => {
+        if (s && s.email) allStudentsMap.set(s.email.toLowerCase(), s);
+      });
+
+      const currentStudent = allStudentsMap.get(loggedInEmail.toLowerCase());
+      if (currentStudent && currentStudent.batch) {
+        setUserBatch(currentStudent.batch);
+      } else if (loggedInEmail === 'raju@anurag.com') {
+        setUserBatch('A1');
+      } else {
+        setUserBatch('Unassigned');
+      }
     };
 
     loadOverviewData();
@@ -220,7 +235,7 @@ const Overview: React.FC = () => {
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 w-full sm:w-auto">{profile.name}</h1>
               {userBatch && userBatch !== 'Unassigned' && userBatch !== 'Pending' ? (
                 <span className="px-3 py-1 bg-blue-50 border border-blue-200 text-blue-600 rounded-full text-[10px] sm:text-xs font-medium flex items-center gap-1">
-                  {userBatch.includes('Morning') ? '🌅 Morning Batch' : '🌃 Evening Batch'}
+                  {userBatch.includes('Morning') ? '🌅 Morning Batch' : userBatch.includes('Evening') ? '🌃 Evening Batch' : `🏷️ ${userBatch} Batch`}
                 </span>
               ) : (
                 <span className="px-3 py-1 bg-gray-50 border border-gray-200 text-gray-500 rounded-full text-[10px] sm:text-xs font-medium flex items-center gap-1">
