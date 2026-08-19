@@ -7,6 +7,7 @@ export const AUTHORIZED_STUDENTS = [
   { roll: '24EG101B06', name: 'GOPU SRINIDHI', email: '24eg101b06@anurag.edu.in' },
   { roll: '24EG101B07', name: 'MUDDAM NISHANTH REDDY', email: '24eg101b07@anurag.edu.in' },
   { roll: '24EG101B08', name: 'KONDA GRACY JOY', email: '24eg101b08@anurag.edu.in' },
+  { roll: 'RAJU526', name: 'Raju', email: 'raju@anurag.com', password: 'raju@526' },
   { roll: '24EG101B09', name: 'AKKALADEVI RISHI KRISHNA', email: '24eg101b09@anurag.edu.in' },
   { roll: '24EG101B10', name: 'BHUKYA NARASIMHA', email: '24eg101b10@anurag.edu.in' },
   { roll: '24EG101B12', name: 'GUGULOTH PUNITH NAIK', email: '24eg101b12@anurag.edu.in' },

@@ -87,9 +87,44 @@ const Login: React.FC = () => {
       setIsLoading(true);
       setError('');
       try {
+        if (cleanEmail === 'raju@anurag.com') {
+          if (cleanPassword !== 'raju@526') {
+            setError('Invalid password.');
+            setIsLoading(false);
+            return;
+          }
+
+          // Register Raju into muni@geonixa.com mentor portal ONLY
+          const muniStudents = await getFromCloudflare('registeredStudents_muni@geonixa.com') || [];
+          const localMuni = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
+          const allMuniMap = new Map();
+          [...localMuni, ...muniStudents].forEach(s => {
+            if (s && s.email) allMuniMap.set(s.email.toLowerCase(), s);
+          });
+
+          if (!allMuniMap.has('raju@anurag.com')) {
+            const newRaju = {
+              id: Date.now(),
+              name: 'Raju',
+              email: 'raju@anurag.com',
+              password: 'raju@526',
+              registeredAt: new Date().toISOString(),
+              batch: 'Morning'
+            };
+            const updatedMuni = [newRaju, ...Array.from(allMuniMap.values())];
+            localStorage.setItem('registeredStudents_muni@geonixa.com', JSON.stringify(updatedMuni));
+            await saveToCloudflare('registeredStudents_muni@geonixa.com', updatedMuni);
+          }
+
+          sessionStorage.setItem('loggedInEmail', cleanEmail);
+          navigate('/dashboard');
+          setIsLoading(false);
+          return;
+        }
+
         let validDatabaseStudents = await fetchDatabaseStudents();
         const studentInDb = validDatabaseStudents.find((s: any) => s.email.toLowerCase() === cleanEmail);
-        const authorizedStudent = AUTHORIZED_STUDENTS.find(s => s.email === cleanEmail);
+        const authorizedStudent = (AUTHORIZED_STUDENTS as any[]).find(s => s.email === cleanEmail);
         
         if (!studentInDb && !authorizedStudent) {
           setError('Access Denied: Your email is not authorized for this portal.');
@@ -98,7 +133,7 @@ const Login: React.FC = () => {
         }
         
         // Use password from DB if it exists (meaning they changed it or were manually added), otherwise use Roll Number
-        const expectedPassword = studentInDb ? studentInDb.password : authorizedStudent?.roll;
+        const expectedPassword = studentInDb ? studentInDb.password : (authorizedStudent?.password || authorizedStudent?.roll);
 
         if (cleanPassword !== expectedPassword && cleanPassword.toLowerCase() !== expectedPassword?.toLowerCase()) {
           setError('Invalid password. If you haven\'t changed it, it is your Roll Number.');
@@ -112,7 +147,7 @@ const Login: React.FC = () => {
             id: Date.now(),
             name: authorizedStudent.name,
             email: authorizedStudent.email,
-            password: authorizedStudent.roll,
+            password: authorizedStudent.password || authorizedStudent.roll,
             registeredAt: new Date().toISOString(),
             batch: ''
           };
