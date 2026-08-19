@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Check, X, Search, Calendar as CalendarIcon, Filter, Loader2 } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare, getStudentsKey, getMentorBatches } from '../utils/cloudflare';
+import { MUNI_A1_STUDENTS } from '../data/students';
 
 const Attendance: React.FC = () => {
   const availableBatches = getMentorBatches();
@@ -41,6 +42,15 @@ const Attendance: React.FC = () => {
         [...localStudents, ...(cloudStudents || [])].forEach(s => {
           if (s && s.email) allStudentsMap.set(s.email, s);
         });
+
+        if (studentsKey === 'registeredStudents_muni@geonixa.com') {
+          MUNI_A1_STUDENTS.forEach(s => {
+            if (!allStudentsMap.has(s.email)) {
+              allStudentsMap.set(s.email, s);
+            }
+          });
+        }
+
         setRegisteredStudents(Array.from(allStudentsMap.values()));
 
         // Merge lingering local attendance records

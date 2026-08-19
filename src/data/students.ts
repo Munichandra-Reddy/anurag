@@ -128,5 +128,41 @@ export const AUTHORIZED_STUDENTS = [
   { roll: '25EG501A07', name: 'KANCHARLA JAYANTH', email: '25eg501a07@anurag.edu.in' },
   { roll: '25EG501A08', name: 'B. VINAY KUMAR', email: '25eg501a08@anurag.edu.in' },
   { roll: '25EG501A09', name: 'ETIKALA NAGARAJU YADAV', email: '25eg501a09@anurag.edu.in' },
-  { roll: '25EG501A10', name: 'MANUPATI RENUKA', email: '25eg501a10@anurag.edu.in' }
+  { roll: '25EG501A10', name: 'MANUPATI RENUKA', email: '25eg501a10@anurag.edu.in' },
+  // Muni Mentor A1 Batch 16 Students
+  { roll: '23EG103A04', name: 'GUDIMETLA SATHWIK', email: '23eg103a04@anurag.edu.in' },
+  { roll: '23EG103A31', name: 'MACHA VIKRANTH REDDY', email: '23eg103a31@anurag.edu.in' },
+  { roll: '24EG103A01', name: 'ALKA CHIDVILAS REDDY', email: '24eg103a01@anurag.edu.in' },
+  { roll: '24EG103A02', name: 'CHILLARA TANMAY', email: '24eg103a02@anurag.edu.in' },
+  { roll: '24EG103A03', name: 'CHODI ABHINAI', email: '24eg103a03@anurag.edu.in' },
+  { roll: '24EG103A04', name: 'DESHAPU SAI PUNEETH', email: '24eg103a04@anurag.edu.in' },
+  { roll: '24EG103A05', name: 'JILLELLA NITHIN REDDY', email: '24eg103a05@anurag.edu.in' },
+  { roll: '24EG103A06', name: 'KALABOINA CHARAN KUMAR', email: '24eg103a06@anurag.edu.in' },
+  { roll: '24EG103A07', name: 'KATARLA VARUN KUMAR', email: '24eg103a07@anurag.edu.in' },
+  { roll: '24EG103A08', name: 'KOWSHIKA KRISHNA', email: '24eg103a08@anurag.edu.in' },
+  { roll: '24EG103A10', name: 'MUSKULA ABHIRAM REDDY', email: '24eg103a10@anurag.edu.in' },
+  { roll: '24EG103A11', name: 'OM PRAKASH PAL', email: '24eg103a11@anurag.edu.in' },
+  { roll: '24EG103A12', name: 'SHIV KARTHIK SHIVARATRI', email: '24eg103a12@anurag.edu.in' },
+  { roll: '24EG103A13', name: 'SRIRAM PAVAN CHARY', email: '24eg103a13@anurag.edu.in' },
+  { roll: '24EG103A15', name: 'TADISINA SAHASRA', email: '24eg103a15@anurag.edu.in' },
+  { roll: '24EG103A16', name: 'TUMU VENKATA KIRANANJALI', email: '24eg103a16@anurag.edu.in' }
+];
+
+export const MUNI_A1_STUDENTS = [
+  { id: 1001, roll: '23EG103A04', name: 'GUDIMETLA SATHWIK', email: '23eg103a04@anurag.edu.in', batch: 'A1', registeredAt: '2026-08-19' },
+  { id: 1002, roll: '23EG103A31', name: 'MACHA VIKRANTH REDDY', email: '23eg103a31@anurag.edu.in', batch: 'A1', registeredAt: '2026-08-19' },
+  { id: 1003, roll: '24EG103A01', name: 'ALKA CHIDVILAS REDDY', email: '24eg103a01@anurag.edu.in', batch: 'A1', registeredAt: '2026-08-19' },
+  { id: 1004, roll: '24EG103A02', name: 'CHILLARA TANMAY', email: '24eg103a02@anurag.edu.in', batch: 'A1', registeredAt: '2026-08-19' },
+  { id: 1005, roll: '24EG103A03', name: 'CHODI ABHINAI', email: '24eg103a03@anurag.edu.in', batch: 'A1', registeredAt: '2026-08-19' },
+  { id: 1006, roll: '24EG103A04', name: 'DESHAPU SAI PUNEETH', email: '24eg103a04@anurag.edu.in', batch: 'A1', registeredAt: '2026-08-19' },
+  { id: 1007, roll: '24EG103A05', name: 'JILLELLA NITHIN REDDY', email: '24eg103a05@anurag.edu.in', batch: 'A1', registeredAt: '2026-08-19' },
+  { id: 1008, roll: '24EG103A06', name: 'KALABOINA CHARAN KUMAR', email: '24eg103a06@anurag.edu.in', batch: 'A1', registeredAt: '2026-08-19' },
+  { id: 1009, roll: '24EG103A07', name: 'KATARLA VARUN KUMAR', email: '24eg103a07@anurag.edu.in', batch: 'A1', registeredAt: '2026-08-19' },
+  { id: 1010, roll: '24EG103A08', name: 'KOWSHIKA KRISHNA', email: '24eg103a08@anurag.edu.in', batch: 'A1', registeredAt: '2026-08-19' },
+  { id: 1011, roll: '24EG103A10', name: 'MUSKULA ABHIRAM REDDY', email: '24eg103a10@anurag.edu.in', batch: 'A1', registeredAt: '2026-08-19' },
+  { id: 1012, roll: '24EG103A11', name: 'OM PRAKASH PAL', email: '24eg103a11@anurag.edu.in', batch: 'A1', registeredAt: '2026-08-19' },
+  { id: 1013, roll: '24EG103A12', name: 'SHIV KARTHIK SHIVARATRI', email: '24eg103a12@anurag.edu.in', batch: 'A1', registeredAt: '2026-08-19' },
+  { id: 1014, roll: '24EG103A13', name: 'SRIRAM PAVAN CHARY', email: '24eg103a13@anurag.edu.in', batch: 'A1', registeredAt: '2026-08-19' },
+  { id: 1015, roll: '24EG103A15', name: 'TADISINA SAHASRA', email: '24eg103a15@anurag.edu.in', batch: 'A1', registeredAt: '2026-08-19' },
+  { id: 1016, roll: '24EG103A16', name: 'TUMU VENKATA KIRANANJALI', email: '24eg103a16@anurag.edu.in', batch: 'A1', registeredAt: '2026-08-19' }
 ];

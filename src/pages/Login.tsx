@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, KeyRound, Mail, ArrowRight, ArrowLeft } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
-import { AUTHORIZED_STUDENTS } from '../data/students';
+import { AUTHORIZED_STUDENTS, MUNI_A1_STUDENTS } from '../data/students';
 
 type AuthState = 'LOGIN' | 'FORGOT_EMAIL' | 'FORGOT_OTP' | 'FORGOT_NEW_PWD';
 
@@ -87,6 +87,41 @@ const Login: React.FC = () => {
       setIsLoading(true);
       setError('');
       try {
+        const muniA1Match = MUNI_A1_STUDENTS.find(s => s.email.toLowerCase() === cleanEmail);
+        if (muniA1Match) {
+          if (cleanPassword !== muniA1Match.roll && cleanPassword.toLowerCase() !== muniA1Match.roll.toLowerCase()) {
+            setError('Invalid password. Your password is your Hall Ticket Number.');
+            setIsLoading(false);
+            return;
+          }
+
+          const muniStudents = await getFromCloudflare('registeredStudents_muni@geonixa.com') || [];
+          const localMuni = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
+          const allMuniMap = new Map();
+          [...localMuni, ...muniStudents].forEach(s => {
+            if (s && s.email) allMuniMap.set(s.email.toLowerCase(), s);
+          });
+
+          if (!allMuniMap.has(cleanEmail)) {
+            const newMuniStudent = {
+              id: muniA1Match.id || Date.now(),
+              name: muniA1Match.name,
+              email: muniA1Match.email,
+              password: muniA1Match.roll,
+              registeredAt: new Date().toISOString(),
+              batch: 'A1'
+            };
+            const updatedMuni = [newMuniStudent, ...Array.from(allMuniMap.values())];
+            localStorage.setItem('registeredStudents_muni@geonixa.com', JSON.stringify(updatedMuni));
+            await saveToCloudflare('registeredStudents_muni@geonixa.com', updatedMuni);
+          }
+
+          sessionStorage.setItem('loggedInEmail', cleanEmail);
+          navigate('/dashboard');
+          setIsLoading(false);
+          return;
+        }
+
         if (cleanEmail === 'raju@anurag.com') {
           if (cleanPassword !== 'raju@526') {
             setError('Invalid password.');

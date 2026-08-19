@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Mail, Calendar, User, Loader2, UserPlus, Trash2, X, ClipboardList, CheckCircle2 } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare, getStudentsKey, getMentorBatches } from '../utils/cloudflare';
+import { MUNI_A1_STUDENTS } from '../data/students';
 
 interface Student {
   id: number;
@@ -46,7 +47,21 @@ const MentorStudents: React.FC = () => {
           if (s && s.email) allStudentsMap.set(s.email, s);
         });
         
-        setStudents(Array.from(allStudentsMap.values()));
+        if (key === 'registeredStudents_muni@geonixa.com') {
+          MUNI_A1_STUDENTS.forEach(s => {
+            if (!allStudentsMap.has(s.email)) {
+              allStudentsMap.set(s.email, s);
+            }
+          });
+        }
+
+        const mergedStudents = Array.from(allStudentsMap.values());
+        setStudents(mergedStudents);
+        
+        if (key === 'registeredStudents_muni@geonixa.com') {
+          localStorage.setItem(key, JSON.stringify(mergedStudents));
+          saveToCloudflare(key, mergedStudents);
+        }
       } catch (error) {
         console.error("Failed to load students:", error);
       } finally {
