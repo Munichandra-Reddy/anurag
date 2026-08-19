@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, X, Upload, Link as LinkIcon, FileText, CheckCircle2, Award, PlayCircle } from 'lucide-react';
 import { WeeklyExamReport } from './WeeklyExamReport';
 import { getFromCloudflare, saveToCloudflare, getMentorKey, getStudentsKey } from '../utils/cloudflare';
+import { SOLIDWORKS_60_MCQS } from '../data/solidworks60Mcqs';
 
 interface TheoryQuestion {
   question: string;
@@ -55,9 +56,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
   const [theoryPdfName, setTheoryPdfName] = useState('theory_assignment.pdf');
   const [theoryPdfDataUrl, setTheoryPdfDataUrl] = useState('');
   const [questionCount, setQuestionCount] = useState<number>(60);
-  const [theoryQuestions, setTheoryQuestions] = useState<TheoryQuestion[]>(
-    Array.from({ length: 60 }, (_, i) => ({ question: `Question ${i + 1}`, options: ['', '', '', ''], answerIndex: 0 }))
-  );
+  const [theoryQuestions, setTheoryQuestions] = useState<TheoryQuestion[]>(SOLIDWORKS_60_MCQS);
 
   // Student form state
   const [takingExamId, setTakingExamId] = useState<string | null>(null);
@@ -164,7 +163,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     setTheoryPdfName('theory_assignment.pdf');
     setTheoryPdfDataUrl('');
     setQuestionCount(60);
-    setTheoryQuestions(Array.from({ length: 60 }, (_, i) => ({ question: `Question ${i + 1}`, options: ['', '', '', ''], answerIndex: 0 })));
+    setTheoryQuestions(SOLIDWORKS_60_MCQS);
     setTargetBatch('All Batches');
   };
 
