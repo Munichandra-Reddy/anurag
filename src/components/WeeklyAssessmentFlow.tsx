@@ -852,7 +852,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                   </button>
                   <button 
                     onClick={async () => {
-                      if (window.confirm("Are you sure you want to remove this exam? This will permanently delete this exam paper for both mentor and all target students.")) {
+                      if (window.confirm("Are you sure you want to remove this exam? This will permanently delete this exam paper for this mentor dashboard and its assigned students.")) {
                         const newExams = exams.filter(e => e.id !== exam.id);
                         setExams(newExams);
 
@@ -862,22 +862,13 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                           saveToCloudflare(examsKey, newExams)
                         ];
 
-                        if (examsKey !== 'anuragLmsWeeklyExams') {
-                          localStorage.setItem('anuragLmsWeeklyExams', JSON.stringify(newExams));
-                          promises.push(saveToCloudflare('anuragLmsWeeklyExams', newExams));
-                        }
-
-                        // Fetch all students (both standard & muni mentor list) to purge deleted exam data
-                        const [cloudStudents, muniStudents] = await Promise.all([
-                          getFromCloudflare('registeredStudents'),
-                          getFromCloudflare('registeredStudents_muni@geonixa.com')
-                        ]);
-
-                        const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
-                        const localMuniStudents = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
+                        // Fetch only target students for this specific mentor
+                        const targetStudentsKey = getStudentsKey();
+                        const cloudStudents = await getFromCloudflare(targetStudentsKey);
+                        const localStudents = JSON.parse(localStorage.getItem(targetStudentsKey) || '[]');
 
                         const allStudentsMap = new Map();
-                        [...localStudents, ...localMuniStudents, ...(cloudStudents || []), ...(muniStudents || [])].forEach(s => {
+                        [...localStudents, ...(cloudStudents || [])].forEach(s => {
                           if (s && s.email) allStudentsMap.set(s.email.toLowerCase(), s);
                         });
 
