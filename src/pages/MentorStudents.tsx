@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Mail, Calendar, User, Loader2, UserPlus, Trash2, X, ClipboardList, CheckCircle2 } from 'lucide-react';
-import { getFromCloudflare, saveToCloudflare, getStudentsKey } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, getStudentsKey, getMentorBatches } from '../utils/cloudflare';
 
 interface Student {
   id: number;
@@ -18,6 +18,7 @@ const examPatterns = [
 ];
 
 const MentorStudents: React.FC = () => {
+  const availableBatches = getMentorBatches();
   const [students, setStudents] = useState<Student[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -26,7 +27,7 @@ const MentorStudents: React.FC = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentEmail, setNewStudentEmail] = useState('');
-  const [newStudentBatch, setNewStudentBatch] = useState('Morning');
+  const [newStudentBatch, setNewStudentBatch] = useState(availableBatches[0] || 'Morning');
 
   // Modal State
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -240,8 +241,9 @@ const MentorStudents: React.FC = () => {
                   className="w-full px-3 py-2 bg-white border border-orange-200 rounded-lg focus:outline-none focus:border-primary text-sm"
                 >
                   <option value="" disabled>Select Batch</option>
-                  <option value="Morning">Morning Batch</option>
-                  <option value="Evening">Evening Batch</option>
+                  {availableBatches.map(b => (
+                    <option key={b} value={b}>{b} Batch</option>
+                  ))}
                 </select>
               </div>
               <button type="submit" className="w-full md:w-auto px-6 py-2 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-700 transition-colors text-sm">
@@ -266,13 +268,14 @@ const MentorStudents: React.FC = () => {
             >
               <div className="absolute top-4 right-4 flex items-center gap-2" onClick={e => e.stopPropagation()}>
                 <select 
-                  value={student.batch || 'Morning'}
+                  value={student.batch || availableBatches[0]}
                   onChange={(e) => handleBatchChange(student.id, e.target.value)}
                   className="text-xs border border-gray-200 rounded-md px-2 py-1 bg-gray-50 text-gray-700 font-medium focus:outline-none focus:border-primary"
                 >
                   <option value="" disabled>Select Batch</option>
-                  <option value="Morning">Morning Batch</option>
-                  <option value="Evening">Evening Batch</option>
+                  {availableBatches.map(b => (
+                    <option key={b} value={b}>{b} Batch</option>
+                  ))}
                 </select>
                 <button 
                   onClick={() => handleRemoveStudent(student.id)}

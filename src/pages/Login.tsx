@@ -109,7 +109,7 @@ const Login: React.FC = () => {
               email: 'raju@anurag.com',
               password: 'raju@526',
               registeredAt: new Date().toISOString(),
-              batch: 'Morning'
+              batch: 'A1'
             };
             const updatedMuni = [newRaju, ...Array.from(allMuniMap.values())];
             localStorage.setItem('registeredStudents_muni@geonixa.com', JSON.stringify(updatedMuni));

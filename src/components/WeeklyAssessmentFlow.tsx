@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, X, Upload, Link as LinkIcon, FileText, CheckCircle2, Award, PlayCircle } from 'lucide-react';
 import { WeeklyExamReport } from './WeeklyExamReport';
-import { getFromCloudflare, saveToCloudflare, getMentorKey, getStudentsKey } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, getMentorKey, getStudentsKey, getMentorBatches } from '../utils/cloudflare';
 import { SOLIDWORKS_60_MCQS } from '../data/solidworks60Mcqs';
 
 interface TheoryQuestion {
@@ -41,6 +41,7 @@ interface Props {
 }
 
 export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) => {
+  const availableBatches = getMentorBatches();
   const [exams, setExams] = useState<WeeklyExamData[]>([]);
   const [isAdding, setIsAdding] = useState<false | 'weekly' | 'cie'>(false);
   
@@ -575,8 +576,9 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                       className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-primary text-sm font-medium"
                     >
                       <option value="All Batches">All Batches</option>
-                      <option value="Morning">Morning Batch</option>
-                      <option value="Evening">Evening Batch</option>
+                      {availableBatches.map(b => (
+                        <option key={b} value={b}>{b} Batch</option>
+                      ))}
                       {projectBatches.map(b => (
                         <option key={b.id} value={b.batchNumber}>{b.batchNumber}</option>
                       ))}
@@ -781,8 +783,9 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
             className="px-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-primary text-sm flex-1 md:flex-none md:w-64"
           >
             <option value="All">All Batches</option>
-            <option value="Morning">Morning Batch</option>
-            <option value="Evening">Evening Batch</option>
+            {availableBatches.map(b => (
+              <option key={b} value={b}>{b} Batch</option>
+            ))}
             {projectBatches.map(b => (
               <option key={b.id} value={b.batchNumber}>{b.batchNumber}</option>
             ))}
@@ -808,12 +811,13 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           }
           if (!exam.targetBatch || exam.targetBatch === 'All Batches') return true;
           
-          const studentBatch = (studentDetails?.batch || 'Morning').toLowerCase();
+          const studentBatch = (studentDetails?.batch || availableBatches[0] || 'A1').toLowerCase();
           const targetBatchClean = exam.targetBatch.toLowerCase().replace(' batch', '').trim();
           const studentBatchClean = studentBatch.replace(' batch', '').trim();
 
-          if (targetBatchClean === 'morning' || targetBatchClean === 'evening') {
-            return studentBatchClean === targetBatchClean;
+          const batchMatchList = availableBatches.map(b => b.toLowerCase());
+          if (batchMatchList.includes(targetBatchClean) || targetBatchClean === 'morning' || targetBatchClean === 'evening') {
+            return studentBatchClean === targetBatchClean || (studentBatchClean === 'morning' && targetBatchClean === 'a1');
           }
           
           // Check if targetBatch is a project batch number

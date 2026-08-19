@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Check, X, Search, Calendar as CalendarIcon, Filter, Loader2 } from 'lucide-react';
-import { getFromCloudflare, saveToCloudflare, getStudentsKey } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, getStudentsKey, getMentorBatches } from '../utils/cloudflare';
 
 const Attendance: React.FC = () => {
+  const availableBatches = getMentorBatches();
   const [searchQuery, setSearchQuery] = useState('');
   const [sessions, setSessions] = useState<any[]>([]);
   const [selectedDate, setSelectedDate] = useState('');
@@ -183,8 +184,9 @@ const Attendance: React.FC = () => {
               className="bg-transparent outline-none cursor-pointer w-full text-right sm:text-left"
             >
               <option value="All">All Batches</option>
-              <option value="Morning">Morning Batch</option>
-              <option value="Evening">Evening Batch</option>
+              {availableBatches.map(b => (
+                <option key={b} value={b}>{b} Batch</option>
+              ))}
             </select>
           </div>
           <button 
@@ -231,13 +233,14 @@ const Attendance: React.FC = () => {
                   </td>
                   <td className="py-4 px-6">
                     <select 
-                      value={student.batch}
+                      value={student.batch || availableBatches[0]}
                       onChange={(e) => handleBatchChange(student.id, e.target.value)}
                       className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-medium bg-gray-100 text-gray-800 border border-transparent focus:border-gray-300 focus:outline-none cursor-pointer hover:bg-gray-200 transition-colors"
                     >
                       <option value="Unassigned" disabled>Select Batch</option>
-                      <option value="Morning">Morning Batch</option>
-                      <option value="Evening">Evening Batch</option>
+                      {availableBatches.map(b => (
+                        <option key={b} value={b}>{b} Batch</option>
+                      ))}
                     </select>
                   </td>
                   <td className="py-4 px-6">

@@ -71,3 +71,11 @@ export const getMentorKey = (baseKey: string): string => {
   return baseKey;
 };
 
+export const getMentorBatches = (): string[] => {
+  const userEmail = (sessionStorage.getItem('loggedInEmail') || '').toLowerCase();
+  if (userEmail === 'muni@geonixa.com') {
+    return ['A1', 'A2', 'B1', 'B2'];
+  }
+  return ['Morning', 'Evening'];
+};
+
