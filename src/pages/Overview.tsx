@@ -5,6 +5,7 @@ import {
   Video, LogOut, Clock, CreditCard, Laptop, FileText
 } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
+import { MUNI_STUDENTS, AUTHORIZED_STUDENTS_TRUNCATED as AUTHORIZED_STUDENTS } from '../data/students';
 
 interface ProfileData {
   name: string;
@@ -68,6 +69,22 @@ const Overview: React.FC = () => {
 
   React.useEffect(() => {
     const loadOverviewData = async () => {
+      // Load Batch & Student Info
+      const [cloudStudents, muniStudents] = await Promise.all([
+        getFromCloudflare('registeredStudents'),
+        getFromCloudflare('registeredStudents_muni@geonixa.com')
+      ]);
+      const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
+      const localMuniStudents = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
+
+      const allStudentsMap = new Map();
+      [...MUNI_STUDENTS, ...AUTHORIZED_STUDENTS, ...localStudents, ...localMuniStudents, ...(cloudStudents || []), ...(muniStudents || [])].forEach(s => {
+        if (s && s.email) allStudentsMap.set((s.email || '').toLowerCase().trim(), s);
+      });
+
+      const currentStudent = allStudentsMap.get((loggedInEmail || '').toLowerCase().trim());
+      const resolvedName = currentStudent?.name || loggedInEmail.split('@')[0];
+
       // Load Profile
       const cloudProfile = await getFromCloudflare(profileKey);
       let activeProfile = cloudProfile;
@@ -76,11 +93,9 @@ const Overview: React.FC = () => {
         if (saved) {
           activeProfile = JSON.parse(saved);
         } else {
-          const students = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
-          const student = students.find((s: any) => s.email === loggedInEmail);
           activeProfile = {
             ...defaultProfile,
-            name: student ? student.name : loggedInEmail.split('@')[0],
+            name: resolvedName,
             avatarUrl: '',
             bannerUrl: ''
           };
@@ -93,6 +108,10 @@ const Overview: React.FC = () => {
         }
         if (activeProfile.bio === 'Passionate full stack developer learning modern web frameworks and building scalable client portals.') {
           activeProfile.bio = '';
+        }
+        // Ensure student name is displayed instead of raw email/roll fallback
+        if (currentStudent && currentStudent.name && (activeProfile.name === loggedInEmail.split('@')[0] || activeProfile.name === 'Student' || !activeProfile.name || activeProfile.name.toLowerCase() === loggedInEmail.split('@')[0].toLowerCase())) {
+          activeProfile.name = currentStudent.name;
         }
         setProfile(activeProfile);
       }
@@ -128,20 +147,7 @@ const Overview: React.FC = () => {
       }) || sessionsList[0] || { topic: 'No sessions scheduled' };
       setCurrentSession(upcoming);
 
-      // Load Batch
-      const [cloudStudents, muniStudents] = await Promise.all([
-        getFromCloudflare('registeredStudents'),
-        getFromCloudflare('registeredStudents_muni@geonixa.com')
-      ]);
-      const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
-      const localMuniStudents = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
-
-      const allStudentsMap = new Map();
-      [...localStudents, ...localMuniStudents, ...(cloudStudents || []), ...(muniStudents || [])].forEach(s => {
-        if (s && s.email) allStudentsMap.set(s.email.toLowerCase(), s);
-      });
-
-      const currentStudent = allStudentsMap.get(loggedInEmail.toLowerCase());
+      // Update User Batch
       if (currentStudent && currentStudent.batch) {
         setUserBatch(currentStudent.batch);
       } else if (loggedInEmail === 'raju@anurag.com') {

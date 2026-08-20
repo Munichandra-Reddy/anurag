@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { getFromCloudflare } from '../utils/cloudflare';
+import { MUNI_STUDENTS, AUTHORIZED_STUDENTS_TRUNCATED as AUTHORIZED_STUDENTS } from '../data/students';
 
 const getInitials = (name: string) => {
   if (!name) return '??';
@@ -25,26 +26,38 @@ const DashboardLayout: React.FC = () => {
 
   React.useEffect(() => {
     const loadProfile = async () => {
-      const [cloudProfile, cloudStudents] = await Promise.all([
+      const [cloudProfile, cloudStudents, cloudMuniStudents] = await Promise.all([
         getFromCloudflare(profileKey),
-        getFromCloudflare('registeredStudents')
+        getFromCloudflare('registeredStudents'),
+        getFromCloudflare('registeredStudents_muni@geonixa.com')
       ]);
 
-      if (cloudProfile) {
-        setProfile(cloudProfile);
-      } else {
+      const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
+      const localMuniStudents = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
+      const allStudentsMap = new Map();
+      [...MUNI_STUDENTS, ...AUTHORIZED_STUDENTS, ...localStudents, ...localMuniStudents, ...(cloudStudents || []), ...(cloudMuniStudents || [])].forEach(s => {
+        if (s && s.email) allStudentsMap.set((s.email || '').toLowerCase().trim(), s);
+      });
+      const currentStudent = allStudentsMap.get((userEmail || '').toLowerCase().trim());
+      const resolvedName = currentStudent?.name || userEmail.split('@')[0];
+
+      let activeProfile = cloudProfile;
+      if (!activeProfile) {
         const saved = localStorage.getItem(profileKey);
-        if (saved) {
-          setProfile(JSON.parse(saved));
-        } else {
-          const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
-          const students = cloudStudents && cloudStudents.length > 0 ? cloudStudents : localStudents;
-          const student = students.find((s: any) => s.email === userEmail);
-          setProfile({
-            name: student ? student.name : userEmail.split('@')[0],
+        if (saved) activeProfile = JSON.parse(saved);
+        else {
+          activeProfile = {
+            name: resolvedName,
             avatarUrl: ''
-          });
+          };
         }
+      }
+
+      if (activeProfile) {
+        if (currentStudent && currentStudent.name && (activeProfile.name === userEmail.split('@')[0] || activeProfile.name === 'Student' || !activeProfile.name || activeProfile.name.toLowerCase() === userEmail.split('@')[0].toLowerCase())) {
+          activeProfile.name = currentStudent.name;
+        }
+        setProfile(activeProfile);
       }
     };
     
