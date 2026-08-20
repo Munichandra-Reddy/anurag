@@ -288,6 +288,7 @@ export const AUTHORIZED_STUDENTS = [
 ];
 
 export const MUNI_A1_STUDENTS = [
+  { id: 1000, roll: 'RAJU526', name: 'Raju', email: 'raju@anurag.com', batch: 'A1', registeredAt: '2026-08-19' },
   { id: 1001, roll: '23EG103A04', name: 'GUDIMETLA SATHWIK', email: '23eg103a04@anurag.edu.in', batch: 'A1', registeredAt: '2026-08-19' },
   { id: 1002, roll: '23EG103A31', name: 'MACHA VIKRANTH REDDY', email: '23eg103a31@anurag.edu.in', batch: 'A1', registeredAt: '2026-08-19' },
   { id: 1003, roll: '24EG103A01', name: 'ALKA CHIDVILAS REDDY', email: '24eg103a01@anurag.edu.in', batch: 'A1', registeredAt: '2026-08-19' },

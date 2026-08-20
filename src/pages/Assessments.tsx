@@ -65,7 +65,12 @@ const Assessments: React.FC = () => {
       getFromCloudflare(subKey)
     ]);
     
-    const isMuniUser = loggedInEmail === 'muni@geonixa.com' || MUNI_STUDENTS.some(s => s.email.toLowerCase() === loggedInEmail.toLowerCase());
+    const normalizedEmail = (loggedInEmail || '').toLowerCase().trim();
+    const cloudMuniStudents = await getFromCloudflare('registeredStudents_muni@geonixa.com') || [];
+    const localMuniStudents = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
+    const isMuniUser = normalizedEmail === 'muni@geonixa.com' 
+      || MUNI_STUDENTS.some(s => (s.email || '').toLowerCase().trim() === normalizedEmail)
+      || [...cloudMuniStudents, ...localMuniStudents].some((s: any) => (s?.email || '').toLowerCase().trim() === normalizedEmail);
     const baseExams = (examsData && Array.isArray(examsData) && examsData.length > 0)
       ? examsData
       : (isMuniUser ? [MUNI_PRE_ASSESSMENT_SET1] : []);
@@ -394,7 +399,11 @@ const Assessments: React.FC = () => {
   }
   if (pattern === 'Pre Assessment Pattern') {
     const normalizedEmail = (loggedInEmail || '').toLowerCase().trim();
-    const isMuni = normalizedEmail === 'muni@geonixa.com' || MUNI_STUDENTS.some(s => (s.email || '').toLowerCase().trim() === normalizedEmail);
+    const localMuniStr = localStorage.getItem('registeredStudents_muni@geonixa.com');
+    const localMuni = localMuniStr ? JSON.parse(localMuniStr) : [];
+    const isMuni = normalizedEmail === 'muni@geonixa.com' 
+      || MUNI_STUDENTS.some(s => (s.email || '').toLowerCase().trim() === normalizedEmail)
+      || localMuni.some((s: any) => (s?.email || '').toLowerCase().trim() === normalizedEmail);
 
     const relevantExams = preExams.filter((e: any) => {
       const isMuniExam = e.targetBatch && ['A1', 'A2', 'B1', 'B2'].includes(e.targetBatch);

@@ -54,7 +54,11 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
   const [projectBatches, setProjectBatches] = useState<{id: string, batchNumber: string, memberEmails: string[]}[]>([]);
 
   const normalizedEmail = (loggedInEmail || '').toLowerCase().trim();
-  const isMuni = normalizedEmail === 'muni@geonixa.com' || MUNI_STUDENTS.some(s => (s.email || '').toLowerCase().trim() === normalizedEmail);
+  const localMuniStr = localStorage.getItem('registeredStudents_muni@geonixa.com');
+  const localMuni = localMuniStr ? JSON.parse(localMuniStr) : [];
+  const isMuni = normalizedEmail === 'muni@geonixa.com' 
+    || MUNI_STUDENTS.some(s => (s.email || '').toLowerCase().trim() === normalizedEmail)
+    || localMuni.some((s: any) => (s?.email || '').toLowerCase().trim() === normalizedEmail);
 
   const [sectionA, setSectionA] = useState<TheoryQuestion[]>(Array.from({ length: isMuni ? 30 : 10 }, () => ({ question: '', options: ['', '', '', ''], answerIndex: 0 })));
   const [sectionB, setSectionB] = useState<TheoryQuestion[]>(Array.from({ length: isMuni ? 0 : 5 }, () => ({ question: '', options: ['True', 'False'], answerIndex: 0 })));
