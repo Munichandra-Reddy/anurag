@@ -899,7 +899,13 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
                     )}
                   </div>
                 ) : (
-                  <button onClick={() => setTakingExamId(exam.id)} className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-sm">
+                  <button onClick={() => {
+                    setAnsA([]);
+                    setAnsB([]);
+                    setAnsC([]);
+                    setAnsD([]);
+                    setTakingExamId(exam.id);
+                  }} className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-sm">
                     <PlayCircle size={18} /> Start Exam
                   </button>
                 )
