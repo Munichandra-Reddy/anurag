@@ -682,9 +682,33 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
                 <>
                   {isMuni && (
                     exam.isLaunched ? (
-                      <span className="px-4 py-2 text-green-700 bg-green-50 border border-green-200 rounded-xl font-bold text-sm text-center">
-                        Launched
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="px-4 py-2 text-green-700 bg-green-50 border border-green-200 rounded-xl font-bold text-sm text-center">
+                          Launched
+                        </span>
+                        <button 
+                          onClick={async () => {
+                            const updatedExams = exams.map(e => e.id === exam.id ? { ...e, isLaunched: false } : e);
+                            setExams(updatedExams);
+                            await saveToCloudflare('anuragLmsPreAssessmentsData', updatedExams);
+
+                            const studentsKey = 'registeredStudents_muni@geonixa.com';
+                            const cloudStudents = await getFromCloudflare(studentsKey) || [];
+                            for (const st of cloudStudents as any[]) {
+                              const subKey = `preAssessmentSubmissions_${st.email}`;
+                              const subData = await getFromCloudflare(subKey);
+                              if (subData && subData[exam.id]) {
+                                delete subData[exam.id];
+                                await saveToCloudflare(subKey, subData);
+                              }
+                            }
+                            alert('Pre-assessment reset successfully! Student marks and submissions have been cleared.');
+                          }}
+                          className="px-3 py-1.5 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg font-bold text-xs transition-colors text-center border border-red-200"
+                        >
+                          Reset Test
+                        </button>
+                      </div>
                     ) : (
                       <button 
                         onClick={async () => {
