@@ -149,30 +149,13 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
 
   const handleStudentSubmit = async () => {
     if (!takingExamId) return;
-
-    const exam = exams.find(e => e.id === takingExamId);
-    let marksObj = undefined;
-    if (exam && isMuni) {
-      let markA = 0;
-      exam.sectionA.forEach((q, idx) => {
-        if (ansA[idx] === q.answerIndex) markA++;
-      });
-      marksObj = {
-        sectionA: markA,
-        sectionB: 0,
-        sectionC: 0,
-        sectionD: 0,
-        total: markA
-      };
-    }
     
     const submission: PreAssessmentSubmission = {
       sectionAAnswers: ansA,
       sectionBAnswers: ansB,
       sectionCAnswers: ansC,
       sectionDAnswers: ansD,
-      submittedAt: new Date().toISOString(),
-      marks: marksObj
+      submittedAt: new Date().toISOString()
     };
 
     const newSubmissions = { ...submissions, [takingExamId]: submission };
@@ -221,6 +204,37 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
     const exam = exams.find(e => e.id === evaluatingExamId);
     const sub = allSubmissions[evaluatingStudentEmail];
     if (exam && sub) {
+      const isMuniExam = exam.targetBatch && ['A1', 'A2', 'B1', 'B2'].includes(exam.targetBatch);
+      if (isMuniExam) {
+        let score = 0;
+        exam.sectionA.forEach((q, idx) => {
+          if (sub.sectionAAnswers[idx] === q.answerIndex) score++;
+        });
+        return (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 space-y-8 relative">
+            <button onClick={() => setEvaluatingStudentEmail(null)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 p-1 bg-gray-50 rounded-full">
+              <X size={20} />
+            </button>
+            <h2 className="text-2xl font-bold text-gray-900">Evaluate: {evaluatingStudentEmail}</h2>
+            
+            <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 space-y-4">
+              <h3 className="font-bold text-lg text-gray-900 border-b border-gray-200 pb-2">Preloaded Evaluation</h3>
+              <p className="text-gray-700">Calculated score according to the answer key:</p>
+              <div className="text-2xl font-black text-primary bg-white p-4 rounded-xl border border-gray-200 inline-block">
+                Score: {score} / 30
+              </div>
+              <div className="pt-4 border-t border-gray-200 flex justify-end">
+                <button 
+                  onClick={handleEvaluateSubmit}
+                  className="px-8 py-3 bg-primary text-white font-bold rounded-xl hover:bg-orange-600 transition-colors shadow-sm"
+                >
+                  Submit Marks
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
       return (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 space-y-8 relative">
           <button onClick={() => setEvaluatingStudentEmail(null)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 p-1">
