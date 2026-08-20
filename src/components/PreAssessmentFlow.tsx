@@ -418,8 +418,8 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
   }
 
   if (viewingReportId && !isMentor) {
-    const exam = exams.find(e => e.id === viewingReportId);
-    const sub = submissions[viewingReportId];
+    const exam = exams.find(e => e.id === viewingReportId) || MUNI_PRE_ASSESSMENT_SET1;
+    const sub = findSubmissionForExam(submissions, exam) || submissions[viewingReportId];
     if (exam && sub && sub.marks) {
       return (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 space-y-6 relative">
@@ -433,26 +433,41 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
           </div>
           
           <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 space-y-4 text-lg">
-            <div className="flex justify-between items-center border-b border-gray-200 pb-3">
-              <span className="font-medium text-gray-700">Section A - Multiple choice questions</span>
-              <span className="font-bold text-primary">{sub.marks.sectionA} / 10M</span>
-            </div>
-            <div className="flex justify-between items-center border-b border-gray-200 pb-3">
-              <span className="font-medium text-gray-700">Section B - True/False</span>
-              <span className="font-bold text-primary">{sub.marks.sectionB} / 5M</span>
-            </div>
-            <div className="flex justify-between items-center border-b border-gray-200 pb-3">
-              <span className="font-medium text-gray-700">Section C - Fill in the blanks</span>
-              <span className="font-bold text-primary">{sub.marks.sectionC} / 5M</span>
-            </div>
-            <div className="flex justify-between items-center border-b border-gray-200 pb-3">
-              <span className="font-medium text-gray-700">Section D - Short Answer Question</span>
-              <span className="font-bold text-primary">{sub.marks.sectionD} / 10M</span>
-            </div>
-            <div className="flex justify-between items-center pt-4">
-              <span className="font-black text-gray-900 text-xl">Total Marks Obtained</span>
-              <span className="font-black text-green-600 text-2xl">{sub.marks.total} / 30M</span>
-            </div>
+            {isMuni ? (
+              <>
+                <div className="flex justify-between items-center border-b border-gray-200 pb-3">
+                  <span className="font-medium text-gray-700">Multiple choice questions</span>
+                  <span className="font-bold text-primary">{sub.marks.total} / 30M</span>
+                </div>
+                <div className="flex justify-between items-center pt-4">
+                  <span className="font-black text-gray-900 text-xl">Total Marks Obtained</span>
+                  <span className="font-black text-green-600 text-2xl">{sub.marks.total} / 30M</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between items-center border-b border-gray-200 pb-3">
+                  <span className="font-medium text-gray-700">Section A - Multiple choice questions</span>
+                  <span className="font-bold text-primary">{sub.marks.sectionA} / 10M</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-gray-200 pb-3">
+                  <span className="font-medium text-gray-700">Section B - True/False</span>
+                  <span className="font-bold text-primary">{sub.marks.sectionB} / 5M</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-gray-200 pb-3">
+                  <span className="font-medium text-gray-700">Section C - Fill in the blanks</span>
+                  <span className="font-bold text-primary">{sub.marks.sectionC} / 5M</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-gray-200 pb-3">
+                  <span className="font-medium text-gray-700">Section D - Short Answer Question</span>
+                  <span className="font-bold text-primary">{sub.marks.sectionD} / 10M</span>
+                </div>
+                <div className="flex justify-between items-center pt-4">
+                  <span className="font-black text-gray-900 text-xl">Total Marks Obtained</span>
+                  <span className="font-black text-green-600 text-2xl">{sub.marks.total} / 30M</span>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="flex justify-center pt-4">
