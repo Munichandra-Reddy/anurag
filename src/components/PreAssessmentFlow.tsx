@@ -82,7 +82,16 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
       // Load exams
       const cloudExams = await getFromCloudflare('anuragLmsPreAssessmentsData');
       if (cloudExams && Array.isArray(cloudExams) && cloudExams.length > 0) {
-        setExams(cloudExams);
+        if (isMuni) {
+          const hasSet1 = cloudExams.some((e: any) => e.id === 'pre_muni_a1_set1' || e.title === 'Pre-Assessment Test (Set 1)');
+          if (!hasSet1) {
+            setExams([MUNI_PRE_ASSESSMENT_SET1, ...cloudExams]);
+          } else {
+            setExams(cloudExams);
+          }
+        } else {
+          setExams(cloudExams);
+        }
       } else if (isMuni) {
         setExams([MUNI_PRE_ASSESSMENT_SET1]);
       }
@@ -160,8 +169,10 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
     e.preventDefault();
     if (!title.trim()) return;
 
+    const examId = (isMuni && targetBatch === 'A1') ? 'pre_muni_a1_set1' : `pre_${Date.now()}`;
+
     const newExam: PreAssessmentData = {
-      id: `pre_${Date.now()}`,
+      id: examId,
       title,
       sectionA,
       sectionB,
@@ -171,7 +182,15 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
       isLaunched: isMuni ? true : false
     };
 
-    const updatedExams = [newExam, ...exams];
+    const existingIndex = exams.findIndex(ex => ex.id === newExam.id || (isMuni && ex.title === newExam.title && ex.targetBatch === newExam.targetBatch));
+    let updatedExams: PreAssessmentData[];
+    if (existingIndex >= 0) {
+      updatedExams = [...exams];
+      updatedExams[existingIndex] = newExam;
+    } else {
+      updatedExams = [newExam, ...exams];
+    }
+
     setExams(updatedExams);
     await saveToCloudflare('anuragLmsPreAssessmentsData', updatedExams);
     
@@ -844,7 +863,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
               ) : (
                 submissions[exam.id] ? (
                   <div className="flex items-center justify-center gap-3">
-                    {submissions[exam.id].marks ? (
+                    {submissions[exam.id].marks && submissions[exam.id].marks?.total !== undefined ? (
                       <button 
                         onClick={() => setViewingReportId(exam.id)}
                         className="flex items-center gap-2 px-6 py-2.5 bg-green-50 text-green-700 font-bold rounded-xl border border-green-100 shadow-sm hover:bg-green-100 transition-colors"
@@ -852,7 +871,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
                         <Award size={18}/> View Report (Score: {submissions[exam.id].marks!.total}/30)
                       </button>
                     ) : (
-                      <span className="flex items-center gap-2 px-6 py-2.5 bg-gray-50 text-gray-600 font-bold rounded-xl border border-gray-200 shadow-sm">
+                      <span className="flex items-center gap-2 px-6 py-2.5 bg-amber-50 text-amber-700 font-bold rounded-xl border border-amber-200 shadow-sm">
                         <CheckCircle2 size={18}/> Pending Evaluation
                       </span>
                     )}
