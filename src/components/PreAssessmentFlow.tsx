@@ -103,19 +103,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
     fetchData();
   }, [isMentor, loggedInEmail]);
 
-  useEffect(() => {
-    if (isMentor && isMuni && targetBatch === 'A1') {
-      setTitle('Pre-Assessment Test (Set 1)');
-      setSectionA(MUNI_PRE_ASSESSMENT_SET1.sectionA.map(q => ({
-        question: q.question,
-        options: [...q.options],
-        answerIndex: q.answerIndex
-      })));
-    } else if (isMentor && isMuni) {
-      setTitle('');
-      setSectionA(Array.from({ length: 30 }, () => ({ question: '', options: ['', '', '', ''], answerIndex: 0 })));
-    }
-  }, [targetBatch, isMuni, isMentor]);
+
 
   const handleLoadSubmissionsForExam = async (examId: string) => {
     setEvaluatingExamId(examId);
@@ -505,7 +493,12 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
         <div className="mb-8">
           {!isAdding ? (
             <button 
-              onClick={() => setIsAdding(true)}
+              onClick={() => {
+                setIsAdding(true);
+                setTargetBatch('All Batches');
+                setTitle('');
+                setSectionA(Array.from({ length: isMuni ? 30 : 10 }, () => ({ question: '', options: ['', '', '', ''], answerIndex: 0 })));
+              }}
               className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-indigo-500 text-indigo-600 font-bold rounded-xl shadow-sm hover:bg-indigo-50 transition-colors"
             >
               <Plus size={20} /> Add Pre Assessment Paper
@@ -531,7 +524,22 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
                   <div className="flex-1">
                     <label className="block text-sm font-bold text-gray-700 mb-1">Target Batch</label>
                     <select 
-                      value={targetBatch} onChange={(e) => setTargetBatch(e.target.value)}
+                      value={targetBatch} 
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setTargetBatch(val);
+                        if (isMuni && val === 'A1') {
+                          setTitle('Pre-Assessment Test (Set 1)');
+                          setSectionA(MUNI_PRE_ASSESSMENT_SET1.sectionA.map(q => ({
+                            question: q.question,
+                            options: [...q.options],
+                            answerIndex: q.answerIndex
+                          })));
+                        } else if (isMuni) {
+                          setTitle('');
+                          setSectionA(Array.from({ length: 30 }, () => ({ question: '', options: ['', '', '', ''], answerIndex: 0 })));
+                        }
+                      }}
                       className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-indigo-500 text-sm font-medium"
                     >
                       {isMuni ? (
