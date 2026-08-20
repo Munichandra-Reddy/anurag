@@ -110,6 +110,20 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
     fetchData();
   }, [isMentor, loggedInEmail]);
 
+  useEffect(() => {
+    if (isMentor && isMuni && targetBatch === 'A1') {
+      setTitle('Pre-Assessment Test (Set 1)');
+      setSectionA(MUNI_PRE_ASSESSMENT_SET1.sectionA.map(q => ({
+        question: q.question,
+        options: [...q.options],
+        answerIndex: q.answerIndex
+      })));
+    } else if (isMentor && isMuni) {
+      setTitle('');
+      setSectionA(Array.from({ length: 30 }, () => ({ question: '', options: ['', '', '', ''], answerIndex: 0 })));
+    }
+  }, [targetBatch, isMuni, isMentor]);
+
   const handleLoadSubmissionsForExam = async (examId: string) => {
     setEvaluatingExamId(examId);
     setEvaluatingStudentEmail(null);
@@ -726,9 +740,23 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
                     Evaluate Submissions
                   </button>
                   <button onClick={async () => {
+                    if (!confirm('Are you sure you want to remove this pre-assessment? This will also clear all student submissions and marks for this test.')) return;
+                    
                     const newExams = exams.filter(e => e.id !== exam.id);
                     setExams(newExams);
                     await saveToCloudflare('anuragLmsPreAssessmentsData', newExams);
+
+                    // Clear student submissions/marks for this exam in Firestore
+                    const studentsKey = isMuni ? 'registeredStudents_muni@geonixa.com' : 'registeredStudents';
+                    const cloudStudents = await getFromCloudflare(studentsKey) || [];
+                    for (const st of cloudStudents as any[]) {
+                      const subKey = `preAssessmentSubmissions_${st.email}`;
+                      const subData = await getFromCloudflare(subKey);
+                      if (subData && subData[exam.id]) {
+                        delete subData[exam.id];
+                        await saveToCloudflare(subKey, subData);
+                      }
+                    }
                   }} className="px-4 py-2 text-red-500 bg-red-50 hover:bg-red-100 rounded-xl font-medium text-sm transition-colors text-center">
                     Remove
                   </button>
