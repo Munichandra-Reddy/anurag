@@ -51,16 +51,27 @@ const Assessments: React.FC = () => {
   const [preExams, setPreExams] = useState<any[]>([]);
   const [preSubmissions, setPreSubmissions] = useState<any>(null);
 
+  const loadPreData = async () => {
+    if (!loggedInEmail) return;
+    const subKey = `preAssessmentSubmissions_${loggedInEmail.toLowerCase()}`;
+    const localSaved = localStorage.getItem(subKey);
+    if (localSaved) {
+      try { setPreSubmissions(JSON.parse(localSaved)); } catch (e) {}
+    }
+
+    const [examsData, subsData] = await Promise.all([
+      getFromCloudflare('anuragLmsPreAssessmentsData'),
+      getFromCloudflare(subKey)
+    ]);
+    if (examsData && Array.isArray(examsData)) setPreExams(examsData);
+    if (subsData) {
+      setPreSubmissions(subsData);
+      localStorage.setItem(subKey, JSON.stringify(subsData));
+    }
+  };
+
   useEffect(() => {
     if (!isMentor && pattern === 'Pre Assessment Pattern') {
-      const loadPreData = async () => {
-        const [examsData, subsData] = await Promise.all([
-          getFromCloudflare('anuragLmsPreAssessmentsData'),
-          getFromCloudflare(`preAssessmentSubmissions_${loggedInEmail}`)
-        ]);
-        if (examsData && Array.isArray(examsData)) setPreExams(examsData);
-        if (subsData) setPreSubmissions(subsData);
-      };
       loadPreData();
     }
   }, [isMentor, pattern, loggedInEmail]);
@@ -375,6 +386,14 @@ const Assessments: React.FC = () => {
   }
   if (pattern === 'Pre Assessment Pattern') {
     const isMuni = loggedInEmail === 'muni@geonixa.com' || MUNI_STUDENTS.some(s => s.email === loggedInEmail);
+    const relevantExams = preExams.filter((e: any) => {
+      const isMuniExam = e.targetBatch && ['A1', 'A2', 'B1', 'B2'].includes(e.targetBatch);
+      if (isMuni) {
+        return (isMuniExam || !e.targetBatch || e.targetBatch === 'All Batches') && preSubmissions?.[e.id];
+      }
+      return preSubmissions?.[e.id];
+    });
+
     return (
       <div className="w-full max-w-3xl mx-auto space-y-6 pb-12">
         <div className="flex items-center gap-3 text-gray-900 font-bold text-2xl mb-8">
@@ -394,12 +413,6 @@ const Assessments: React.FC = () => {
                   <span className="font-black text-gray-900 text-xl">Total</span>
                   <span className="font-black text-primary text-2xl">30M</span>
                 </div>
-                {!isMentor && preExams.filter((e: any) => e.targetBatch && ['A1', 'A2', 'B1', 'B2'].includes(e.targetBatch) && preSubmissions?.[e.id]?.marks !== undefined).map((e: any) => (
-                  <div key={e.id} className="flex justify-between items-center pt-4 border-t border-gray-100 mt-4">
-                    <span className="font-bold text-green-700 text-lg">Marks Obtained ({e.title})</span>
-                    <span className="font-black text-green-600 text-2xl">{preSubmissions[e.id].marks.total} / 30M</span>
-                  </div>
-                ))}
               </>
             ) : (
               <>
@@ -425,11 +438,38 @@ const Assessments: React.FC = () => {
                 </div>
               </>
             )}
+
+            {!isMentor && relevantExams.map((e: any) => {
+              const sub = preSubmissions[e.id];
+              const isEvaluated = sub?.marks !== undefined;
+              return (
+                <div key={e.id} className="flex justify-between items-center pt-4 border-t border-gray-100 mt-4">
+                  <span className="font-bold text-gray-800 text-lg">
+                    {isEvaluated ? `Marks Obtained (${e.title})` : `Status (${e.title})`}
+                  </span>
+                  {isEvaluated ? (
+                    <div className="flex items-center gap-3">
+                      <span className="px-3 py-1 bg-green-50 text-green-700 font-bold rounded-lg text-sm border border-green-200">
+                        Completed
+                      </span>
+                      <span className="font-black text-green-600 text-2xl">{sub.marks.total} / 30M</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <span className="px-3 py-1 bg-amber-50 text-amber-700 font-bold rounded-lg text-sm border border-amber-200">
+                        Pending
+                      </span>
+                      <span className="font-bold text-amber-600 text-base">Marks Pending</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
         <div className="mt-12">
-          <PreAssessmentFlow isMentor={isMentor} loggedInEmail={loggedInEmail} />
+          <PreAssessmentFlow isMentor={isMentor} loggedInEmail={loggedInEmail} onSubmissionChange={loadPreData} />
         </div>
       </div>
     );

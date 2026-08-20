@@ -39,9 +39,10 @@ interface PreAssessmentSubmission {
 interface Props {
   isMentor: boolean;
   loggedInEmail: string;
+  onSubmissionChange?: () => void;
 }
 
-export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) => {
+export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, onSubmissionChange }) => {
   const [exams, setExams] = useState<PreAssessmentData[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   
@@ -50,7 +51,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
   const [targetBatch, setTargetBatch] = useState('All Batches');
   const [projectBatches, setProjectBatches] = useState<{id: string, batchNumber: string, memberEmails: string[]}[]>([]);
 
-  const isMuni = loggedInEmail === 'muni@geonixa.com' || MUNI_STUDENTS.some(s => s.email === loggedInEmail);
+  const isMuni = loggedInEmail === 'muni@geonixa.com' || MUNI_STUDENTS.some(s => s.email.toLowerCase() === loggedInEmail.toLowerCase());
 
   const [sectionA, setSectionA] = useState<TheoryQuestion[]>(Array.from({ length: isMuni ? 30 : 10 }, () => ({ question: '', options: ['', '', '', ''], answerIndex: 0 })));
   const [sectionB, setSectionB] = useState<TheoryQuestion[]>(Array.from({ length: isMuni ? 0 : 5 }, () => ({ question: '', options: ['True', 'False'], answerIndex: 0 })));
@@ -88,35 +89,56 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
 
       // Load Submissions
       if (!isMentor) {
-        const subKey = `preAssessmentSubmissions_${loggedInEmail}`;
-        const cloudSubmissions = await getFromCloudflare(subKey);
-        if (cloudSubmissions) setSubmissions(cloudSubmissions);
+        const subKey = `preAssessmentSubmissions_${loggedInEmail.toLowerCase()}`;
+        const localSubmissions = localStorage.getItem(subKey);
+        if (localSubmissions) {
+          try { setSubmissions(JSON.parse(localSubmissions)); } catch (e) {}
+        }
 
-        const isMuniStudent = MUNI_STUDENTS.some(s => s.email === loggedInEmail);
+        const cloudSubmissions = await getFromCloudflare(subKey);
+        if (cloudSubmissions && typeof cloudSubmissions === 'object') {
+          setSubmissions(prev => ({ ...prev, ...cloudSubmissions }));
+          localStorage.setItem(subKey, JSON.stringify(cloudSubmissions));
+        }
+
+        const isMuniStudent = MUNI_STUDENTS.some(s => s.email.toLowerCase() === loggedInEmail.toLowerCase());
         const studentsKey = isMuniStudent ? 'registeredStudents_muni@geonixa.com' : 'registeredStudents';
         const cloudStudents = await getFromCloudflare(studentsKey);
         const students = cloudStudents ? cloudStudents as any[] : [];
-        const me = students.find((s: any) => s.email === loggedInEmail);
+        const me = students.find((s: any) => (s.email || '').toLowerCase() === loggedInEmail.toLowerCase());
         setStudentDetails(me);
       }
     };
     fetchData();
   }, [isMentor, loggedInEmail]);
 
-
-
   const handleLoadSubmissionsForExam = async (examId: string) => {
     setEvaluatingExamId(examId);
     setEvaluatingStudentEmail(null);
     const studentsKey = isMuni ? 'registeredStudents_muni@geonixa.com' : 'registeredStudents';
     const cloudStudents = await getFromCloudflare(studentsKey) || [];
+    const studentList = isMuni 
+      ? Array.from(new Map([...(cloudStudents as any[]), ...MUNI_STUDENTS].map(s => [(s.email || '').toLowerCase(), s])).values())
+      : (cloudStudents as any[]);
+
     const collected: Record<string, PreAssessmentSubmission> = {};
     
-    await Promise.all((cloudStudents as any[]).map(async (st) => {
+    await Promise.all(studentList.map(async (st: any) => {
       try {
-        const stuSub = await getFromCloudflare(`preAssessmentSubmissions_${st.email}`);
+        const emailLower = (st.email || '').toLowerCase();
+        if (!emailLower) return;
+
+        const subKey = `preAssessmentSubmissions_${emailLower}`;
+        let stuSub = null;
+        const localStr = localStorage.getItem(subKey);
+        if (localStr) {
+          try { stuSub = JSON.parse(localStr); } catch (e) {}
+        }
+        if (!stuSub) {
+          stuSub = await getFromCloudflare(subKey);
+        }
         if (stuSub && stuSub[examId]) {
-          collected[st.email] = stuSub[examId];
+          collected[emailLower] = stuSub[examId];
         }
       } catch (err) {
         console.error(`Failed to load submission for ${st.email}:`, err);
@@ -160,11 +182,14 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
       submittedAt: new Date().toISOString()
     };
 
+    const subKey = `preAssessmentSubmissions_${loggedInEmail.toLowerCase()}`;
     const newSubmissions = { ...submissions, [takingExamId]: submission };
     setSubmissions(newSubmissions);
-    await saveToCloudflare(`preAssessmentSubmissions_${loggedInEmail}`, newSubmissions);
+    localStorage.setItem(subKey, JSON.stringify(newSubmissions));
+    await saveToCloudflare(subKey, newSubmissions);
 
     setTakingExamId(null);
+    if (onSubmissionChange) onSubmissionChange();
   };
 
   const handleEvaluateSubmit = async () => {
@@ -181,7 +206,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
     exam.sectionB.forEach((q, idx) => { if (sub.sectionBAnswers[idx] === q.answerIndex) markB++; });
     exam.sectionC.forEach((q, idx) => { if (sub.sectionCAnswers[idx] === q.answerIndex) markC++; });
 
-    const evaluatedSubmission = {
+    const evaluatedSubmission: PreAssessmentSubmission = {
       ...sub,
       marks: {
         sectionA: markA,
@@ -192,14 +217,27 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
       }
     };
 
-    // Save back to student's record
-    const stuSubs = await getFromCloudflare(`preAssessmentSubmissions_${evaluatingStudentEmail}`) || {};
+    const studentEmailLower = evaluatingStudentEmail.toLowerCase();
+    const subKey = `preAssessmentSubmissions_${studentEmailLower}`;
+
+    let stuSubs: Record<string, PreAssessmentSubmission> = {};
+    const localStr = localStorage.getItem(subKey);
+    if (localStr) {
+      try { stuSubs = JSON.parse(localStr); } catch (e) {}
+    }
+    if (!stuSubs || Object.keys(stuSubs).length === 0) {
+      const cloudSubs = await getFromCloudflare(subKey);
+      if (cloudSubs) stuSubs = cloudSubs;
+    }
     stuSubs[evaluatingExamId] = evaluatedSubmission;
-    await saveToCloudflare(`preAssessmentSubmissions_${evaluatingStudentEmail}`, stuSubs);
+
+    localStorage.setItem(subKey, JSON.stringify(stuSubs));
+    await saveToCloudflare(subKey, stuSubs);
 
     const updatedAllSubs = { ...allSubmissions, [evaluatingStudentEmail]: evaluatedSubmission };
     setAllSubmissions(updatedAllSubs);
     setEvaluatingStudentEmail(null);
+    if (onSubmissionChange) onSubmissionChange();
   };
 
   if (evaluatingStudentEmail && evaluatingExamId) {
@@ -722,7 +760,9 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
 
                             Promise.all(allEmailsToClear.map(async (email) => {
                               try {
-                                const subKey = `preAssessmentSubmissions_${email}`;
+                                const emailLower = email.toLowerCase();
+                                const subKey = `preAssessmentSubmissions_${emailLower}`;
+                                localStorage.removeItem(subKey);
                                 const subData = await getFromCloudflare(subKey);
                                 if (subData && subData[exam.id]) {
                                   delete subData[exam.id];
@@ -733,6 +773,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
                               }
                             })).then(() => {
                               alert('Pre-assessment reset successfully! Student marks and submissions have been cleared.');
+                              if (onSubmissionChange) onSubmissionChange();
                             }).catch(err => {
                               console.error("Error resetting submissions:", err);
                             });
@@ -765,7 +806,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
                     setExams(newExams);
                     await saveToCloudflare('anuragLmsPreAssessmentsData', newExams);
 
-                    // Clear student submissions/marks for this exam in Firestore
+                    // Clear student submissions/marks for this exam
                     const muniEmails = MUNI_STUDENTS.map(s => s.email);
                     const studentsKey = isMuni ? 'registeredStudents_muni@geonixa.com' : 'registeredStudents';
                     const cloudStudents = await getFromCloudflare(studentsKey) || [];
@@ -774,7 +815,9 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
 
                     Promise.all(allEmailsToClear.map(async (email) => {
                       try {
-                        const subKey = `preAssessmentSubmissions_${email}`;
+                        const emailLower = email.toLowerCase();
+                        const subKey = `preAssessmentSubmissions_${emailLower}`;
+                        localStorage.removeItem(subKey);
                         const subData = await getFromCloudflare(subKey);
                         if (subData && subData[exam.id]) {
                           delete subData[exam.id];
@@ -783,7 +826,9 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
                       } catch (err) {
                         console.error(`Failed to clear submission for ${email}:`, err);
                       }
-                    })).catch(err => console.error("Error clearing submissions:", err));
+                    })).then(() => {
+                      if (onSubmissionChange) onSubmissionChange();
+                    }).catch(err => console.error("Error clearing submissions:", err));
                   }} className="px-4 py-2 text-red-500 bg-red-50 hover:bg-red-100 rounded-xl font-medium text-sm transition-colors text-center">
                     Remove
                   </button>
