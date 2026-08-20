@@ -137,7 +137,8 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
       sectionB,
       sectionC,
       sectionD,
-      targetBatch
+      targetBatch,
+      isLaunched: isMuni ? true : false
     };
 
     const updatedExams = [newExam, ...exams];
