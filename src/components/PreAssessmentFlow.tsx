@@ -707,10 +707,14 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
                             setExams(updatedExams);
                             await saveToCloudflare('anuragLmsPreAssessmentsData', updatedExams);
 
+                            const muniEmails = MUNI_STUDENTS.map(s => s.email);
                             const studentsKey = 'registeredStudents_muni@geonixa.com';
                             const cloudStudents = await getFromCloudflare(studentsKey) || [];
-                            for (const st of cloudStudents as any[]) {
-                              const subKey = `preAssessmentSubmissions_${st.email}`;
+                            const otherEmails = (cloudStudents as any[]).map(s => s.email).filter(Boolean);
+                            const allEmailsToClear = Array.from(new Set([...muniEmails, ...otherEmails]));
+
+                            for (const email of allEmailsToClear) {
+                              const subKey = `preAssessmentSubmissions_${email}`;
                               const subData = await getFromCloudflare(subKey);
                               if (subData && subData[exam.id]) {
                                 delete subData[exam.id];
@@ -748,10 +752,14 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
                     await saveToCloudflare('anuragLmsPreAssessmentsData', newExams);
 
                     // Clear student submissions/marks for this exam in Firestore
+                    const muniEmails = MUNI_STUDENTS.map(s => s.email);
                     const studentsKey = isMuni ? 'registeredStudents_muni@geonixa.com' : 'registeredStudents';
                     const cloudStudents = await getFromCloudflare(studentsKey) || [];
-                    for (const st of cloudStudents as any[]) {
-                      const subKey = `preAssessmentSubmissions_${st.email}`;
+                    const otherEmails = (cloudStudents as any[]).map(s => s.email).filter(Boolean);
+                    const allEmailsToClear = Array.from(new Set([...muniEmails, ...otherEmails]));
+
+                    for (const email of allEmailsToClear) {
+                      const subKey = `preAssessmentSubmissions_${email}`;
                       const subData = await getFromCloudflare(subKey);
                       if (subData && subData[exam.id]) {
                         delete subData[exam.id];
