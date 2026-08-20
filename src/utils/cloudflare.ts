@@ -33,6 +33,21 @@ export const saveToCloudflare = async (key: string, data: any) => {
 };
 
 /**
+ * Replaces (overwrites) JSON data for a key in Firestore without merging.
+ * Useful when keys are deleted from an object.
+ */
+export const replaceInCloudflare = async (key: string, data: any) => {
+  try {
+    const docRef = doc(db, COLLECTION_NAME, key);
+    const payload = Array.isArray(data) ? { __isArray: true, data: data } : data;
+    await setDoc(docRef, payload);
+    console.log(`Successfully replaced ${key} in Firebase Firestore`);
+  } catch (error) {
+    console.error(`Error replacing ${key} in Firebase:`, error);
+  }
+};
+
+/**
  * Retrieves JSON data from a specific document (key) in your Firestore collection.
  */
 export const getFromCloudflare = async (key: string): Promise<any> => {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, X, FileText, CheckCircle2, Award, PlayCircle } from 'lucide-react';
-import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, replaceInCloudflare } from '../utils/cloudflare';
 import { MUNI_STUDENTS } from '../data/students';
 import { MUNI_PRE_ASSESSMENT_SET1 } from '../data/muniPreAssessmentSet1';
 
@@ -789,11 +789,22 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
                               try {
                                 const emailLower = email.toLowerCase();
                                 const subKey = `preAssessmentSubmissions_${emailLower}`;
-                                localStorage.removeItem(subKey);
+                                
+                                const localData = localStorage.getItem(subKey);
+                                if (localData) {
+                                  try {
+                                    const parsed = JSON.parse(localData);
+                                    delete parsed[exam.id];
+                                    localStorage.setItem(subKey, JSON.stringify(parsed));
+                                  } catch (e) {
+                                    localStorage.removeItem(subKey);
+                                  }
+                                }
+
                                 const subData = await getFromCloudflare(subKey);
                                 if (subData && subData[exam.id]) {
                                   delete subData[exam.id];
-                                  await saveToCloudflare(subKey, subData);
+                                  await replaceInCloudflare(subKey, subData);
                                 }
                               } catch (err) {
                                 console.error(`Failed to clear submission for ${email}:`, err);
@@ -844,11 +855,22 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
                       try {
                         const emailLower = email.toLowerCase();
                         const subKey = `preAssessmentSubmissions_${emailLower}`;
-                        localStorage.removeItem(subKey);
+                        
+                        const localData = localStorage.getItem(subKey);
+                        if (localData) {
+                          try {
+                            const parsed = JSON.parse(localData);
+                            delete parsed[exam.id];
+                            localStorage.setItem(subKey, JSON.stringify(parsed));
+                          } catch (e) {
+                            localStorage.removeItem(subKey);
+                          }
+                        }
+
                         const subData = await getFromCloudflare(subKey);
                         if (subData && subData[exam.id]) {
                           delete subData[exam.id];
-                          await saveToCloudflare(subKey, subData);
+                          await replaceInCloudflare(subKey, subData);
                         }
                       } catch (err) {
                         console.error(`Failed to clear submission for ${email}:`, err);
