@@ -111,12 +111,18 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
     const studentsKey = isMuni ? 'registeredStudents_muni@geonixa.com' : 'registeredStudents';
     const cloudStudents = await getFromCloudflare(studentsKey) || [];
     const collected: Record<string, PreAssessmentSubmission> = {};
-    for (const st of cloudStudents as any[]) {
-      const stuSub = await getFromCloudflare(`preAssessmentSubmissions_${st.email}`);
-      if (stuSub && stuSub[examId]) {
-        collected[st.email] = stuSub[examId];
+    
+    await Promise.all((cloudStudents as any[]).map(async (st) => {
+      try {
+        const stuSub = await getFromCloudflare(`preAssessmentSubmissions_${st.email}`);
+        if (stuSub && stuSub[examId]) {
+          collected[st.email] = stuSub[examId];
+        }
+      } catch (err) {
+        console.error(`Failed to load submission for ${st.email}:`, err);
       }
-    }
+    }));
+    
     setAllSubmissions(collected);
   };
 
@@ -713,15 +719,22 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
                             const otherEmails = (cloudStudents as any[]).map(s => s.email).filter(Boolean);
                             const allEmailsToClear = Array.from(new Set([...muniEmails, ...otherEmails]));
 
-                            for (const email of allEmailsToClear) {
-                              const subKey = `preAssessmentSubmissions_${email}`;
-                              const subData = await getFromCloudflare(subKey);
-                              if (subData && subData[exam.id]) {
-                                delete subData[exam.id];
-                                await saveToCloudflare(subKey, subData);
+                            Promise.all(allEmailsToClear.map(async (email) => {
+                              try {
+                                const subKey = `preAssessmentSubmissions_${email}`;
+                                const subData = await getFromCloudflare(subKey);
+                                if (subData && subData[exam.id]) {
+                                  delete subData[exam.id];
+                                  await saveToCloudflare(subKey, subData);
+                                }
+                              } catch (err) {
+                                console.error(`Failed to clear submission for ${email}:`, err);
                               }
-                            }
-                            alert('Pre-assessment reset successfully! Student marks and submissions have been cleared.');
+                            })).then(() => {
+                              alert('Pre-assessment reset successfully! Student marks and submissions have been cleared.');
+                            }).catch(err => {
+                              console.error("Error resetting submissions:", err);
+                            });
                           }}
                           className="px-3 py-1.5 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg font-bold text-xs transition-colors text-center border border-red-200"
                         >
@@ -758,14 +771,18 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
                     const otherEmails = (cloudStudents as any[]).map(s => s.email).filter(Boolean);
                     const allEmailsToClear = Array.from(new Set([...muniEmails, ...otherEmails]));
 
-                    for (const email of allEmailsToClear) {
-                      const subKey = `preAssessmentSubmissions_${email}`;
-                      const subData = await getFromCloudflare(subKey);
-                      if (subData && subData[exam.id]) {
-                        delete subData[exam.id];
-                        await saveToCloudflare(subKey, subData);
+                    Promise.all(allEmailsToClear.map(async (email) => {
+                      try {
+                        const subKey = `preAssessmentSubmissions_${email}`;
+                        const subData = await getFromCloudflare(subKey);
+                        if (subData && subData[exam.id]) {
+                          delete subData[exam.id];
+                          await saveToCloudflare(subKey, subData);
+                        }
+                      } catch (err) {
+                        console.error(`Failed to clear submission for ${email}:`, err);
                       }
-                    }
+                    })).catch(err => console.error("Error clearing submissions:", err));
                   }} className="px-4 py-2 text-red-500 bg-red-50 hover:bg-red-100 rounded-xl font-medium text-sm transition-colors text-center">
                     Remove
                   </button>
