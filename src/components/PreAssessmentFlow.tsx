@@ -18,6 +18,7 @@ interface PreAssessmentData {
   sectionC: TheoryQuestion[];
   sectionD: string[];
   targetBatch?: string;
+  isLaunched?: boolean;
 }
 
 interface PreAssessmentSubmission {
@@ -620,7 +621,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
           
           if (isMuni && exam.targetBatch && (exam.targetBatch === 'A1' || exam.targetBatch === 'A2' || exam.targetBatch === 'B1' || exam.targetBatch === 'B2')) {
             const muniStudent = MUNI_STUDENTS.find(s => s.email === loggedInEmail);
-            return muniStudent?.batch === exam.targetBatch;
+            return muniStudent?.batch === exam.targetBatch && exam.isLaunched;
           }
 
           if (exam.targetBatch === 'Morning' || exam.targetBatch === 'Evening') return studentDetails.batch === exam.targetBatch;
@@ -641,6 +642,24 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
             <div className="w-full md:w-auto flex flex-col md:flex-row items-stretch md:items-center gap-3">
               {isMentor ? (
                 <>
+                  {isMuni && (
+                    exam.isLaunched ? (
+                      <span className="px-4 py-2 text-green-700 bg-green-50 border border-green-200 rounded-xl font-bold text-sm text-center">
+                        Launched
+                      </span>
+                    ) : (
+                      <button 
+                        onClick={async () => {
+                          const updatedExams = exams.map(e => e.id === exam.id ? { ...e, isLaunched: true } : e);
+                          setExams(updatedExams);
+                          await saveToCloudflare('anuragLmsPreAssessmentsData', updatedExams);
+                        }}
+                        className="px-4 py-2 text-green-600 bg-green-50 hover:bg-green-100 rounded-xl font-bold text-sm transition-colors text-center"
+                      >
+                        Launch Test
+                      </button>
+                    )
+                  )}
                   <button onClick={() => handleLoadSubmissionsForExam(exam.id)} className="px-6 py-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl font-bold text-sm transition-colors text-center">
                     Evaluate Submissions
                   </button>

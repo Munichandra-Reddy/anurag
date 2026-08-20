@@ -48,6 +48,23 @@ const Assessments: React.FC = () => {
   const loggedInEmail = sessionStorage.getItem('loggedInEmail') || 'student@anurag.edu.in';
   const assessmentsKey = `anuragLmsAssessments_${loggedInEmail}`;
 
+  const [preExams, setPreExams] = useState<any[]>([]);
+  const [preSubmissions, setPreSubmissions] = useState<any>(null);
+
+  useEffect(() => {
+    if (!isMentor && pattern === 'Pre Assessment Pattern') {
+      const loadPreData = async () => {
+        const [examsData, subsData] = await Promise.all([
+          getFromCloudflare('anuragLmsPreAssessmentsData'),
+          getFromCloudflare(`preAssessmentSubmissions_${loggedInEmail}`)
+        ]);
+        if (examsData && Array.isArray(examsData)) setPreExams(examsData);
+        if (subsData) setPreSubmissions(subsData);
+      };
+      loadPreData();
+    }
+  }, [isMentor, pattern, loggedInEmail]);
+
   useEffect(() => {
     const fetchData = async () => {
       // Load practice assessments
@@ -377,6 +394,12 @@ const Assessments: React.FC = () => {
                   <span className="font-black text-gray-900 text-xl">Total</span>
                   <span className="font-black text-primary text-2xl">30M</span>
                 </div>
+                {!isMentor && preExams.filter((e: any) => e.targetBatch && ['A1', 'A2', 'B1', 'B2'].includes(e.targetBatch) && preSubmissions?.[e.id]?.marks !== undefined).map((e: any) => (
+                  <div key={e.id} className="flex justify-between items-center pt-4 border-t border-gray-100 mt-4">
+                    <span className="font-bold text-green-700 text-lg">Marks Obtained ({e.title})</span>
+                    <span className="font-black text-green-600 text-2xl">{preSubmissions[e.id].marks.total} / 30M</span>
+                  </div>
+                ))}
               </>
             ) : (
               <>
