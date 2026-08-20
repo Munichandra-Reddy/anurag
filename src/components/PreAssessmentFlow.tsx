@@ -3,6 +3,7 @@ import { Plus, X, FileText, CheckCircle2, Award, PlayCircle } from 'lucide-react
 import { getFromCloudflare, saveToCloudflare, replaceInCloudflare } from '../utils/cloudflare';
 import { MUNI_STUDENTS } from '../data/students';
 import { MUNI_PRE_ASSESSMENT_SET1 } from '../data/muniPreAssessmentSet1';
+import { MUNI_PRE_ASSESSMENT_SET2 } from '../data/muniPreAssessmentSet2';
 
 interface TheoryQuestion {
   question: string;
@@ -51,7 +52,8 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
   const [targetBatch, setTargetBatch] = useState('All Batches');
   const [projectBatches, setProjectBatches] = useState<{id: string, batchNumber: string, memberEmails: string[]}[]>([]);
 
-  const isMuni = loggedInEmail === 'muni@geonixa.com' || MUNI_STUDENTS.some(s => s.email.toLowerCase() === loggedInEmail.toLowerCase());
+  const normalizedEmail = (loggedInEmail || '').toLowerCase().trim();
+  const isMuni = normalizedEmail === 'muni@geonixa.com' || MUNI_STUDENTS.some(s => (s.email || '').toLowerCase().trim() === normalizedEmail);
 
   const [sectionA, setSectionA] = useState<TheoryQuestion[]>(Array.from({ length: isMuni ? 30 : 10 }, () => ({ question: '', options: ['', '', '', ''], answerIndex: 0 })));
   const [sectionB, setSectionB] = useState<TheoryQuestion[]>(Array.from({ length: isMuni ? 0 : 5 }, () => ({ question: '', options: ['True', 'False'], answerIndex: 0 })));
@@ -84,16 +86,16 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
       if (cloudExams && Array.isArray(cloudExams) && cloudExams.length > 0) {
         if (isMuni) {
           const hasSet1 = cloudExams.some((e: any) => e.id === 'pre_muni_a1_set1' || e.title === 'Pre-Assessment Test (Set 1)');
-          if (!hasSet1) {
-            setExams([MUNI_PRE_ASSESSMENT_SET1, ...cloudExams]);
-          } else {
-            setExams(cloudExams);
-          }
+          const hasSet2 = cloudExams.some((e: any) => e.id === 'pre_muni_a2_set2' || e.title === 'Pre-Assessment Test (Set 2)');
+          let combined = [...cloudExams];
+          if (!hasSet1) combined.unshift(MUNI_PRE_ASSESSMENT_SET1);
+          if (!hasSet2) combined.unshift(MUNI_PRE_ASSESSMENT_SET2);
+          setExams(combined);
         } else {
           setExams(cloudExams);
         }
       } else if (isMuni) {
-        setExams([MUNI_PRE_ASSESSMENT_SET1]);
+        setExams([MUNI_PRE_ASSESSMENT_SET1, MUNI_PRE_ASSESSMENT_SET2]);
       }
 
       // Load Batches
@@ -131,6 +133,9 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
     if (exam.id === 'pre_muni_a1_set1' || exam.title === 'Pre-Assessment Test (Set 1)') {
       if (stuSub['pre_muni_a1_set1']) return stuSub['pre_muni_a1_set1'];
     }
+    if (exam.id === 'pre_muni_a2_set2' || exam.title === 'Pre-Assessment Test (Set 2)') {
+      if (stuSub['pre_muni_a2_set2']) return stuSub['pre_muni_a2_set2'];
+    }
     const key = Object.keys(stuSub).find(k => k.startsWith('pre_'));
     if (key && stuSub[key]) return stuSub[key];
     return null;
@@ -139,7 +144,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
   const handleLoadSubmissionsForExam = async (examId: string) => {
     setEvaluatingExamId(examId);
     setEvaluatingStudentEmail(null);
-    const exam = exams.find(e => e.id === examId) || MUNI_PRE_ASSESSMENT_SET1;
+    const exam = exams.find(e => e.id === examId) || (examId === 'pre_muni_a2_set2' ? MUNI_PRE_ASSESSMENT_SET2 : MUNI_PRE_ASSESSMENT_SET1);
 
     const studentsKey = isMuni ? 'registeredStudents_muni@geonixa.com' : 'registeredStudents';
     const cloudStudents = await getFromCloudflare(studentsKey) || [];
@@ -166,7 +171,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
           } catch (e) {}
         }
 
-        const foundSub = findSubmissionForExam(stuSub, exam) || stuSub[examId] || stuSub['pre_muni_a1_set1'];
+        const foundSub = findSubmissionForExam(stuSub, exam) || stuSub[examId] || stuSub['pre_muni_a1_set1'] || stuSub['pre_muni_a2_set2'];
         if (foundSub) {
           collected[emailLower] = foundSub;
           stuSub[examId] = foundSub;
@@ -184,7 +189,9 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
     e.preventDefault();
     if (!title.trim()) return;
 
-    const examId = (isMuni && targetBatch === 'A1') ? 'pre_muni_a1_set1' : `pre_${Date.now()}`;
+    let examId = `pre_${Date.now()}`;
+    if (isMuni && targetBatch === 'A1') examId = 'pre_muni_a1_set1';
+    if (isMuni && targetBatch === 'A2') examId = 'pre_muni_a2_set2';
 
     const newExam: PreAssessmentData = {
       id: examId,
@@ -636,9 +643,16 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
                       onChange={(e) => {
                         const val = e.target.value;
                         setTargetBatch(val);
-                        if (isMuni && val === 'A1') {
+                        if (isMuni && (val === 'A1' || val === 'B1')) {
                           setTitle('Pre-Assessment Test (Set 1)');
                           setSectionA(MUNI_PRE_ASSESSMENT_SET1.sectionA.map(q => ({
+                            question: q.question,
+                            options: [...q.options],
+                            answerIndex: q.answerIndex
+                          })));
+                        } else if (isMuni && (val === 'A2' || val === 'B2')) {
+                          setTitle('Pre-Assessment Test (Set 2)');
+                          setSectionA(MUNI_PRE_ASSESSMENT_SET2.sectionA.map(q => ({
                             question: q.question,
                             options: [...q.options],
                             answerIndex: q.answerIndex

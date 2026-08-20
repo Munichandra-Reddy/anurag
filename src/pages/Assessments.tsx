@@ -393,7 +393,8 @@ const Assessments: React.FC = () => {
     );
   }
   if (pattern === 'Pre Assessment Pattern') {
-    const isMuni = loggedInEmail === 'muni@geonixa.com' || MUNI_STUDENTS.some(s => s.email.toLowerCase() === loggedInEmail.toLowerCase());
+    const normalizedEmail = (loggedInEmail || '').toLowerCase().trim();
+    const isMuni = normalizedEmail === 'muni@geonixa.com' || MUNI_STUDENTS.some(s => (s.email || '').toLowerCase().trim() === normalizedEmail);
 
     const relevantExams = preExams.filter((e: any) => {
       const isMuniExam = e.targetBatch && ['A1', 'A2', 'B1', 'B2'].includes(e.targetBatch);
