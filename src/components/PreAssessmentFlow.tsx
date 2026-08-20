@@ -80,14 +80,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
     const fetchData = async () => {
       // Load exams
       const cloudExams = await getFromCloudflare('anuragLmsPreAssessmentsData');
-      let loadedExams = (cloudExams && Array.isArray(cloudExams)) ? cloudExams : [];
-      
-      // Inject Muni's preloaded exam if not present
-      if (!loadedExams.some((e: any) => e.id === 'pre_muni_a1_set1')) {
-        loadedExams = [MUNI_PRE_ASSESSMENT_SET1, ...loadedExams];
-        await saveToCloudflare('anuragLmsPreAssessmentsData', loadedExams);
-      }
-      setExams(loadedExams);
+      if (cloudExams && Array.isArray(cloudExams)) setExams(cloudExams);
 
       // Load Batches
       const cloudBatches = await getFromCloudflare('anuragLmsProjectBatchData');
