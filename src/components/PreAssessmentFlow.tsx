@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, X, FileText, CheckCircle2, Award, PlayCircle } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
 import { MUNI_STUDENTS } from '../data/students';
+import { MUNI_PRE_ASSESSMENT_SET1 } from '../data/muniPreAssessmentSet1';
 
 interface TheoryQuestion {
   question: string;
@@ -78,7 +79,14 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
     const fetchData = async () => {
       // Load exams
       const cloudExams = await getFromCloudflare('anuragLmsPreAssessmentsData');
-      if (cloudExams && Array.isArray(cloudExams)) setExams(cloudExams);
+      let loadedExams = (cloudExams && Array.isArray(cloudExams)) ? cloudExams : [];
+      
+      // Inject Muni's preloaded exam if not present
+      if (!loadedExams.some((e: any) => e.id === 'pre_muni_a1_set1')) {
+        loadedExams = [MUNI_PRE_ASSESSMENT_SET1, ...loadedExams];
+        await saveToCloudflare('anuragLmsPreAssessmentsData', loadedExams);
+      }
+      setExams(loadedExams);
 
       // Load Batches
       const cloudBatches = await getFromCloudflare('anuragLmsProjectBatchData');
@@ -598,7 +606,15 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
       {/* List Exams */}
       <div className="grid grid-cols-1 gap-4">
         {exams.filter(exam => {
-          if (isMentor) return true;
+          if (isMentor) {
+            // Only show muni's pre-assessments to muni, and exclude them from other mentors' dashboards
+            const isMuniExam = exam.targetBatch && ['A1', 'A2', 'B1', 'B2'].includes(exam.targetBatch);
+            if (isMuni) {
+              return isMuniExam || !exam.targetBatch || exam.targetBatch === 'All Batches';
+            } else {
+              return !isMuniExam;
+            }
+          }
           if (!exam.targetBatch || exam.targetBatch === 'All Batches') return true;
           if (!studentDetails) return false;
           

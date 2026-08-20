@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, ClipboardList, Search } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare, getStudentsKey } from '../utils/cloudflare';
+import { MUNI_STUDENTS } from '../data/students';
 
 interface MarksReportProps {
   isFacultyView?: boolean;
@@ -46,7 +47,13 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
         ]);
         
         const loadedPreAssessments = cloudPreAssessments && Array.isArray(cloudPreAssessments) ? cloudPreAssessments : [];
-        setPreAssessments(loadedPreAssessments);
+        const loggedInEmail = (sessionStorage.getItem('loggedInEmail') || '').toLowerCase();
+        const isMuni = loggedInEmail === 'muni@geonixa.com' || MUNI_STUDENTS.some(s => s.email === loggedInEmail);
+        const filteredPreAssessments = loadedPreAssessments.filter((pre: any) => {
+          const isMuniExam = pre.targetBatch && ['A1', 'A2', 'B1', 'B2'].includes(pre.targetBatch);
+          return isMuni ? (isMuniExam || pre.targetBatch === 'All Batches' || !pre.targetBatch) : !isMuniExam;
+        });
+        setPreAssessments(filteredPreAssessments);
         
         // Merge lingering local students to prevent data loss
         const localStudents = JSON.parse(localStorage.getItem(studentsKey) || '[]');
@@ -102,7 +109,7 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
             preSubData = await getFromCloudflare(preSubKey);
           }
 
-          for (const pre of loadedPreAssessments) {
+          for (const pre of filteredPreAssessments) {
             if (preSubData && preSubData[pre.id] && preSubData[pre.id].marks) {
               allMarks[student.email][pre.title] = preSubData[pre.id].marks.total;
             } else {
@@ -114,7 +121,7 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
         setMarksData(allMarks);
         
         // Check if current live data matches the last submitted snapshot
-        const currentDataString = JSON.stringify({ marksData: allMarks, students: registeredStudents, preAssessments: loadedPreAssessments });
+        const currentDataString = JSON.stringify({ marksData: allMarks, students: registeredStudents, preAssessments: filteredPreAssessments });
         const lastSubmittedHash = cloudHash || localStorage.getItem('facultySnapshotHash_Marks');
         
         if (lastSubmittedHash === currentDataString) {
