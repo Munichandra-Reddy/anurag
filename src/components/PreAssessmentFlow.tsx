@@ -88,21 +88,12 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
     const fetchData = async () => {
       // Load exams
       const cloudExams = await getFromCloudflare('anuragLmsPreAssessmentsData');
-      if (cloudExams && Array.isArray(cloudExams) && cloudExams.length > 0) {
-        if (isMuni) {
-          const hasSet1 = cloudExams.some((e: any) => e.id === 'pre_muni_a1_set1' || e.title === 'Pre-Assessment Test (Set 1)');
-          const hasSet2 = cloudExams.some((e: any) => e.id === 'pre_muni_a2_set2' || e.title === 'Pre-Assessment Test (Set 2)');
-          const hasSet3 = cloudExams.some((e: any) => e.id === 'pre_muni_b1_set3' || e.title === 'Pre-Assessment Test (Set 3)');
-          let combined = [...cloudExams];
-          if (!hasSet1) combined.unshift(MUNI_PRE_ASSESSMENT_SET1);
-          if (!hasSet2) combined.unshift(MUNI_PRE_ASSESSMENT_SET2);
-          if (!hasSet3) combined.unshift(MUNI_PRE_ASSESSMENT_SET3);
-          setExams(combined);
-        } else {
-          setExams(cloudExams);
-        }
+      if (cloudExams && Array.isArray(cloudExams)) {
+        setExams(cloudExams);
       } else if (isMuni) {
-        setExams([MUNI_PRE_ASSESSMENT_SET1, MUNI_PRE_ASSESSMENT_SET2, MUNI_PRE_ASSESSMENT_SET3]);
+        const initial = [MUNI_PRE_ASSESSMENT_SET1, MUNI_PRE_ASSESSMENT_SET2, MUNI_PRE_ASSESSMENT_SET3];
+        setExams(initial);
+        await saveToCloudflare('anuragLmsPreAssessmentsData', initial);
       }
 
       // Load Batches
@@ -921,7 +912,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
 
                     Promise.all(allEmailsToClear.map(async (email) => {
                       try {
-                        const emailLower = email.toLowerCase();
+                        const emailLower = email.toLowerCase().trim();
                         const subKey = `preAssessmentSubmissions_${emailLower}`;
                         
                         const localData = localStorage.getItem(subKey);
@@ -929,6 +920,9 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
                           try {
                             const parsed = JSON.parse(localData);
                             delete parsed[exam.id];
+                            if (exam.id === 'pre_muni_a1_set1' || exam.title.includes('Set 1')) delete parsed['pre_muni_a1_set1'];
+                            if (exam.id === 'pre_muni_a2_set2' || exam.title.includes('Set 2')) delete parsed['pre_muni_a2_set2'];
+                            if (exam.id === 'pre_muni_b1_set3' || exam.title.includes('Set 3')) delete parsed['pre_muni_b1_set3'];
                             localStorage.setItem(subKey, JSON.stringify(parsed));
                           } catch (e) {
                             localStorage.removeItem(subKey);
@@ -936,8 +930,11 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
                         }
 
                         const subData = await getFromCloudflare(subKey);
-                        if (subData && subData[exam.id]) {
+                        if (subData) {
                           delete subData[exam.id];
+                          if (exam.id === 'pre_muni_a1_set1' || exam.title.includes('Set 1')) delete subData['pre_muni_a1_set1'];
+                          if (exam.id === 'pre_muni_a2_set2' || exam.title.includes('Set 2')) delete subData['pre_muni_a2_set2'];
+                          if (exam.id === 'pre_muni_b1_set3' || exam.title.includes('Set 3')) delete subData['pre_muni_b1_set3'];
                           await replaceInCloudflare(subKey, subData);
                         }
                       } catch (err) {

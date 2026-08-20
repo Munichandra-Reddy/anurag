@@ -71,9 +71,9 @@ const Assessments: React.FC = () => {
     const isMuniUser = normalizedEmail === 'muni@geonixa.com' 
       || MUNI_STUDENTS.some(s => (s.email || '').toLowerCase().trim() === normalizedEmail)
       || [...cloudMuniStudents, ...localMuniStudents].some((s: any) => (s?.email || '').toLowerCase().trim() === normalizedEmail);
-    const baseExams = (examsData && Array.isArray(examsData) && examsData.length > 0)
+    const baseExams = (examsData && Array.isArray(examsData))
       ? examsData
-      : (isMuniUser ? [MUNI_PRE_ASSESSMENT_SET1] : []);
+      : (isMuniUser ? [MUNI_PRE_ASSESSMENT_SET1, MUNI_PRE_ASSESSMENT_SET2, MUNI_PRE_ASSESSMENT_SET3] : []);
 
     setPreExams(baseExams);
 
