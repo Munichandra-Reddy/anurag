@@ -365,7 +365,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
 
         {/* Section A */}
         <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 space-y-6">
-          <h3 className="font-bold text-lg text-gray-900 border-b border-gray-200 pb-2">Section A: Multiple Choice (10 Marks)</h3>
+          <h3 className="font-bold text-lg text-gray-900 border-b border-gray-200 pb-2">Section A: Multiple Choice ({exam.sectionA.length} Marks)</h3>
           {exam.sectionA.map((q, qIndex) => (
             <div key={qIndex} className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
               <p className="font-bold text-gray-900 mb-3">{qIndex + 1}. {q.question}</p>
@@ -384,63 +384,69 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
         </div>
 
         {/* Section B */}
-        <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 space-y-6">
-          <h3 className="font-bold text-lg text-gray-900 border-b border-gray-200 pb-2">Section B: True/False (5 Marks)</h3>
-          {exam.sectionB.map((q, qIndex) => (
-            <div key={qIndex} className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
-              <p className="font-bold text-gray-900 mb-3">{qIndex + 1}. {q.question}</p>
-              <div className="flex gap-6">
-                {q.options.map((opt, idx) => (
-                  <label key={idx} className="flex items-center gap-2 cursor-pointer hover:text-primary">
-                    <input type="radio" checked={ansB[qIndex] === idx} onChange={() => {
-                      const newAns = [...ansB]; newAns[qIndex] = idx; setAnsB(newAns);
-                    }} className="w-4 h-4 text-primary focus:ring-primary" />
-                    <span className="text-sm font-medium">{opt}</span>
-                  </label>
-                ))}
+        {exam.sectionB && exam.sectionB.length > 0 && (
+          <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 space-y-6">
+            <h3 className="font-bold text-lg text-gray-900 border-b border-gray-200 pb-2">Section B: True/False (5 Marks)</h3>
+            {exam.sectionB.map((q, qIndex) => (
+              <div key={qIndex} className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
+                <p className="font-bold text-gray-900 mb-3">{qIndex + 1}. {q.question}</p>
+                <div className="flex gap-6">
+                  {q.options.map((opt, idx) => (
+                    <label key={idx} className="flex items-center gap-2 cursor-pointer hover:text-primary">
+                      <input type="radio" checked={ansB[qIndex] === idx} onChange={() => {
+                        const newAns = [...ansB]; newAns[qIndex] = idx; setAnsB(newAns);
+                      }} className="w-4 h-4 text-primary focus:ring-primary" />
+                      <span className="text-sm font-medium">{opt}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Section C */}
-        <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 space-y-6">
-          <h3 className="font-bold text-lg text-gray-900 border-b border-gray-200 pb-2">Section C: Fill in the blanks (5 Marks)</h3>
-          {exam.sectionC.map((q, qIndex) => (
-            <div key={qIndex} className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
-              <p className="font-bold text-gray-900 mb-3">{qIndex + 1}. {q.question}</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {q.options.map((opt, idx) => (
-                  <label key={idx} className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-gray-50 border border-transparent">
-                    <input type="radio" checked={ansC[qIndex] === idx} onChange={() => {
-                      const newAns = [...ansC]; newAns[qIndex] = idx; setAnsC(newAns);
-                    }} className="w-4 h-4 text-primary focus:ring-primary" />
-                    <span className="text-sm">{opt}</span>
-                  </label>
-                ))}
+        {exam.sectionC && exam.sectionC.length > 0 && (
+          <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 space-y-6">
+            <h3 className="font-bold text-lg text-gray-900 border-b border-gray-200 pb-2">Section C: Fill in the blanks (5 Marks)</h3>
+            {exam.sectionC.map((q, qIndex) => (
+              <div key={qIndex} className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
+                <p className="font-bold text-gray-900 mb-3">{qIndex + 1}. {q.question}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {q.options.map((opt, idx) => (
+                    <label key={idx} className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-gray-50 border border-transparent">
+                      <input type="radio" checked={ansC[qIndex] === idx} onChange={() => {
+                        const newAns = [...ansC]; newAns[qIndex] = idx; setAnsC(newAns);
+                      }} className="w-4 h-4 text-primary focus:ring-primary" />
+                      <span className="text-sm">{opt}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Section D */}
-        <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 space-y-6">
-          <h3 className="font-bold text-lg text-gray-900 border-b border-gray-200 pb-2">Section D: Short Answers (10 Marks)</h3>
-          {exam.sectionD.map((q, qIndex) => (
-            <div key={qIndex} className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
-              <p className="font-bold text-gray-900 mb-3">{qIndex + 1}. {q}</p>
-              <textarea 
-                value={ansD[qIndex] || ''}
-                onChange={(e) => {
-                  const newAns = [...ansD]; newAns[qIndex] = e.target.value; setAnsD(newAns);
-                }}
-                rows={3}
-                placeholder="Write your answer here..."
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary resize-none"
-              />
-            </div>
-          ))}
-        </div>
+        {exam.sectionD && exam.sectionD.length > 0 && (
+          <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 space-y-6">
+            <h3 className="font-bold text-lg text-gray-900 border-b border-gray-200 pb-2">Section D: Short Answers (10 Marks)</h3>
+            {exam.sectionD.map((q, qIndex) => (
+              <div key={qIndex} className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
+                <p className="font-bold text-gray-900 mb-3">{qIndex + 1}. {q}</p>
+                <textarea 
+                  value={ansD[qIndex] || ''}
+                  onChange={(e) => {
+                    const newAns = [...ansD]; newAns[qIndex] = e.target.value; setAnsD(newAns);
+                  }}
+                  rows={3}
+                  placeholder="Write your answer here..."
+                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary resize-none"
+                />
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="flex justify-end pt-4">
           <button 
