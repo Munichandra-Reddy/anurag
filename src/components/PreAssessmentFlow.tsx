@@ -99,7 +99,9 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
         const cloudSubmissions = await getFromCloudflare(subKey);
         if (cloudSubmissions) setSubmissions(cloudSubmissions);
 
-        const cloudStudents = await getFromCloudflare('registeredStudents');
+        const isMuniStudent = MUNI_STUDENTS.some(s => s.email === loggedInEmail);
+        const studentsKey = isMuniStudent ? 'registeredStudents_muni@geonixa.com' : 'registeredStudents';
+        const cloudStudents = await getFromCloudflare(studentsKey);
         const students = cloudStudents ? cloudStudents as any[] : [];
         const me = students.find((s: any) => s.email === loggedInEmail);
         setStudentDetails(me);
@@ -616,13 +618,12 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
               return !isMuniExam;
             }
           }
-          if (!exam.targetBatch || exam.targetBatch === 'All Batches') return true;
-          if (!studentDetails) return false;
-          
           if (isMuni && exam.targetBatch && (exam.targetBatch === 'A1' || exam.targetBatch === 'A2' || exam.targetBatch === 'B1' || exam.targetBatch === 'B2')) {
             const muniStudent = MUNI_STUDENTS.find(s => s.email === loggedInEmail);
             return muniStudent?.batch === exam.targetBatch && exam.isLaunched;
           }
+          if (!exam.targetBatch || exam.targetBatch === 'All Batches') return true;
+          if (!studentDetails) return false;
 
           if (exam.targetBatch === 'Morning' || exam.targetBatch === 'Evening') return studentDetails.batch === exam.targetBatch;
           const targetProjectBatch = projectBatches.find(b => b.batchNumber === exam.targetBatch);
