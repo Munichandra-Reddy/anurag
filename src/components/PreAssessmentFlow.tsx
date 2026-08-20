@@ -113,8 +113,8 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
   const handleLoadSubmissionsForExam = async (examId: string) => {
     setEvaluatingExamId(examId);
     setEvaluatingStudentEmail(null);
-    // In a real database, we would query by examId. For our KV store, we can fetch registered students and check their submissions.
-    const cloudStudents = await getFromCloudflare('registeredStudents') || [];
+    const studentsKey = isMuni ? 'registeredStudents_muni@geonixa.com' : 'registeredStudents';
+    const cloudStudents = await getFromCloudflare(studentsKey) || [];
     const collected: Record<string, PreAssessmentSubmission> = {};
     for (const st of cloudStudents as any[]) {
       const stuSub = await getFromCloudflare(`preAssessmentSubmissions_${st.email}`);
@@ -149,13 +149,30 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) 
 
   const handleStudentSubmit = async () => {
     if (!takingExamId) return;
+
+    const exam = exams.find(e => e.id === takingExamId);
+    let marksObj = undefined;
+    if (exam && isMuni) {
+      let markA = 0;
+      exam.sectionA.forEach((q, idx) => {
+        if (ansA[idx] === q.answerIndex) markA++;
+      });
+      marksObj = {
+        sectionA: markA,
+        sectionB: 0,
+        sectionC: 0,
+        sectionD: 0,
+        total: markA
+      };
+    }
     
     const submission: PreAssessmentSubmission = {
       sectionAAnswers: ansA,
       sectionBAnswers: ansB,
       sectionCAnswers: ansC,
       sectionDAnswers: ansD,
-      submittedAt: new Date().toISOString()
+      submittedAt: new Date().toISOString(),
+      marks: marksObj
     };
 
     const newSubmissions = { ...submissions, [takingExamId]: submission };
