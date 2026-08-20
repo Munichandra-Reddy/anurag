@@ -4,6 +4,7 @@ import { getFromCloudflare, saveToCloudflare, replaceInCloudflare } from '../uti
 import { MUNI_STUDENTS } from '../data/students';
 import { MUNI_PRE_ASSESSMENT_SET1 } from '../data/muniPreAssessmentSet1';
 import { MUNI_PRE_ASSESSMENT_SET2 } from '../data/muniPreAssessmentSet2';
+import { MUNI_PRE_ASSESSMENT_SET3 } from '../data/muniPreAssessmentSet3';
 
 interface TheoryQuestion {
   question: string;
@@ -87,15 +88,17 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
         if (isMuni) {
           const hasSet1 = cloudExams.some((e: any) => e.id === 'pre_muni_a1_set1' || e.title === 'Pre-Assessment Test (Set 1)');
           const hasSet2 = cloudExams.some((e: any) => e.id === 'pre_muni_a2_set2' || e.title === 'Pre-Assessment Test (Set 2)');
+          const hasSet3 = cloudExams.some((e: any) => e.id === 'pre_muni_b1_set3' || e.title === 'Pre-Assessment Test (Set 3)');
           let combined = [...cloudExams];
           if (!hasSet1) combined.unshift(MUNI_PRE_ASSESSMENT_SET1);
           if (!hasSet2) combined.unshift(MUNI_PRE_ASSESSMENT_SET2);
+          if (!hasSet3) combined.unshift(MUNI_PRE_ASSESSMENT_SET3);
           setExams(combined);
         } else {
           setExams(cloudExams);
         }
       } else if (isMuni) {
-        setExams([MUNI_PRE_ASSESSMENT_SET1, MUNI_PRE_ASSESSMENT_SET2]);
+        setExams([MUNI_PRE_ASSESSMENT_SET1, MUNI_PRE_ASSESSMENT_SET2, MUNI_PRE_ASSESSMENT_SET3]);
       }
 
       // Load Batches
@@ -136,6 +139,9 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
     if (exam.id === 'pre_muni_a2_set2' || exam.title === 'Pre-Assessment Test (Set 2)') {
       if (stuSub['pre_muni_a2_set2']) return stuSub['pre_muni_a2_set2'];
     }
+    if (exam.id === 'pre_muni_b1_set3' || exam.title === 'Pre-Assessment Test (Set 3)') {
+      if (stuSub['pre_muni_b1_set3']) return stuSub['pre_muni_b1_set3'];
+    }
     const key = Object.keys(stuSub).find(k => k.startsWith('pre_'));
     if (key && stuSub[key]) return stuSub[key];
     return null;
@@ -144,7 +150,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
   const handleLoadSubmissionsForExam = async (examId: string) => {
     setEvaluatingExamId(examId);
     setEvaluatingStudentEmail(null);
-    const exam = exams.find(e => e.id === examId) || (examId === 'pre_muni_a2_set2' ? MUNI_PRE_ASSESSMENT_SET2 : MUNI_PRE_ASSESSMENT_SET1);
+    const exam = exams.find(e => e.id === examId) || (examId === 'pre_muni_b1_set3' ? MUNI_PRE_ASSESSMENT_SET3 : examId === 'pre_muni_a2_set2' ? MUNI_PRE_ASSESSMENT_SET2 : MUNI_PRE_ASSESSMENT_SET1);
 
     const studentsKey = isMuni ? 'registeredStudents_muni@geonixa.com' : 'registeredStudents';
     const cloudStudents = await getFromCloudflare(studentsKey) || [];
@@ -171,7 +177,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
           } catch (e) {}
         }
 
-        const foundSub = findSubmissionForExam(stuSub, exam) || stuSub[examId] || stuSub['pre_muni_a1_set1'] || stuSub['pre_muni_a2_set2'];
+        const foundSub = findSubmissionForExam(stuSub, exam) || stuSub[examId] || stuSub['pre_muni_a1_set1'] || stuSub['pre_muni_a2_set2'] || stuSub['pre_muni_b1_set3'];
         if (foundSub) {
           collected[emailLower] = foundSub;
           stuSub[examId] = foundSub;
@@ -192,6 +198,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
     let examId = `pre_${Date.now()}`;
     if (isMuni && targetBatch === 'A1') examId = 'pre_muni_a1_set1';
     if (isMuni && targetBatch === 'A2') examId = 'pre_muni_a2_set2';
+    if (isMuni && targetBatch === 'B1') examId = 'pre_muni_b1_set3';
 
     const newExam: PreAssessmentData = {
       id: examId,
@@ -643,16 +650,23 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
                       onChange={(e) => {
                         const val = e.target.value;
                         setTargetBatch(val);
-                        if (isMuni && (val === 'A1' || val === 'B1')) {
+                        if (isMuni && val === 'A1') {
                           setTitle('Pre-Assessment Test (Set 1)');
                           setSectionA(MUNI_PRE_ASSESSMENT_SET1.sectionA.map(q => ({
                             question: q.question,
                             options: [...q.options],
                             answerIndex: q.answerIndex
                           })));
-                        } else if (isMuni && (val === 'A2' || val === 'B2')) {
+                        } else if (isMuni && val === 'A2') {
                           setTitle('Pre-Assessment Test (Set 2)');
                           setSectionA(MUNI_PRE_ASSESSMENT_SET2.sectionA.map(q => ({
+                            question: q.question,
+                            options: [...q.options],
+                            answerIndex: q.answerIndex
+                          })));
+                        } else if (isMuni && val === 'B1') {
+                          setTitle('Pre-Assessment Test (Set 3)');
+                          setSectionA(MUNI_PRE_ASSESSMENT_SET3.sectionA.map(q => ({
                             question: q.question,
                             options: [...q.options],
                             answerIndex: q.answerIndex
