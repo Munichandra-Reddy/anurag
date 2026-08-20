@@ -81,7 +81,11 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
     const fetchData = async () => {
       // Load exams
       const cloudExams = await getFromCloudflare('anuragLmsPreAssessmentsData');
-      if (cloudExams && Array.isArray(cloudExams)) setExams(cloudExams);
+      if (cloudExams && Array.isArray(cloudExams) && cloudExams.length > 0) {
+        setExams(cloudExams);
+      } else if (isMuni) {
+        setExams([MUNI_PRE_ASSESSMENT_SET1]);
+      }
 
       // Load Batches
       const cloudBatches = await getFromCloudflare('anuragLmsProjectBatchData');
@@ -125,20 +129,24 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
     
     await Promise.all(studentList.map(async (st: any) => {
       try {
-        const emailLower = (st.email || '').toLowerCase();
+        const emailLower = (st.email || '').toLowerCase().trim();
         if (!emailLower) return;
 
         const subKey = `preAssessmentSubmissions_${emailLower}`;
-        let stuSub = null;
+        const cloudSub = await getFromCloudflare(subKey);
+        let stuSub = cloudSub || {};
+
         const localStr = localStorage.getItem(subKey);
         if (localStr) {
-          try { stuSub = JSON.parse(localStr); } catch (e) {}
+          try {
+            const localParsed = JSON.parse(localStr);
+            stuSub = { ...stuSub, ...localParsed };
+          } catch (e) {}
         }
-        if (!stuSub) {
-          stuSub = await getFromCloudflare(subKey);
-        }
+
         if (stuSub && stuSub[examId]) {
           collected[emailLower] = stuSub[examId];
+          localStorage.setItem(subKey, JSON.stringify(stuSub));
         }
       } catch (err) {
         console.error(`Failed to load submission for ${st.email}:`, err);

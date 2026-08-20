@@ -6,6 +6,7 @@ import { WeeklyAssessmentFlow } from '../components/WeeklyAssessmentFlow';
 import { PreAssessmentFlow } from '../components/PreAssessmentFlow';
 import { getFromCloudflare, saveToCloudflare, getMentorKey } from '../utils/cloudflare';
 import { MUNI_STUDENTS } from '../data/students';
+import { MUNI_PRE_ASSESSMENT_SET1 } from '../data/muniPreAssessmentSet1';
 
 const defaultAssessments: { id: number, title: string, description: string }[] = [];
 
@@ -63,7 +64,14 @@ const Assessments: React.FC = () => {
       getFromCloudflare('anuragLmsPreAssessmentsData'),
       getFromCloudflare(subKey)
     ]);
-    if (examsData && Array.isArray(examsData)) setPreExams(examsData);
+    
+    const isMuniUser = loggedInEmail === 'muni@geonixa.com' || MUNI_STUDENTS.some(s => s.email.toLowerCase() === loggedInEmail.toLowerCase());
+    const baseExams = (examsData && Array.isArray(examsData) && examsData.length > 0)
+      ? examsData
+      : (isMuniUser ? [MUNI_PRE_ASSESSMENT_SET1] : []);
+
+    setPreExams(baseExams);
+
     if (subsData) {
       setPreSubmissions(subsData);
       localStorage.setItem(subKey, JSON.stringify(subsData));
@@ -385,8 +393,13 @@ const Assessments: React.FC = () => {
     );
   }
   if (pattern === 'Pre Assessment Pattern') {
-    const isMuni = loggedInEmail === 'muni@geonixa.com' || MUNI_STUDENTS.some(s => s.email === loggedInEmail);
-    const relevantExams = preExams.filter((e: any) => {
+    const isMuni = loggedInEmail === 'muni@geonixa.com' || MUNI_STUDENTS.some(s => s.email.toLowerCase() === loggedInEmail.toLowerCase());
+    const defaultExams = isMuni ? [MUNI_PRE_ASSESSMENT_SET1] : [];
+    const combinedMap = new Map();
+    [...defaultExams, ...preExams].forEach((e: any) => { if (e && e.id) combinedMap.set(e.id, e); });
+    const allExams = Array.from(combinedMap.values());
+
+    const relevantExams = allExams.filter((e: any) => {
       const isMuniExam = e.targetBatch && ['A1', 'A2', 'B1', 'B2'].includes(e.targetBatch);
       if (isMuni) {
         return (isMuniExam || !e.targetBatch || e.targetBatch === 'All Batches') && preSubmissions?.[e.id];
