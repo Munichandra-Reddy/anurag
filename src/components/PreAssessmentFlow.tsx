@@ -125,9 +125,22 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
     fetchData();
   }, [isMentor, loggedInEmail]);
 
+  const findSubmissionForExam = (stuSub: any, exam: PreAssessmentData) => {
+    if (!stuSub || typeof stuSub !== 'object') return null;
+    if (stuSub[exam.id]) return stuSub[exam.id];
+    if (exam.id === 'pre_muni_a1_set1' || exam.title === 'Pre-Assessment Test (Set 1)') {
+      if (stuSub['pre_muni_a1_set1']) return stuSub['pre_muni_a1_set1'];
+    }
+    const key = Object.keys(stuSub).find(k => k.startsWith('pre_'));
+    if (key && stuSub[key]) return stuSub[key];
+    return null;
+  };
+
   const handleLoadSubmissionsForExam = async (examId: string) => {
     setEvaluatingExamId(examId);
     setEvaluatingStudentEmail(null);
+    const exam = exams.find(e => e.id === examId) || MUNI_PRE_ASSESSMENT_SET1;
+
     const studentsKey = isMuni ? 'registeredStudents_muni@geonixa.com' : 'registeredStudents';
     const cloudStudents = await getFromCloudflare(studentsKey) || [];
     const studentList = isMuni 
@@ -153,8 +166,10 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
           } catch (e) {}
         }
 
-        if (stuSub && stuSub[examId]) {
-          collected[emailLower] = stuSub[examId];
+        const foundSub = findSubmissionForExam(stuSub, exam) || stuSub[examId] || stuSub['pre_muni_a1_set1'];
+        if (foundSub) {
+          collected[emailLower] = foundSub;
+          stuSub[examId] = foundSub;
           localStorage.setItem(subKey, JSON.stringify(stuSub));
         }
       } catch (err) {
@@ -210,7 +225,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
     };
 
     const subKey = `preAssessmentSubmissions_${loggedInEmail.toLowerCase()}`;
-    const newSubmissions = { ...submissions, [takingExamId]: submission };
+    const newSubmissions = { ...submissions, [takingExamId]: submission, ['pre_muni_a1_set1']: submission };
     setSubmissions(newSubmissions);
     localStorage.setItem(subKey, JSON.stringify(newSubmissions));
     await saveToCloudflare(subKey, newSubmissions);
@@ -222,16 +237,19 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
   const handleEvaluateSubmit = async () => {
     if (!evaluatingExamId || !evaluatingStudentEmail) return;
 
-    const exam = exams.find(e => e.id === evaluatingExamId);
+    const exam = exams.find(e => e.id === evaluatingExamId) || MUNI_PRE_ASSESSMENT_SET1;
     const sub = allSubmissions[evaluatingStudentEmail];
-    if (!exam || !sub) return;
+    if (!sub) return;
 
     // Calculate marks
     let markA = 0, markB = 0, markC = 0;
-    
-    exam.sectionA.forEach((q, idx) => { if (sub.sectionAAnswers[idx] === q.answerIndex) markA++; });
-    exam.sectionB.forEach((q, idx) => { if (sub.sectionBAnswers[idx] === q.answerIndex) markB++; });
-    exam.sectionC.forEach((q, idx) => { if (sub.sectionCAnswers[idx] === q.answerIndex) markC++; });
+    const sectionAQ = (exam && exam.sectionA && exam.sectionA.length > 0) ? exam.sectionA : MUNI_PRE_ASSESSMENT_SET1.sectionA;
+    const sectionBQ = (exam && exam.sectionB) ? exam.sectionB : [];
+    const sectionCQ = (exam && exam.sectionC) ? exam.sectionC : [];
+
+    sectionAQ.forEach((q, idx) => { if (sub.sectionAAnswers && sub.sectionAAnswers[idx] === q.answerIndex) markA++; });
+    sectionBQ.forEach((q, idx) => { if (sub.sectionBAnswers && sub.sectionBAnswers[idx] === q.answerIndex) markB++; });
+    sectionCQ.forEach((q, idx) => { if (sub.sectionCAnswers && sub.sectionCAnswers[idx] === q.answerIndex) markC++; });
 
     const evaluatedSubmission: PreAssessmentSubmission = {
       ...sub,
@@ -244,7 +262,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
       }
     };
 
-    const studentEmailLower = evaluatingStudentEmail.toLowerCase();
+    const studentEmailLower = evaluatingStudentEmail.toLowerCase().trim();
     const subKey = `preAssessmentSubmissions_${studentEmailLower}`;
 
     let stuSubs: Record<string, PreAssessmentSubmission> = {};
@@ -256,7 +274,10 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
       const cloudSubs = await getFromCloudflare(subKey);
       if (cloudSubs) stuSubs = cloudSubs;
     }
+    
     stuSubs[evaluatingExamId] = evaluatedSubmission;
+    if (exam && exam.id) stuSubs[exam.id] = evaluatedSubmission;
+    if (isMuni) stuSubs['pre_muni_a1_set1'] = evaluatedSubmission;
 
     localStorage.setItem(subKey, JSON.stringify(stuSubs));
     await saveToCloudflare(subKey, stuSubs);
@@ -882,15 +903,16 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
                     Remove
                   </button>
                 </>
-              ) : (
-                submissions[exam.id] ? (
+              ) : (() => {
+                const foundSub = findSubmissionForExam(submissions, exam);
+                return foundSub ? (
                   <div className="flex items-center justify-center gap-3">
-                    {submissions[exam.id].marks && submissions[exam.id].marks?.total !== undefined ? (
+                    {foundSub.marks && foundSub.marks?.total !== undefined ? (
                       <button 
                         onClick={() => setViewingReportId(exam.id)}
                         className="flex items-center gap-2 px-6 py-2.5 bg-green-50 text-green-700 font-bold rounded-xl border border-green-100 shadow-sm hover:bg-green-100 transition-colors"
                       >
-                        <Award size={18}/> View Report (Score: {submissions[exam.id].marks!.total}/30)
+                        <Award size={18}/> View Report (Score: {foundSub.marks!.total}/30)
                       </button>
                     ) : (
                       <span className="flex items-center gap-2 px-6 py-2.5 bg-amber-50 text-amber-700 font-bold rounded-xl border border-amber-200 shadow-sm">
@@ -908,8 +930,8 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
                   }} className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-sm">
                     <PlayCircle size={18} /> Start Exam
                   </button>
-                )
-              )}
+                );
+              })()}
             </div>
           </div>
         ))}

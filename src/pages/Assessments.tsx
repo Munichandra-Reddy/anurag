@@ -449,8 +449,8 @@ const Assessments: React.FC = () => {
             )}
 
             {!isMentor && relevantExams.map((e: any) => {
-              const sub = preSubmissions[e.id];
-              const isEvaluated = sub?.marks !== undefined;
+              const sub = preSubmissions?.[e.id] || (e.title === 'Pre-Assessment Test (Set 1)' ? preSubmissions?.['pre_muni_a1_set1'] : null) || (Object.values(preSubmissions || {}).find((s: any) => s && (s.submittedAt || s.marks)) as any);
+              const isEvaluated = sub?.marks !== undefined && sub?.marks?.total !== undefined;
               return (
                 <div key={e.id} className="flex justify-between items-center pt-4 border-t border-gray-100 mt-4">
                   <span className="font-bold text-gray-800 text-lg">
