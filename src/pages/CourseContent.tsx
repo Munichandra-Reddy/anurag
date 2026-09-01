@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BookOpen, ChevronDown, ChevronUp, PlayCircle, FileText, CheckCircle, Plus, Trash2, X, Upload, Edit2 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
-import { getFromCloudflare, saveToCloudflare, getMentorKey } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, replaceInCloudflare, getMentorKey } from '../utils/cloudflare';
 
 const defaultSessions = [
   { id: 1, title: 'Introduction to Autodesk Revit & BIM', content: 'Understand the concept of Building Information Modeling (BIM) and how Revit fits into the architectural workflow. Learn about project templates and basic setup.' },
@@ -33,7 +33,7 @@ const CourseContent: React.FC = () => {
         if (parsed && Array.isArray(parsed)) {
           setSessionsData(parsed);
         } else {
-          setSessionsData([]);
+          setSessionsData(courseKey.includes('_muni') ? [] : defaultSessions);
         }
       }
     };
@@ -45,6 +45,7 @@ const CourseContent: React.FC = () => {
     const courseKey = getMentorKey('anuragLmsCoursesRevit');
     localStorage.setItem(courseKey, JSON.stringify(newSessions));
     await saveToCloudflare(courseKey, newSessions);
+    await replaceInCloudflare(courseKey, newSessions);
   };
 
   const [isAdding, setIsAdding] = useState(false);

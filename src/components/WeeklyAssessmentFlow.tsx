@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, X, Upload, Link as LinkIcon, FileText, CheckCircle2, Award, PlayCircle } from 'lucide-react';
 import { WeeklyExamReport } from './WeeklyExamReport';
-import { getFromCloudflare, saveToCloudflare, getMentorKey, getStudentsKey, getMentorBatches } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, replaceInCloudflare, getMentorKey, getStudentsKey, getMentorBatches } from '../utils/cloudflare';
 import { SOLIDWORKS_60_MCQS } from '../data/solidworks60Mcqs';
+import { MUNI_STUDENTS } from '../data/students';
 
 interface TheoryQuestion {
   question: string;
@@ -58,6 +59,8 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
   const [theoryPdfDataUrl, setTheoryPdfDataUrl] = useState('');
   const [questionCount, setQuestionCount] = useState<number>(60);
   const [theoryQuestions, setTheoryQuestions] = useState<TheoryQuestion[]>(SOLIDWORKS_60_MCQS);
+  const [targetBatch, setTargetBatch] = useState('All Batches');
+  const [projectBatches, setProjectBatches] = useState<any[]>([]);
 
   // Student form state
   const [takingExamId, setTakingExamId] = useState<string | null>(null);
@@ -70,29 +73,17 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
   const [studentTheoryTextAnswer, setStudentTheoryTextAnswer] = useState('');
   const [studentTheoryPdf, setStudentTheoryPdf] = useState('');
   const [studentTheoryPdfDataUrl, setStudentTheoryPdfDataUrl] = useState('');
+  
+  // Submissions state
   const [submissions, setSubmissions] = useState<Record<string, WeeklyExamSubmission>>({});
   const [evaluatingExamId, setEvaluatingExamId] = useState<string | null>(null);
 
-  const [targetBatch, setTargetBatch] = useState('All Batches');
-  const [projectBatches, setProjectBatches] = useState<{id: string, batchNumber: string, memberEmails: string[]}[]>([]);
   const [studentDetails, setStudentDetails] = useState<any>(null);
 
   useEffect(() => {
     const fetchData = async () => {
-      let examsKey = 'anuragLmsWeeklyExams';
-      let batchesKey = 'anuragLmsProjectBatchData';
-
-      if (isMentor) {
-        examsKey = getMentorKey('anuragLmsWeeklyExams');
-        batchesKey = getMentorKey('anuragLmsProjectBatchData');
-      } else {
-        const muniStudents = await getFromCloudflare('registeredStudents_muni@geonixa.com') || [];
-        const isMuniStudent = (muniStudents as any[]).some((s: any) => s.email === loggedInEmail);
-        if (isMuniStudent) {
-          examsKey = 'anuragLmsWeeklyExams_muni@geonixa.com';
-          batchesKey = 'anuragLmsProjectBatchData_muni@geonixa.com';
-        }
-      }
+      const examsKey = getMentorKey('anuragLmsWeeklyExams');
+      const batchesKey = getMentorKey('anuragLmsProjectBatchData');
 
       // Load created exams
       const cloudExams = await getFromCloudflare(examsKey);
@@ -125,8 +116,9 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
         
         const studentsKey = getStudentsKey();
         const cloudStudents = await getFromCloudflare(studentsKey);
-        const students = cloudStudents ? cloudStudents as any[] : JSON.parse(localStorage.getItem(studentsKey) || '[]');
-        const me = students.find((s: any) => s.email === loggedInEmail);
+        const localStudents = JSON.parse(localStorage.getItem(studentsKey) || '[]');
+        const allKnownStudents = [...MUNI_STUDENTS, ...localStudents, ...(Array.isArray(cloudStudents) ? cloudStudents : [])];
+        const me = allKnownStudents.find((s: any) => (s?.email || '').toLowerCase().trim() === loggedInEmail.toLowerCase().trim());
         setStudentDetails(me);
       }
     };
@@ -221,6 +213,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     const examsKey = getMentorKey('anuragLmsWeeklyExams');
     localStorage.setItem(examsKey, JSON.stringify(updatedExams));
     await saveToCloudflare(examsKey, updatedExams);
+    await replaceInCloudflare(examsKey, updatedExams);
     
     setIsAdding(false);
     // Reset
@@ -863,7 +856,8 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                         const examsKey = getMentorKey('anuragLmsWeeklyExams');
                         localStorage.setItem(examsKey, JSON.stringify(newExams));
                         const promises: Promise<any>[] = [
-                          saveToCloudflare(examsKey, newExams)
+                          saveToCloudflare(examsKey, newExams),
+                          replaceInCloudflare(examsKey, newExams)
                         ];
 
                         // Fetch only target students for this specific mentor

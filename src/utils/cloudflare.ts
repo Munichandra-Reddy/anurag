@@ -70,27 +70,39 @@ export const getFromCloudflare = async (key: string): Promise<any> => {
   }
 };
 
+import { MUNI_STUDENTS } from '../data/students';
+
+export const isMuniUser = (): boolean => {
+  const userEmail = (sessionStorage.getItem('loggedInEmail') || '').toLowerCase().trim();
+  if (!userEmail) return false;
+  if (userEmail === 'muni@geonixa.com') return true;
+  if (MUNI_STUDENTS.some(s => (s.email || '').toLowerCase().trim() === userEmail)) return true;
+
+  const localMuniStudents = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
+  if (Array.isArray(localMuniStudents) && localMuniStudents.some((s: any) => (s?.email || '').toLowerCase().trim() === userEmail)) return true;
+
+  return false;
+};
+
 export const getStudentsKey = (): string => {
-  const userEmail = (sessionStorage.getItem('loggedInEmail') || '').toLowerCase();
-  if (userEmail === 'muni@geonixa.com') {
+  if (isMuniUser()) {
     return 'registeredStudents_muni@geonixa.com';
   }
   return 'registeredStudents';
 };
 
 export const getMentorKey = (baseKey: string): string => {
-  const userEmail = (sessionStorage.getItem('loggedInEmail') || '').toLowerCase();
-  if (userEmail === 'muni@geonixa.com') {
+  if (isMuniUser()) {
     return `${baseKey}_muni@geonixa.com`;
   }
   return baseKey;
 };
 
 export const getMentorBatches = (): string[] => {
-  const userEmail = (sessionStorage.getItem('loggedInEmail') || '').toLowerCase();
-  if (userEmail === 'muni@geonixa.com') {
+  if (isMuniUser()) {
     return ['A1', 'A2', 'B1', 'B2'];
   }
   return ['Morning', 'Evening'];
 };
+
 
