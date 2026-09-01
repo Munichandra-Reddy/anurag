@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
   FileText, CheckCircle2, Clock, Upload, Trash2, Search, 
-  Eye, X, AlertCircle, FileCheck, FileCode, Sparkles, RefreshCw, File
+  Eye, X, AlertCircle, FileCheck, FileCode, Sparkles, RefreshCw
 } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
 import { MUNI_STUDENTS } from '../data/students';
@@ -60,7 +60,7 @@ const GraphExam: React.FC = () => {
     fileData: string;
   } | null>(null);
 
-  // Load Muni students and submissions
+  // Load Muni students and submissions (Cloudflare is source of truth)
   const loadData = async () => {
     setIsLoading(true);
     try {
@@ -94,15 +94,20 @@ const GraphExam: React.FC = () => {
       const allList = Array.from(studentMap.values());
       setMuniStudentsList(allList);
 
-      const cloudSubmissions = await getFromCloudflare(STORAGE_KEY) || {};
-      const localSubmissions = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      // Cloudflare is authoritative for deletion sync across sessions
+      const cloudSubmissions = await getFromCloudflare(STORAGE_KEY);
+      
+      let finalSubmissions: Record<string, StudentSubmission> = {};
 
-      const mergedSubmissions: Record<string, StudentSubmission> = {
-        ...localSubmissions,
-        ...cloudSubmissions
-      };
+      if (cloudSubmissions && typeof cloudSubmissions === 'object') {
+        finalSubmissions = cloudSubmissions;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudSubmissions));
+      } else {
+        const localSubmissions = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        finalSubmissions = localSubmissions;
+      }
 
-      setSubmissions(mergedSubmissions);
+      setSubmissions(finalSubmissions);
     } catch (err) {
       console.error("Failed to load Graph Exam data:", err);
     } finally {
@@ -112,6 +117,21 @@ const GraphExam: React.FC = () => {
 
   useEffect(() => {
     loadData();
+
+    // Auto-refresh when tab gains focus or every 10 seconds for real-time deletion sync
+    const handleFocus = () => {
+      loadData();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    const interval = setInterval(() => {
+      loadData();
+    }, 10000);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(interval);
+    };
   }, []);
 
   // Handle File Upload
@@ -201,7 +221,7 @@ const GraphExam: React.FC = () => {
     }
   };
 
-  // Delete Submission (Mentor)
+  // Delete Submission (Mentor) - Immediately removes from Cloudflare & local storage
   const handleDeleteSubmission = async (studentEmail: string) => {
     const studentObj = muniStudentsList.find(s => s.email === studentEmail);
     const displayName = studentObj ? `${studentObj.name} (${studentObj.roll || studentEmail})` : studentEmail;
