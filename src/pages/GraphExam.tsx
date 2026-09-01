@@ -2,17 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
   FileText, CheckCircle2, Clock, Upload, Trash2, Search, 
-  Eye, X, AlertCircle, FileCheck, FileCode, Filter, Sparkles, RefreshCw, File
+  Eye, X, AlertCircle, FileCheck, FileCode, Sparkles, RefreshCw, File
 } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
 import { MUNI_STUDENTS } from '../data/students';
-
-interface AnswerItem {
-  questionNo: number; // 1 to 6
-  fileName: string;
-  fileType: 'image' | 'pdf';
-  fileData: string; // Base64 data URL
-}
 
 interface StudentSubmission {
   studentEmail: string;
@@ -20,7 +13,10 @@ interface StudentSubmission {
   rollNumber: string;
   batch: string;
   submittedAt: string;
-  answers: AnswerItem[];
+  questionNumber: string; // e.g., "Question 1", "Question 2", etc.
+  fileName: string;
+  fileType: 'image' | 'pdf';
+  fileData: string; // Base64 data URL
 }
 
 const STORAGE_KEY = 'graphExamSubmissions_muni';
@@ -37,9 +33,13 @@ const GraphExam: React.FC = () => {
 
   // Student Form states
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
-  const [draftAnswers, setDraftAnswers] = useState<Record<number, AnswerItem | null>>({
-    1: null, 2: null, 3: null, 4: null, 5: null, 6: null
-  });
+  const [questionNumber, setQuestionNumber] = useState('Question 1');
+  const [selectedFile, setSelectedFile] = useState<{
+    fileName: string;
+    fileType: 'image' | 'pdf';
+    fileData: string;
+  } | null>(null);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [submitSuccess, setSubmitSuccess] = useState('');
@@ -54,15 +54,16 @@ const GraphExam: React.FC = () => {
   const [previewFile, setPreviewFile] = useState<{
     studentName: string;
     rollNumber: string;
-    questionNo: number;
-    answer: AnswerItem;
+    questionNumber: string;
+    fileName: string;
+    fileType: 'image' | 'pdf';
+    fileData: string;
   } | null>(null);
 
   // Load Muni students and submissions
   const loadData = async () => {
     setIsLoading(true);
     try {
-      // 1. Fetch Cloudflare & Local registered students
       const cloudMuniStudents = await getFromCloudflare('registeredStudents_muni@geonixa.com') || [];
       const localMuniStudents = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
 
@@ -80,7 +81,7 @@ const GraphExam: React.FC = () => {
           }
         }
       });
-      // Add Raju explicitly if present
+
       if (!studentMap.has('raju@anurag.com')) {
         studentMap.set('raju@anurag.com', {
           name: 'Raju',
@@ -93,7 +94,6 @@ const GraphExam: React.FC = () => {
       const allList = Array.from(studentMap.values());
       setMuniStudentsList(allList);
 
-      // 2. Fetch Submissions
       const cloudSubmissions = await getFromCloudflare(STORAGE_KEY) || {};
       const localSubmissions = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
 
@@ -114,14 +114,13 @@ const GraphExam: React.FC = () => {
     loadData();
   }, []);
 
-  // Handle File Upload for Question
-  const handleFileUpload = (questionNo: number, file: File) => {
+  // Handle File Upload
+  const handleFileChange = (file: File) => {
     setSubmitError('');
     if (!file) return;
 
-    // Check size limit (max 5MB per file for smooth Base64 storage)
     if (file.size > 5 * 1024 * 1024) {
-      setSubmitError(`Question ${questionNo} file exceeds 5MB limit. Please upload a smaller screenshot or PDF.`);
+      setSubmitError('File exceeds 5MB limit. Please upload a smaller screenshot or PDF file.');
       return;
     }
 
@@ -129,52 +128,40 @@ const GraphExam: React.FC = () => {
     const isImage = file.type.startsWith('image/') || /\.(png|jpg|jpeg|webp|gif)$/i.test(file.name);
 
     if (!isPdf && !isImage) {
-      setSubmitError(`Question ${questionNo}: Invalid file format. Please upload a Screenshot (Image) or PDF file.`);
+      setSubmitError('Invalid file format. Please upload a Screenshot (Image) or PDF file.');
       return;
     }
 
     const reader = new FileReader();
     reader.onload = (e) => {
       const base64Data = e.target?.result as string;
-      setDraftAnswers(prev => ({
-        ...prev,
-        [questionNo]: {
-          questionNo,
-          fileName: file.name,
-          fileType: isPdf ? 'pdf' : 'image',
-          fileData: base64Data
-        }
-      }));
+      setSelectedFile({
+        fileName: file.name,
+        fileType: isPdf ? 'pdf' : 'image',
+        fileData: base64Data
+      });
     };
     reader.readAsDataURL(file);
   };
 
-  // Remove Answer for Question
-  const handleRemoveAnswer = (questionNo: number) => {
-    setDraftAnswers(prev => ({
-      ...prev,
-      [questionNo]: null
-    }));
-  };
-
-  // Submit Graph Exam 1
-  const handleSubmitExam = async () => {
+  // Submit Answer
+  const handleSubmitAnswer = async (e: React.FormEvent) => {
+    e.preventDefault();
     setSubmitError('');
     setSubmitSuccess('');
 
-    const attachedAnswers: AnswerItem[] = [];
-    Object.values(draftAnswers).forEach(ans => {
-      if (ans) attachedAnswers.push(ans);
-    });
+    if (!questionNumber.trim()) {
+      setSubmitError('Please select or type a Question Number.');
+      return;
+    }
 
-    if (attachedAnswers.length === 0) {
-      setSubmitError('Please upload at least 1 question answer (Screenshot or PDF) before submitting.');
+    if (!selectedFile) {
+      setSubmitError('Please upload a Screenshot or PDF file for your answer.');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      // Resolve student details
       const currentStudent = muniStudentsList.find(s => s.email === loggedInEmail) || {
         name: loggedInEmail.split('@')[0],
         email: loggedInEmail,
@@ -188,7 +175,10 @@ const GraphExam: React.FC = () => {
         rollNumber: currentStudent.roll,
         batch: currentStudent.batch || 'A1',
         submittedAt: new Date().toLocaleString(),
-        answers: attachedAnswers.sort((a, b) => a.questionNo - b.questionNo)
+        questionNumber: questionNumber.trim(),
+        fileName: selectedFile.fileName,
+        fileType: selectedFile.fileType,
+        fileData: selectedFile.fileData
       };
 
       const updatedSubmissions = {
@@ -196,27 +186,27 @@ const GraphExam: React.FC = () => {
         [loggedInEmail]: newSubmission
       };
 
-      // Save locally & to Cloudflare
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedSubmissions));
       await saveToCloudflare(STORAGE_KEY, updatedSubmissions);
 
       setSubmissions(updatedSubmissions);
-      setSubmitSuccess('Graph Exam 1 submitted successfully!');
+      setSubmitSuccess('Answer submitted successfully!');
       setIsSubmitModalOpen(false);
+      setSelectedFile(null);
     } catch (err) {
       console.error("Submission failed:", err);
-      setSubmitError('Failed to save submission. Please try again.');
+      setSubmitError('Failed to submit answer. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Mentor Delete Student Submission
+  // Delete Submission (Mentor)
   const handleDeleteSubmission = async (studentEmail: string) => {
     const studentObj = muniStudentsList.find(s => s.email === studentEmail);
     const displayName = studentObj ? `${studentObj.name} (${studentObj.roll || studentEmail})` : studentEmail;
     
-    if (!window.confirm(`Are you sure you want to delete Graph Exam 1 submission for ${displayName}? This student will then be able to submit again.`)) {
+    if (!window.confirm(`Are you sure you want to delete the submission for ${displayName}? This student will then be able to submit again.`)) {
       return;
     }
 
@@ -237,7 +227,6 @@ const GraphExam: React.FC = () => {
     }
   };
 
-  // Derived student view submission
   const mySubmission = submissions[loggedInEmail];
   const isMyExamCompleted = !!mySubmission;
 
@@ -278,7 +267,7 @@ const GraphExam: React.FC = () => {
           <p className="text-red-100 text-sm max-w-xl">
             {isMentorView 
               ? "View and manage Graph Exam 1 lab answer screenshots/PDFs submitted by Muni Mentor students." 
-              : "Upload your answers (Screenshots or PDF) for the 6 lab questions of Graph Exam 1."}
+              : "Upload your question answer (Screenshot or PDF) for Graph Exam 1."}
           </p>
         </div>
 
@@ -319,13 +308,15 @@ const GraphExam: React.FC = () => {
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-gray-500">Total Questions: 6 Lab Questions &bull; Format: Screenshot or PDF</p>
+                <p className="text-xs text-gray-500">Format: Select Question Number & Upload Screenshot or PDF Answer</p>
               </div>
 
               {!isMyExamCompleted ? (
                 <button
                   onClick={() => {
                     setSubmitError('');
+                    setQuestionNumber('Question 1');
+                    setSelectedFile(null);
                     setIsSubmitModalOpen(true);
                   }}
                   className="px-6 py-3 bg-primary hover:bg-primary-dark text-white font-bold text-sm rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto"
@@ -347,53 +338,45 @@ const GraphExam: React.FC = () => {
                 <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-2xl flex items-start gap-3">
                   <CheckCircle2 size={20} className="text-emerald-600 shrink-0 mt-0.5" />
                   <div className="text-sm">
-                    <p className="font-bold text-emerald-900">Your Graph Exam 1 has been submitted!</p>
+                    <p className="font-bold text-emerald-900">Your Graph Exam 1 answer has been submitted!</p>
                     <p className="text-xs text-emerald-700 mt-0.5">
-                      Muni Mentor can view your submitted question answers. If your mentor deletes your submission, your status will revert to Pending so you can re-submit.
+                      Muni Mentor can view your submitted answer. If your mentor deletes your submission, your status will revert to Pending so you can re-submit.
                     </p>
                   </div>
                 </div>
 
-                <h3 className="text-sm font-bold text-gray-900 pt-2">Submitted Question Answers ({mySubmission.answers.length} Questions)</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {mySubmission.answers.map((ans) => (
-                    <div 
-                      key={ans.questionNo}
-                      className="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col justify-between space-y-3 hover:border-primary/40 transition-colors"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="px-2.5 py-1 bg-primary/10 text-primary text-xs font-bold rounded-lg">
-                          Question {ans.questionNo}
-                        </span>
-                        <span className="text-[10px] uppercase font-bold text-gray-400">
-                          {ans.fileType}
-                        </span>
+                <h3 className="text-sm font-bold text-gray-900 pt-2">Submitted Question Details</h3>
+                <div className="p-5 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    {mySubmission.fileType === 'image' ? (
+                      <img src={mySubmission.fileData} alt={mySubmission.questionNumber} className="w-14 h-14 object-cover rounded-xl border border-gray-200 shrink-0" />
+                    ) : (
+                      <div className="w-14 h-14 rounded-xl bg-red-100 text-red-600 flex items-center justify-center font-bold text-sm shrink-0">
+                        PDF
                       </div>
-
-                      <div className="flex items-center gap-2 overflow-hidden">
-                        {ans.fileType === 'image' ? (
-                          <img src={ans.fileData} alt={`Q${ans.questionNo}`} className="w-10 h-10 object-cover rounded-lg border border-gray-200 shrink-0" />
-                        ) : (
-                          <div className="w-10 h-10 rounded-lg bg-red-100 text-red-600 flex items-center justify-center font-bold text-xs shrink-0">
-                            PDF
-                          </div>
-                        )}
-                        <span className="text-xs text-gray-700 truncate font-medium" title={ans.fileName}>{ans.fileName}</span>
-                      </div>
-
-                      <button
-                        onClick={() => setPreviewFile({
-                          studentName: mySubmission.studentName,
-                          rollNumber: mySubmission.rollNumber,
-                          questionNo: ans.questionNo,
-                          answer: ans
-                        })}
-                        className="w-full py-2 bg-white border border-gray-200 text-gray-800 hover:text-primary hover:border-primary text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
-                      >
-                        <Eye size={14} /> View File
-                      </button>
+                    )}
+                    <div>
+                      <span className="px-2.5 py-1 bg-primary/10 text-primary text-xs font-bold rounded-lg inline-block mb-1">
+                        {mySubmission.questionNumber}
+                      </span>
+                      <p className="text-xs font-bold text-gray-800 truncate max-w-xs">{mySubmission.fileName}</p>
+                      <p className="text-[10px] text-gray-400 uppercase font-semibold">{mySubmission.fileType}</p>
                     </div>
-                  ))}
+                  </div>
+
+                  <button
+                    onClick={() => setPreviewFile({
+                      studentName: mySubmission.studentName,
+                      rollNumber: mySubmission.rollNumber,
+                      questionNumber: mySubmission.questionNumber,
+                      fileName: mySubmission.fileName,
+                      fileType: mySubmission.fileType,
+                      fileData: mySubmission.fileData
+                    })}
+                    className="px-4 py-2.5 bg-white border border-gray-200 text-gray-800 hover:text-primary hover:border-primary text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <Eye size={15} /> View File
+                  </button>
                 </div>
               </div>
             ) : (
@@ -401,7 +384,7 @@ const GraphExam: React.FC = () => {
                 <AlertCircle size={36} className="text-amber-500 mx-auto" />
                 <h3 className="text-base font-bold text-amber-900">Lab Exam Submission Pending</h3>
                 <p className="text-xs text-amber-700 max-w-md mx-auto">
-                  You have not submitted Graph Exam 1 yet. Click the <strong>Submit Answers</strong> button above to attach your answer screenshots or PDF files for the 6 lab questions.
+                  You have not submitted Graph Exam 1 yet. Click the <strong>Submit Answers</strong> button above to select your question number and upload your answer screenshot or PDF file.
                 </p>
               </div>
             )}
@@ -516,9 +499,8 @@ const GraphExam: React.FC = () => {
                   <tr className="bg-gray-50 border-b border-gray-200 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
                     <th className="py-3.5 px-4">Student Name</th>
                     <th className="py-3.5 px-4">Roll Number</th>
-                    <th className="py-3.5 px-4">Batch</th>
-                    <th className="py-3.5 px-4">Questions Submitted</th>
-                    <th className="py-3.5 px-4">Answer Files (Screenshot / PDF)</th>
+                    <th className="py-3.5 px-4">Question Number</th>
+                    <th className="py-3.5 px-4">Answers (PDF / Screenshot)</th>
                     <th className="py-3.5 px-4">Status</th>
                     <th className="py-3.5 px-4 text-center">Action</th>
                   </tr>
@@ -526,7 +508,7 @@ const GraphExam: React.FC = () => {
                 <tbody className="divide-y divide-gray-100 text-xs">
                   {mentorTableData.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-gray-400 italic">
+                      <td colSpan={6} className="py-8 text-center text-gray-400 italic">
                         No student records found matching filter criteria.
                       </td>
                     </tr>
@@ -548,50 +530,36 @@ const GraphExam: React.FC = () => {
                             {student.roll || 'N/A'}
                           </td>
 
-                          {/* Batch */}
+                          {/* Question Number */}
                           <td className="py-3.5 px-4">
-                            <span className="px-2 py-0.5 bg-gray-100 text-gray-700 font-extrabold rounded-md text-[11px]">
-                              {student.batch || 'A1'}
-                            </span>
-                          </td>
-
-                          {/* Question Number(s) */}
-                          <td className="py-3.5 px-4 font-semibold text-gray-800">
-                            {isCompleted && sub.answers && sub.answers.length > 0 ? (
-                              <div className="flex flex-wrap gap-1">
-                                {sub.answers.map(a => (
-                                  <span key={a.questionNo} className="px-1.5 py-0.5 bg-primary/10 text-primary font-bold rounded text-[10px]">
-                                    Q{a.questionNo}
-                                  </span>
-                                ))}
-                              </div>
+                            {isCompleted && sub.questionNumber ? (
+                              <span className="px-2.5 py-1 bg-primary/10 text-primary font-bold rounded-lg text-xs">
+                                {sub.questionNumber}
+                              </span>
                             ) : (
-                              <span className="text-gray-400 italic">None</span>
+                              <span className="text-gray-400 italic">-</span>
                             )}
                           </td>
 
                           {/* Answers (PDF or Screenshot View) */}
                           <td className="py-3.5 px-4">
-                            {isCompleted && sub.answers && sub.answers.length > 0 ? (
-                              <div className="flex flex-wrap gap-1.5 max-w-xs">
-                                {sub.answers.map(ans => (
-                                  <button
-                                    key={ans.questionNo}
-                                    onClick={() => setPreviewFile({
-                                      studentName: sub.studentName,
-                                      rollNumber: sub.rollNumber,
-                                      questionNo: ans.questionNo,
-                                      answer: ans
-                                    })}
-                                    className="px-2 py-1 bg-white border border-gray-200 hover:border-primary hover:text-primary text-[11px] font-bold rounded-lg transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
-                                  >
-                                    <Eye size={12} />
-                                    <span>Q{ans.questionNo} ({ans.fileType.toUpperCase()})</span>
-                                  </button>
-                                ))}
-                              </div>
+                            {isCompleted ? (
+                              <button
+                                onClick={() => setPreviewFile({
+                                  studentName: sub.studentName,
+                                  rollNumber: sub.rollNumber,
+                                  questionNumber: sub.questionNumber,
+                                  fileName: sub.fileName,
+                                  fileType: sub.fileType,
+                                  fileData: sub.fileData
+                                })}
+                                className="px-3 py-1.5 bg-white border border-gray-200 hover:border-primary hover:text-primary text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                              >
+                                <Eye size={14} />
+                                <span>{sub.fileName} ({sub.fileType.toUpperCase()})</span>
+                              </button>
                             ) : (
-                              <span className="text-gray-400 italic">No files</span>
+                              <span className="text-gray-400 italic">No answer file</span>
                             )}
                           </td>
 
@@ -639,17 +607,21 @@ const GraphExam: React.FC = () => {
       )}
 
       {/* ======================================================== */}
-      {/* SUBMISSION FORM MODAL (STUDENT 6 QUESTIONS) */}
+      {/* SUBMISSION FORM MODAL (TYPE QUESTION NO & UPLOAD FILE) */}
       {/* ======================================================== */}
       {isSubmitModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-3xl w-full p-6 md:p-8 space-y-6 shadow-2xl my-8 relative max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <form 
+            onSubmit={handleSubmitAnswer}
+            className="bg-white rounded-3xl max-w-lg w-full p-6 md:p-8 space-y-6 shadow-2xl relative"
+          >
             <div className="flex items-center justify-between border-b border-gray-100 pb-4">
               <div>
-                <h3 className="text-xl font-bold text-gray-900">Submit Graph Exam 1</h3>
-                <p className="text-xs text-gray-500">Upload screenshot or PDF answer file for each of the 6 lab questions.</p>
+                <h3 className="text-xl font-bold text-gray-900">Submit Answers</h3>
+                <p className="text-xs text-gray-500">Select question number and upload answer screenshot or PDF.</p>
               </div>
               <button 
+                type="button"
                 onClick={() => setIsSubmitModalOpen(false)}
                 className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100 transition-colors"
               >
@@ -664,69 +636,73 @@ const GraphExam: React.FC = () => {
               </div>
             )}
 
-            {/* 6 Questions Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[1, 2, 3, 4, 5, 6].map(qNo => {
-                const currentDraft = draftAnswers[qNo];
+            {/* Question Number Input / Select */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-gray-800 uppercase tracking-wide">
+                Question Number
+              </label>
+              <select
+                value={questionNumber}
+                onChange={e => setQuestionNumber(e.target.value)}
+                className="w-full py-3 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer"
+              >
+                <option value="Question 1">Question 1</option>
+                <option value="Question 2">Question 2</option>
+                <option value="Question 3">Question 3</option>
+                <option value="Question 4">Question 4</option>
+                <option value="Question 5">Question 5</option>
+                <option value="Question 6">Question 6</option>
+              </select>
+            </div>
 
-                return (
-                  <div key={qNo} className="p-4 bg-gray-50 border border-gray-200 rounded-2xl space-y-3 relative">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-lg">
-                        Question {qNo}
-                      </span>
-                      {currentDraft && (
-                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                          Attached
-                        </span>
-                      )}
-                    </div>
+            {/* File Upload Box */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-gray-800 uppercase tracking-wide">
+                Answer Screenshot or PDF File
+              </label>
 
-                    {currentDraft ? (
-                      <div className="p-3 bg-white border border-gray-200 rounded-xl flex items-center justify-between gap-2 shadow-2xs">
-                        <div className="flex items-center gap-2 overflow-hidden">
-                          {currentDraft.fileType === 'image' ? (
-                            <img src={currentDraft.fileData} alt={`Q${qNo}`} className="w-9 h-9 object-cover rounded-lg border border-gray-200 shrink-0" />
-                          ) : (
-                            <div className="w-9 h-9 bg-red-100 text-red-600 rounded-lg flex items-center justify-center font-bold text-xs shrink-0">
-                              PDF
-                            </div>
-                          )}
-                          <div className="min-w-0">
-                            <p className="text-xs font-bold text-gray-800 truncate" title={currentDraft.fileName}>{currentDraft.fileName}</p>
-                            <p className="text-[10px] text-gray-400 uppercase font-semibold">{currentDraft.fileType}</p>
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveAnswer(qNo)}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer shrink-0"
-                          title="Remove file"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
+              {selectedFile ? (
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 overflow-hidden">
+                    {selectedFile.fileType === 'image' ? (
+                      <img src={selectedFile.fileData} alt="Preview" className="w-12 h-12 object-cover rounded-xl border border-gray-200 shrink-0" />
                     ) : (
-                      <label className="border-2 border-dashed border-gray-300 hover:border-primary/50 bg-white p-4 rounded-xl flex flex-col items-center justify-center text-center cursor-pointer transition-colors space-y-1">
-                        <Upload size={20} className="text-gray-400" />
-                        <span className="text-xs font-bold text-gray-700">Upload Q{qNo} Answer</span>
-                        <span className="text-[10px] text-gray-400">Screenshot (Image) or PDF</span>
-                        <input
-                          type="file"
-                          accept="image/*,.pdf"
-                          onChange={e => {
-                            if (e.target.files && e.target.files[0]) {
-                              handleFileUpload(qNo, e.target.files[0]);
-                            }
-                          }}
-                          className="hidden"
-                        />
-                      </label>
+                      <div className="w-12 h-12 bg-red-100 text-red-600 rounded-xl flex items-center justify-center font-bold text-xs shrink-0">
+                        PDF
+                      </div>
                     )}
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-gray-900 truncate" title={selectedFile.fileName}>{selectedFile.fileName}</p>
+                      <p className="text-[10px] text-gray-400 font-semibold uppercase">{selectedFile.fileType}</p>
+                    </div>
                   </div>
-                );
-              })}
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedFile(null)}
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer shrink-0"
+                    title="Change file"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              ) : (
+                <label className="border-2 border-dashed border-gray-300 hover:border-primary/50 bg-gray-50 hover:bg-gray-100/50 p-6 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer transition-colors space-y-2">
+                  <Upload size={28} className="text-gray-400" />
+                  <span className="text-xs font-bold text-gray-700">Click to upload answer file</span>
+                  <span className="text-[10px] text-gray-400">Supports Screenshot (Image) or PDF (Max 5MB)</span>
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={e => {
+                      if (e.target.files && e.target.files[0]) {
+                        handleFileChange(e.target.files[0]);
+                      }
+                    }}
+                    className="hidden"
+                  />
+                </label>
+              )}
             </div>
 
             {/* Actions */}
@@ -739,16 +715,15 @@ const GraphExam: React.FC = () => {
                 Cancel
               </button>
               <button
-                type="button"
-                onClick={handleSubmitExam}
+                type="submit"
                 disabled={isSubmitting}
                 className="px-6 py-2.5 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
               >
                 {isSubmitting && <RefreshCw size={14} className="animate-spin" />}
-                Submit Exam
+                Submit
               </button>
             </div>
-          </div>
+          </form>
         </div>
       )}
 
@@ -761,10 +736,10 @@ const GraphExam: React.FC = () => {
             <div className="flex items-center justify-between border-b border-gray-100 pb-3 shrink-0">
               <div>
                 <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                  <span className="px-2 py-0.5 bg-primary text-white rounded-md text-xs">
-                    Question {previewFile.questionNo}
+                  <span className="px-2.5 py-0.5 bg-primary text-white rounded-md text-xs">
+                    {previewFile.questionNumber}
                   </span>
-                  Answer File: {previewFile.answer.fileName}
+                  Answer File: {previewFile.fileName}
                 </h3>
                 <p className="text-xs text-gray-500">
                   Student: <strong className="text-gray-800">{previewFile.studentName}</strong> ({previewFile.rollNumber})
@@ -780,16 +755,16 @@ const GraphExam: React.FC = () => {
 
             {/* Viewer Area */}
             <div className="flex-1 overflow-auto bg-gray-900 rounded-2xl p-4 flex items-center justify-center min-h-[400px]">
-              {previewFile.answer.fileType === 'image' ? (
+              {previewFile.fileType === 'image' ? (
                 <img 
-                  src={previewFile.answer.fileData} 
-                  alt={`Question ${previewFile.questionNo}`} 
+                  src={previewFile.fileData} 
+                  alt={previewFile.questionNumber} 
                   className="max-h-[70vh] w-auto object-contain rounded-lg shadow-lg mx-auto"
                 />
               ) : (
                 <iframe
-                  src={previewFile.answer.fileData}
-                  title={`Question ${previewFile.questionNo} PDF`}
+                  src={previewFile.fileData}
+                  title={`${previewFile.questionNumber} PDF`}
                   className="w-full h-[70vh] border-0 rounded-lg bg-white"
                 />
               )}
@@ -797,8 +772,8 @@ const GraphExam: React.FC = () => {
 
             <div className="flex items-center justify-between shrink-0 pt-2 text-xs">
               <a
-                href={previewFile.answer.fileData}
-                download={previewFile.answer.fileName}
+                href={previewFile.fileData}
+                download={previewFile.fileName}
                 className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-xl transition-colors inline-flex items-center gap-1.5"
               >
                 Download Answer File
