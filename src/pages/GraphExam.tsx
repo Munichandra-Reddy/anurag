@@ -4,7 +4,7 @@ import {
   FileText, CheckCircle2, Clock, Upload, Trash2, Search, 
   Eye, X, AlertCircle, FileCheck, FileCode, Sparkles, RefreshCw
 } from 'lucide-react';
-import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, replaceInCloudflare } from '../utils/cloudflare';
 import { MUNI_STUDENTS } from '../data/students';
 
 interface StudentSubmission {
@@ -60,7 +60,7 @@ const GraphExam: React.FC = () => {
     fileData: string;
   } | null>(null);
 
-  // Load Muni students and submissions (Cloudflare is source of truth)
+  // Load Muni students and submissions (Using Firestore replace to respect deletions)
   const loadData = async () => {
     setIsLoading(true);
     try {
@@ -94,19 +94,33 @@ const GraphExam: React.FC = () => {
       const allList = Array.from(studentMap.values());
       setMuniStudentsList(allList);
 
-      // Cloudflare is authoritative for deletion sync across sessions
+      // Check deletion tombstone for loggedInEmail
+      let isDeletedTombstone = false;
+      if (loggedInEmail && !isMentorView) {
+        const delCheck = await getFromCloudflare(`deletedSubmission_${loggedInEmail}`);
+        if (delCheck && delCheck.deletedAt) {
+          isDeletedTombstone = true;
+        }
+      }
+
+      // Fetch Cloudflare submissions
       const cloudSubmissions = await getFromCloudflare(STORAGE_KEY);
       
       let finalSubmissions: Record<string, StudentSubmission> = {};
 
       if (cloudSubmissions && typeof cloudSubmissions === 'object') {
-        finalSubmissions = cloudSubmissions;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudSubmissions));
+        finalSubmissions = { ...cloudSubmissions };
       } else {
         const localSubmissions = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-        finalSubmissions = localSubmissions;
+        finalSubmissions = { ...localSubmissions };
       }
 
+      if (isDeletedTombstone && loggedInEmail) {
+        delete finalSubmissions[loggedInEmail];
+      }
+
+      // Update local storage with clean synchronized state
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(finalSubmissions));
       setSubmissions(finalSubmissions);
     } catch (err) {
       console.error("Failed to load Graph Exam data:", err);
@@ -118,7 +132,7 @@ const GraphExam: React.FC = () => {
   useEffect(() => {
     loadData();
 
-    // Auto-refresh when tab gains focus or every 10 seconds for real-time deletion sync
+    // Auto-refresh when tab gains focus or every 5 seconds for fast real-time deletion sync
     const handleFocus = () => {
       loadData();
     };
@@ -126,7 +140,7 @@ const GraphExam: React.FC = () => {
 
     const interval = setInterval(() => {
       loadData();
-    }, 10000);
+    }, 5000);
 
     return () => {
       window.removeEventListener('focus', handleFocus);
@@ -206,8 +220,12 @@ const GraphExam: React.FC = () => {
         [loggedInEmail]: newSubmission
       };
 
+      // Clear any tombstone flag if previously deleted
+      await replaceInCloudflare(`deletedSubmission_${loggedInEmail}`, {});
+
+      // Use replaceInCloudflare (WITHOUT merge) to overwrite Firestore with exact object
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedSubmissions));
-      await saveToCloudflare(STORAGE_KEY, updatedSubmissions);
+      await replaceInCloudflare(STORAGE_KEY, updatedSubmissions);
 
       setSubmissions(updatedSubmissions);
       setSubmitSuccess('Answer submitted successfully!');
@@ -221,7 +239,7 @@ const GraphExam: React.FC = () => {
     }
   };
 
-  // Delete Submission (Mentor) - Immediately removes from Cloudflare & local storage
+  // Delete Submission (Mentor) - Uses replaceInCloudflare to physically erase key in Firestore
   const handleDeleteSubmission = async (studentEmail: string) => {
     const studentObj = muniStudentsList.find(s => s.email === studentEmail);
     const displayName = studentObj ? `${studentObj.name} (${studentObj.roll || studentEmail})` : studentEmail;
@@ -235,8 +253,14 @@ const GraphExam: React.FC = () => {
       const updatedSubmissions = { ...submissions };
       delete updatedSubmissions[studentEmail];
 
+      // 1. Update local storage
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedSubmissions));
-      await saveToCloudflare(STORAGE_KEY, updatedSubmissions);
+
+      // 2. Overwrite in Firestore without merging (so key is physically deleted)
+      await replaceInCloudflare(STORAGE_KEY, updatedSubmissions);
+
+      // 3. Save explicit tombstone flag in Firestore so student tab instantly knows it was deleted
+      await saveToCloudflare(`deletedSubmission_${studentEmail}`, { deletedAt: Date.now() });
 
       setSubmissions(updatedSubmissions);
     } catch (err) {
