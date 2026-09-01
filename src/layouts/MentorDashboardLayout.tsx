@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { 
   ClipboardCheck, BookOpen, Video, 
-  Key, FileText, LogOut, Users, Award, MessageSquare, Menu, X, ChevronDown, ChevronUp
+  Key, FileText, LogOut, Users, Award, MessageSquare, BarChart, Menu, X, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 
@@ -10,6 +10,7 @@ const MentorDashboardLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const userEmail = sessionStorage.getItem('loggedInEmail') || '';
+  const isMuniMentor = (userEmail || '').toLowerCase().trim() === 'muni@geonixa.com';
 
   React.useEffect(() => {
     // Route Guard: strict access only for authorized mentors
@@ -35,6 +36,7 @@ const MentorDashboardLayout: React.FC = () => {
     { title: 'LMS Access', icon: <Key size={20} />, path: '/mentor-dashboard/access' },
     { title: 'Project Batch', icon: <Users size={20} />, path: '/mentor-dashboard/project-batch' },
     { title: 'Chat Support', icon: <MessageSquare size={20} />, path: '/mentor-dashboard/chat-support' },
+    ...(isMuniMentor ? [{ title: 'Graph Exam', icon: <BarChart size={20} />, path: '/mentor-dashboard/graph-exam' }] : []),
     { title: 'Exam Reports', icon: <FileText size={20} />, path: '/mentor-dashboard/assessments' },
     { title: 'Assessments', icon: <FileText size={20} />, path: '/mentor-dashboard/assessments' },
     { title: 'Attendance Report', icon: <ClipboardCheck size={20} />, path: '/mentor-dashboard/attendance-report' },

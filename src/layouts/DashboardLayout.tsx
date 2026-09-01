@@ -77,6 +77,22 @@ const DashboardLayout: React.FC = () => {
   }, [userEmail, navigate]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAssessmentsExpanded, setIsAssessmentsExpanded] = useState(false);
+  const [isMuniStudent, setIsMuniStudent] = useState(false);
+
+  React.useEffect(() => {
+    const checkMuni = async () => {
+      const email = (userEmail || '').toLowerCase().trim();
+      if (!email) return;
+      const cloudMuniStudents = await getFromCloudflare('registeredStudents_muni@geonixa.com') || [];
+      const localMuniStudents = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
+      const isMuni = email === 'muni@geonixa.com' 
+        || email === 'raju@anurag.com'
+        || MUNI_STUDENTS.some(s => (s.email || '').toLowerCase().trim() === email)
+        || [...cloudMuniStudents, ...localMuniStudents].some((s: any) => (s?.email || '').toLowerCase().trim() === email);
+      setIsMuniStudent(isMuni);
+    };
+    checkMuni();
+  }, [userEmail]);
 
   // Close mobile menu when route changes
   React.useEffect(() => {
@@ -90,6 +106,7 @@ const DashboardLayout: React.FC = () => {
     { title: 'LMS Access', icon: <Key size={20} />, path: '/dashboard/access' },
     { title: 'Project Batch', icon: <Users size={20} />, path: '/dashboard/project-batch' },
     { title: 'Chat Support', icon: <MessageSquare size={20} />, path: '/dashboard/chat-support' },
+    ...(isMuniStudent ? [{ title: 'Graph Exam', icon: <BarChart size={20} />, path: '/dashboard/graph-exam' }] : []),
     { title: 'Assessments', icon: <FileText size={20} />, path: '/dashboard/assessments' },
     { title: 'Exam Reports', icon: <FileText size={20} />, path: '/dashboard/assessments' },
     { title: 'Top Performer', icon: <Award size={20} />, path: '/dashboard/top-performer' },

@@ -16,6 +16,7 @@ import ChatSupport from './pages/ChatSupport';
 import TopPerformer from './pages/TopPerformer';
 import AttendanceReport from './pages/AttendanceReport';
 import MarksReport from './pages/MarksReport';
+import GraphExam from './pages/GraphExam';
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
           <Route path="assessments" element={<Assessments />} />
           <Route path="project-batch" element={<ProjectBatch />} />
           <Route path="chat-support" element={<ChatSupport />} />
+          <Route path="graph-exam" element={<GraphExam />} />
           <Route path="content" element={<CourseContent />} />
           <Route path="top-performer" element={<TopPerformer />} />
           <Route path="*" element={<div className="p-8">Feature Coming Soon</div>} />
@@ -47,6 +49,7 @@ function App() {
           <Route path="access" element={<LmsAccess />} />
           <Route path="project-batch" element={<ProjectBatch />} />
           <Route path="chat-support" element={<ChatSupport />} />
+          <Route path="graph-exam" element={<GraphExam />} />
           <Route path="assessments" element={<Assessments />} />
           <Route path="attendance-report" element={<AttendanceReport />} />
           <Route path="marks-report" element={<MarksReport />} />
