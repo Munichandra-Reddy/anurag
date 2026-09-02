@@ -4,7 +4,7 @@ import {
   FileText, CheckCircle2, Clock, Upload, Trash2, Search, 
   Eye, X, AlertCircle, FileCheck, FileCode, Sparkles, RefreshCw
 } from 'lucide-react';
-import { getFromCloudflare, saveToCloudflare, replaceInCloudflare } from '../utils/cloudflare';
+import { getFromCloudflare, replaceInCloudflare } from '../utils/cloudflare';
 import { MUNI_STUDENTS } from '../data/students';
 
 interface StudentSubmission {
@@ -17,9 +17,61 @@ interface StudentSubmission {
   fileName: string;
   fileType: 'image' | 'pdf';
   fileData: string; // Base64 data URL
+  isDeleted?: boolean;
 }
 
-const STORAGE_KEY = 'graphExamSubmissions_muni';
+const INDEX_KEY = 'graphExamIndex_muni';
+const SUB_PREFIX = 'graphExamSub_';
+
+// Helper to compress image files before Base64 encoding to stay well under 1MB Firestore limits
+const compressImageFile = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const maxDim = 1200;
+
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+          resolve(compressedDataUrl);
+        } else {
+          resolve(event.target?.result as string);
+        }
+      };
+      img.onerror = () => resolve(event.target?.result as string);
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+};
+
+const readPdfFile = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target?.result as string);
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+};
 
 const GraphExam: React.FC = () => {
   const location = useLocation();
@@ -34,10 +86,10 @@ const GraphExam: React.FC = () => {
   // Student Form states
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [questionNumber, setQuestionNumber] = useState('Question 1');
-  const [selectedFile, setSelectedFile] = useState<{
+  const [selectedFileObj, setSelectedFileObj] = useState<File | null>(null);
+  const [filePreviewData, setFilePreviewData] = useState<{
     fileName: string;
     fileType: 'image' | 'pdf';
-    fileData: string;
   } | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,10 +112,11 @@ const GraphExam: React.FC = () => {
     fileData: string;
   } | null>(null);
 
-  // Load Muni students and submissions (Using Firestore replace to respect deletions)
+  // Load Muni students and submissions
   const loadData = async () => {
     setIsLoading(true);
     try {
+      // 1. Fetch Muni Student List
       const cloudMuniStudents = await getFromCloudflare('registeredStudents_muni@geonixa.com') || [];
       const localMuniStudents = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
 
@@ -94,34 +147,47 @@ const GraphExam: React.FC = () => {
       const allList = Array.from(studentMap.values());
       setMuniStudentsList(allList);
 
-      // Check deletion tombstone for loggedInEmail
-      let isDeletedTombstone = false;
-      if (loggedInEmail && !isMentorView) {
-        const delCheck = await getFromCloudflare(`deletedSubmission_${loggedInEmail}`);
-        if (delCheck && delCheck.deletedAt) {
-          isDeletedTombstone = true;
+      const loadedSubmissions: Record<string, StudentSubmission> = {};
+
+      if (!isMentorView && loggedInEmail) {
+        // Student View: Check single student submission document
+        const studentSubKey = `${SUB_PREFIX}${loggedInEmail}`;
+        const cloudSub = await getFromCloudflare(studentSubKey);
+        const localSubStr = localStorage.getItem(studentSubKey);
+        const localSub = localSubStr ? JSON.parse(localSubStr) : null;
+
+        const activeSub = cloudSub !== null ? cloudSub : localSub;
+
+        if (activeSub && activeSub.submittedAt && !activeSub.isDeleted) {
+          loadedSubmissions[loggedInEmail] = activeSub;
+          localStorage.setItem(studentSubKey, JSON.stringify(activeSub));
+        } else {
+          localStorage.removeItem(studentSubKey);
         }
+      } else if (isMentorView) {
+        // Mentor View: Fetch submissions index
+        const cloudIndex = await getFromCloudflare(INDEX_KEY);
+        const localIndex = JSON.parse(localStorage.getItem(INDEX_KEY) || '[]');
+        const indexList: string[] = Array.from(new Set([...(Array.isArray(cloudIndex) ? cloudIndex : []), ...localIndex]));
+
+        const fetchPromises = indexList.map(async (email) => {
+          const k = `${SUB_PREFIX}${email}`;
+          const cloudItem = await getFromCloudflare(k);
+          const localItem = JSON.parse(localStorage.getItem(k) || 'null');
+          const item = cloudItem !== null ? cloudItem : localItem;
+          return { email, item };
+        });
+
+        const results = await Promise.all(fetchPromises);
+        results.forEach(({ email, item }) => {
+          if (item && item.submittedAt && !item.isDeleted) {
+            loadedSubmissions[email] = item;
+            localStorage.setItem(`${SUB_PREFIX}${email}`, JSON.stringify(item));
+          }
+        });
       }
 
-      // Fetch Cloudflare submissions
-      const cloudSubmissions = await getFromCloudflare(STORAGE_KEY);
-      
-      let finalSubmissions: Record<string, StudentSubmission> = {};
-
-      if (cloudSubmissions && typeof cloudSubmissions === 'object') {
-        finalSubmissions = { ...cloudSubmissions };
-      } else {
-        const localSubmissions = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-        finalSubmissions = { ...localSubmissions };
-      }
-
-      if (isDeletedTombstone && loggedInEmail) {
-        delete finalSubmissions[loggedInEmail];
-      }
-
-      // Update local storage with clean synchronized state
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(finalSubmissions));
-      setSubmissions(finalSubmissions);
+      setSubmissions(loadedSubmissions);
     } catch (err) {
       console.error("Failed to load Graph Exam data:", err);
     } finally {
@@ -132,7 +198,6 @@ const GraphExam: React.FC = () => {
   useEffect(() => {
     loadData();
 
-    // Auto-refresh when tab gains focus or every 5 seconds for fast real-time deletion sync
     const handleFocus = () => {
       loadData();
     };
@@ -148,13 +213,13 @@ const GraphExam: React.FC = () => {
     };
   }, []);
 
-  // Handle File Upload
-  const handleFileChange = (file: File) => {
+  // Handle File Input Selection
+  const handleFileSelect = (file: File) => {
     setSubmitError('');
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      setSubmitError('File exceeds 5MB limit. Please upload a smaller screenshot or PDF file.');
+    if (file.size > 8 * 1024 * 1024) {
+      setSubmitError('File size is too large (max 8MB). Please choose a smaller file.');
       return;
     }
 
@@ -162,20 +227,15 @@ const GraphExam: React.FC = () => {
     const isImage = file.type.startsWith('image/') || /\.(png|jpg|jpeg|webp|gif)$/i.test(file.name);
 
     if (!isPdf && !isImage) {
-      setSubmitError('Invalid file format. Please upload a Screenshot (Image) or PDF file.');
+      setSubmitError('Invalid file type. Please select a Screenshot (Image) or PDF file.');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const base64Data = e.target?.result as string;
-      setSelectedFile({
-        fileName: file.name,
-        fileType: isPdf ? 'pdf' : 'image',
-        fileData: base64Data
-      });
-    };
-    reader.readAsDataURL(file);
+    setSelectedFileObj(file);
+    setFilePreviewData({
+      fileName: file.name,
+      fileType: isPdf ? 'pdf' : 'image'
+    });
   };
 
   // Submit Answer
@@ -185,17 +245,25 @@ const GraphExam: React.FC = () => {
     setSubmitSuccess('');
 
     if (!questionNumber.trim()) {
-      setSubmitError('Please select or type a Question Number.');
+      setSubmitError('Please select a Question Number.');
       return;
     }
 
-    if (!selectedFile) {
+    if (!selectedFileObj || !filePreviewData) {
       setSubmitError('Please upload a Screenshot or PDF file for your answer.');
       return;
     }
 
     setIsSubmitting(true);
     try {
+      // Process & compress file
+      let base64Data = '';
+      if (filePreviewData.fileType === 'image') {
+        base64Data = await compressImageFile(selectedFileObj);
+      } else {
+        base64Data = await readPdfFile(selectedFileObj);
+      }
+
       const currentStudent = muniStudentsList.find(s => s.email === loggedInEmail) || {
         name: loggedInEmail.split('@')[0],
         email: loggedInEmail,
@@ -210,27 +278,36 @@ const GraphExam: React.FC = () => {
         batch: currentStudent.batch || 'A1',
         submittedAt: new Date().toLocaleString(),
         questionNumber: questionNumber.trim(),
-        fileName: selectedFile.fileName,
-        fileType: selectedFile.fileType,
-        fileData: selectedFile.fileData
+        fileName: filePreviewData.fileName,
+        fileType: filePreviewData.fileType,
+        fileData: base64Data,
+        isDeleted: false
       };
 
-      const updatedSubmissions = {
-        ...submissions,
+      const studentSubKey = `${SUB_PREFIX}${loggedInEmail}`;
+
+      // 1. Save student document to Local Storage & Firestore
+      localStorage.setItem(studentSubKey, JSON.stringify(newSubmission));
+      await replaceInCloudflare(studentSubKey, newSubmission);
+
+      // 2. Update Index list
+      const cloudIndex = await getFromCloudflare(INDEX_KEY) || [];
+      const localIndex = JSON.parse(localStorage.getItem(INDEX_KEY) || '[]');
+      const indexSet = new Set<string>([...(Array.isArray(cloudIndex) ? cloudIndex : []), ...localIndex, loggedInEmail]);
+      const updatedIndex = Array.from(indexSet);
+
+      localStorage.setItem(INDEX_KEY, JSON.stringify(updatedIndex));
+      await replaceInCloudflare(INDEX_KEY, updatedIndex);
+
+      setSubmissions(prev => ({
+        ...prev,
         [loggedInEmail]: newSubmission
-      };
+      }));
 
-      // Clear any tombstone flag if previously deleted
-      await replaceInCloudflare(`deletedSubmission_${loggedInEmail}`, {});
-
-      // Use replaceInCloudflare (WITHOUT merge) to overwrite Firestore with exact object
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedSubmissions));
-      await replaceInCloudflare(STORAGE_KEY, updatedSubmissions);
-
-      setSubmissions(updatedSubmissions);
       setSubmitSuccess('Answer submitted successfully!');
       setIsSubmitModalOpen(false);
-      setSelectedFile(null);
+      setSelectedFileObj(null);
+      setFilePreviewData(null);
     } catch (err) {
       console.error("Submission failed:", err);
       setSubmitError('Failed to submit answer. Please try again.');
@@ -239,7 +316,7 @@ const GraphExam: React.FC = () => {
     }
   };
 
-  // Delete Submission (Mentor) - Uses replaceInCloudflare to physically erase key in Firestore
+  // Delete Submission (Mentor)
   const handleDeleteSubmission = async (studentEmail: string) => {
     const studentObj = muniStudentsList.find(s => s.email === studentEmail);
     const displayName = studentObj ? `${studentObj.name} (${studentObj.roll || studentEmail})` : studentEmail;
@@ -250,19 +327,28 @@ const GraphExam: React.FC = () => {
 
     setDeletingEmail(studentEmail);
     try {
-      const updatedSubmissions = { ...submissions };
-      delete updatedSubmissions[studentEmail];
+      const studentSubKey = `${SUB_PREFIX}${studentEmail}`;
+      const deletedObj = { isDeleted: true, deletedAt: Date.now() };
 
-      // 1. Update local storage
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedSubmissions));
+      // 1. Mark document as deleted in Firestore & Local Storage
+      localStorage.setItem(studentSubKey, JSON.stringify(deletedObj));
+      await replaceInCloudflare(studentSubKey, deletedObj);
 
-      // 2. Overwrite in Firestore without merging (so key is physically deleted)
-      await replaceInCloudflare(STORAGE_KEY, updatedSubmissions);
+      // 2. Update Index
+      const cloudIndex = await getFromCloudflare(INDEX_KEY) || [];
+      const localIndex = JSON.parse(localStorage.getItem(INDEX_KEY) || '[]');
+      const updatedIndex = Array.from(new Set([...(Array.isArray(cloudIndex) ? cloudIndex : []), ...localIndex]))
+        .filter(email => email !== studentEmail);
 
-      // 3. Save explicit tombstone flag in Firestore so student tab instantly knows it was deleted
-      await saveToCloudflare(`deletedSubmission_${studentEmail}`, { deletedAt: Date.now() });
+      localStorage.setItem(INDEX_KEY, JSON.stringify(updatedIndex));
+      await replaceInCloudflare(INDEX_KEY, updatedIndex);
 
-      setSubmissions(updatedSubmissions);
+      // 3. Update local state
+      setSubmissions(prev => {
+        const updated = { ...prev };
+        delete updated[studentEmail];
+        return updated;
+      });
     } catch (err) {
       console.error("Failed to delete submission:", err);
       alert("Failed to delete submission. Please try again.");
@@ -360,7 +446,8 @@ const GraphExam: React.FC = () => {
                   onClick={() => {
                     setSubmitError('');
                     setQuestionNumber('Question 1');
-                    setSelectedFile(null);
+                    setSelectedFileObj(null);
+                    setFilePreviewData(null);
                     setIsSubmitModalOpen(true);
                   }}
                   className="px-6 py-3 bg-primary hover:bg-primary-dark text-white font-bold text-sm rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto"
@@ -705,25 +792,24 @@ const GraphExam: React.FC = () => {
                 Answer Screenshot or PDF File
               </label>
 
-              {selectedFile ? (
+              {filePreviewData ? (
                 <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 overflow-hidden">
-                    {selectedFile.fileType === 'image' ? (
-                      <img src={selectedFile.fileData} alt="Preview" className="w-12 h-12 object-cover rounded-xl border border-gray-200 shrink-0" />
-                    ) : (
-                      <div className="w-12 h-12 bg-red-100 text-red-600 rounded-xl flex items-center justify-center font-bold text-xs shrink-0">
-                        PDF
-                      </div>
-                    )}
+                    <div className="w-10 h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center font-bold text-xs shrink-0">
+                      {filePreviewData.fileType.toUpperCase()}
+                    </div>
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-gray-900 truncate" title={selectedFile.fileName}>{selectedFile.fileName}</p>
-                      <p className="text-[10px] text-gray-400 font-semibold uppercase">{selectedFile.fileType}</p>
+                      <p className="text-xs font-bold text-gray-900 truncate" title={filePreviewData.fileName}>{filePreviewData.fileName}</p>
+                      <p className="text-[10px] text-gray-400 font-semibold uppercase">{filePreviewData.fileType}</p>
                     </div>
                   </div>
 
                   <button
                     type="button"
-                    onClick={() => setSelectedFile(null)}
+                    onClick={() => {
+                      setSelectedFileObj(null);
+                      setFilePreviewData(null);
+                    }}
                     className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer shrink-0"
                     title="Change file"
                   >
@@ -734,13 +820,13 @@ const GraphExam: React.FC = () => {
                 <label className="border-2 border-dashed border-gray-300 hover:border-primary/50 bg-gray-50 hover:bg-gray-100/50 p-6 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer transition-colors space-y-2">
                   <Upload size={28} className="text-gray-400" />
                   <span className="text-xs font-bold text-gray-700">Click to upload answer file</span>
-                  <span className="text-[10px] text-gray-400">Supports Screenshot (Image) or PDF (Max 5MB)</span>
+                  <span className="text-[10px] text-gray-400">Supports Screenshot (Image) or PDF</span>
                   <input
                     type="file"
                     accept="image/*,.pdf"
                     onChange={e => {
                       if (e.target.files && e.target.files[0]) {
-                        handleFileChange(e.target.files[0]);
+                        handleFileSelect(e.target.files[0]);
                       }
                     }}
                     className="hidden"
