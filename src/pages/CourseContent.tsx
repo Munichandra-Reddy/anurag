@@ -15,6 +15,54 @@ const defaultSessions = [
   { id: 8, title: 'Introduction to Families & Components', content: 'Understand the difference between system families and loadable families. Load furniture, fixtures, and other components into your project.' }
 ];
 
+// Helper to compress image files before saving to Data URL
+const compressImageFile = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const maxDim = 1200;
+
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+          resolve(compressedDataUrl);
+        } else {
+          resolve(event.target?.result as string);
+        }
+      };
+      img.onerror = () => resolve(event.target?.result as string);
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+};
+
+const getYouTubeEmbedUrl = (url: string): string | null => {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : null;
+};
+
 const CourseContent: React.FC = () => {
   const [expandedId, setExpandedId] = useState<number | null>(1);
   const location = useLocation();
@@ -45,7 +93,7 @@ const CourseContent: React.FC = () => {
     return isMuni ? 'anuragLmsCoursesRevit_muni@geonixa.com' : 'anuragLmsCoursesRevit';
   };
 
-  // Load courses safely without accidentally overwriting active sessions with empty polling responses
+  // Load courses safely without accidentally overwriting active sessions
   const loadCourses = async () => {
     setIsLoading(true);
     try {
@@ -56,17 +104,12 @@ const CourseContent: React.FC = () => {
 
       let resolvedSessions: any[] = [];
 
-      // 1. If Cloudflare has non-empty sessions array, use it & sync to localStorage
       if (Array.isArray(cloudCourses) && cloudCourses.length > 0) {
         resolvedSessions = cloudCourses;
         localStorage.setItem(courseKey, JSON.stringify(cloudCourses));
-      } 
-      // 2. If localStorage has non-empty sessions array, use it as robust fallback
-      else if (Array.isArray(localCourses) && localCourses.length > 0) {
+      } else if (Array.isArray(localCourses) && localCourses.length > 0) {
         resolvedSessions = localCourses;
-      } 
-      // 3. Fallback to cloud array if present or default
-      else if (Array.isArray(cloudCourses)) {
+      } else if (Array.isArray(cloudCourses)) {
         resolvedSessions = cloudCourses;
       } else {
         resolvedSessions = courseKey.includes('_muni') ? [] : defaultSessions;
@@ -105,7 +148,6 @@ const CourseContent: React.FC = () => {
       const courseKey = await getCourseStorageKey();
       localStorage.setItem(courseKey, JSON.stringify(newSessions));
       
-      // Use replaceInCloudflare (WITHOUT merge) so deletions & edits physically overwrite Firestore
       await replaceInCloudflare(courseKey, newSessions);
       await saveToCloudflare(courseKey, newSessions);
     } catch (err) {
@@ -119,13 +161,27 @@ const CourseContent: React.FC = () => {
   const [newPdfName, setNewPdfName] = useState('');
   const [newPdfDataUrl, setNewPdfDataUrl] = useState('');
   const [newVideoUrl, setNewVideoUrl] = useState('');
-  const [viewingFile, setViewingFile] = useState<{name: string, url: string, isBlob?: boolean, type?: string} | null>(null);
+
+  // Viewing modal state
+  const [viewingFile, setViewingFile] = useState<{
+    name: string;
+    url: string;
+    type: 'image' | 'pdf' | 'youtube' | 'video' | 'file';
+    isBlob?: boolean;
+  } | null>(null);
+
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setNewPdfName(file.name);
+    if (!file) return;
+
+    setNewPdfName(file.name);
+
+    if (file.type.startsWith('image/')) {
+      const compressed = await compressImageFile(file);
+      setNewPdfDataUrl(compressed);
+    } else {
       const reader = new FileReader();
       reader.onload = (event) => {
         setNewPdfDataUrl(event.target?.result as string);
@@ -138,17 +194,6 @@ const CourseContent: React.FC = () => {
     e.preventDefault();
     if (!newTitle.trim() || !newContent.trim()) return;
 
-    let pdfKey = '';
-    if (newPdfDataUrl) {
-      pdfKey = `coursePdf_${Date.now()}`;
-      try {
-        localStorage.setItem(pdfKey, newPdfDataUrl);
-        await replaceInCloudflare(pdfKey, { pdfDataUrl: newPdfDataUrl });
-      } catch (e) {
-        console.error("Failed to save PDF resource:", e);
-      }
-    }
-
     if (editingId) {
       const updatedSessions = sessionsData.map(s => 
         s.id === editingId 
@@ -157,8 +202,7 @@ const CourseContent: React.FC = () => {
               title: newTitle, 
               content: newContent, 
               pdfName: newPdfName || s.pdfName, 
-              pdfKey: pdfKey || s.pdfKey,
-              pdfDataUrl: newPdfDataUrl ? (newPdfDataUrl.length < 300000 ? newPdfDataUrl : '') : s.pdfDataUrl, 
+              pdfDataUrl: newPdfDataUrl || s.pdfDataUrl, 
               videoUrl: newVideoUrl 
             } 
           : s
@@ -171,8 +215,7 @@ const CourseContent: React.FC = () => {
         title: newTitle,
         content: newContent,
         pdfName: newPdfName,
-        pdfKey: pdfKey,
-        pdfDataUrl: newPdfDataUrl.length < 300000 ? newPdfDataUrl : '',
+        pdfDataUrl: newPdfDataUrl,
         videoUrl: newVideoUrl
       };
       await saveCourses([...sessionsData, newSession]);
@@ -207,28 +250,54 @@ const CourseContent: React.FC = () => {
     }
   };
 
-  const handleOpenPdf = async (session: any) => {
-    let pdfUrl = session.pdfDataUrl;
-    if (!pdfUrl && session.pdfKey) {
-      const localPdf = localStorage.getItem(session.pdfKey);
-      const cloudPdfObj = await getFromCloudflare(session.pdfKey);
-      pdfUrl = localPdf || cloudPdfObj?.pdfDataUrl || '';
-    }
+  // Open PDF or Screenshot image in viewer modal for Muni Mentor and Muni Students
+  const handleOpenResource = (session: any) => {
+    const url = session.pdfDataUrl;
+    const name = session.pdfName || 'Lesson Notes';
 
-    if (pdfUrl) {
-      if (pdfUrl.startsWith('data:application/pdf')) {
-        fetch(pdfUrl)
+    if (url && typeof url === 'string' && url.length > 10) {
+      const isImg = url.startsWith('data:image') || /\.(png|jpg|jpeg|webp|gif)$/i.test(name);
+      const isPdf = url.startsWith('data:application/pdf') || name.endsWith('.pdf');
+
+      if (isPdf && url.startsWith('data:application/pdf')) {
+        fetch(url)
           .then(res => res.blob())
           .then(blob => {
             const blobUrl = URL.createObjectURL(blob);
-            setViewingFile({ name: session.pdfName || 'Lesson Notes', url: blobUrl, isBlob: true, type: 'pdf' });
+            setViewingFile({ name, url: blobUrl, type: 'pdf', isBlob: true });
+          })
+          .catch(() => {
+            setViewingFile({ name, url, type: 'pdf' });
           });
       } else {
-        setViewingFile({ name: session.pdfName || 'Lesson Notes', url: pdfUrl });
+        setViewingFile({
+          name,
+          url,
+          type: isImg ? 'image' : isPdf ? 'pdf' : 'file'
+        });
       }
     } else {
-      alert(`Opening document: ${session.pdfName || 'Lesson Notes'}`);
+      // Fallback sample viewer
+      setViewingFile({
+        name,
+        url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+        type: 'pdf'
+      });
     }
+  };
+
+  // Open Video recording in modal player for Muni Mentor and Muni Students
+  const handleOpenVideo = (e: React.MouseEvent, session: any) => {
+    e.stopPropagation();
+    const url = session.videoUrl;
+    if (!url) return;
+
+    const embedUrl = getYouTubeEmbedUrl(url);
+    setViewingFile({
+      name: `${session.title} - Video Recording`,
+      url: embedUrl || url,
+      type: embedUrl ? 'youtube' : 'video'
+    });
   };
 
   return (
@@ -298,11 +367,11 @@ const CourseContent: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Course Resources (Optional)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Course Resources (Screenshot / PDF File)</label>
               <div className="flex items-center gap-3">
                 <label className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700">
                   <Upload size={16} /> Choose File
-                  <input type="file" className="hidden" onChange={handleFileUpload} />
+                  <input type="file" accept="image/*,.pdf" className="hidden" onChange={handleFileUpload} />
                 </label>
                 {newPdfName && <span className="text-sm text-primary font-medium">{newPdfName}</span>}
               </div>
@@ -313,7 +382,7 @@ const CourseContent: React.FC = () => {
                 type="url" 
                 value={newVideoUrl}
                 onChange={(e) => setNewVideoUrl(e.target.value)}
-                placeholder="https://youtube.com/..."
+                placeholder="https://youtube.com/watch?v=..."
                 className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm"
               />
             </div>
@@ -392,18 +461,21 @@ const CourseContent: React.FC = () => {
                   </p>
                   
                   <div className="flex flex-col md:flex-row flex-wrap gap-3 mt-4">
-                    {(session.pdfName || session.pdfKey || defaultSessions.some(s => s.id === session.id)) && (
+                    {(session.pdfName || session.pdfDataUrl || defaultSessions.some(s => s.id === session.id)) && (
                       <button 
-                        onClick={() => handleOpenPdf(session)}
+                        onClick={() => handleOpenResource(session)}
                         className="flex items-center justify-center md:justify-start gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors w-full md:w-auto cursor-pointer"
                       >
                         <FileText size={16} className="text-blue-500" /> {session.pdfName || 'Lesson Notes'}
                       </button>
                     )}
                     {(session.videoUrl || defaultSessions.some(s => s.id === session.id)) && (
-                      <a href={session.videoUrl || '#'} target="_blank" rel="noreferrer" className="flex items-center justify-center md:justify-start gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors w-full md:w-auto">
+                      <button 
+                        onClick={(e) => handleOpenVideo(e, session)}
+                        className="flex items-center justify-center md:justify-start gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors w-full md:w-auto cursor-pointer"
+                      >
                         <PlayCircle size={16} className="text-red-500" /> Watch Recording
-                      </a>
+                      </button>
                     )}
                     {!isMentor && (
                       <button className="md:ml-auto flex items-center justify-center md:justify-start gap-2 px-4 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg text-sm font-bold hover:bg-green-100 transition-colors w-full md:w-auto mt-2 md:mt-0 cursor-pointer">
@@ -418,22 +490,23 @@ const CourseContent: React.FC = () => {
         })}
       </div>
 
+      {/* Resource & Video Viewer Modal */}
       {viewingFile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden shadow-2xl relative">
             <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 shrink-0">
               <div className="flex items-center gap-3">
                 <FileText className="text-primary" size={24} />
                 <h3 className="font-bold text-gray-900 text-lg truncate pr-4">{viewingFile.name}</h3>
               </div>
               <div className="flex items-center gap-2">
-                {(viewingFile.url.startsWith('data:application/pdf') || viewingFile.type === 'pdf' || viewingFile.url.startsWith('blob:')) && (
+                {viewingFile.url && (
                   <a 
                     href={viewingFile.url} 
                     target="_blank" 
                     rel="noreferrer"
                     download={viewingFile.name}
-                    className="flex items-center gap-2 px-4 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-lg font-bold text-sm transition-colors"
+                    className="flex items-center gap-2 px-4 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl font-bold text-sm transition-colors"
                   >
                     Open / Download
                   </a>
@@ -445,30 +518,61 @@ const CourseContent: React.FC = () => {
                     }
                     setViewingFile(null);
                   }}
-                  className="p-2 text-gray-500 hover:bg-gray-200 hover:text-gray-900 rounded-full transition-colors cursor-pointer"
+                  className="p-2 text-gray-500 hover:bg-gray-200 hover:text-gray-900 rounded-xl transition-colors cursor-pointer"
                 >
                   <X size={24} />
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-auto bg-gray-100/50 p-6 flex items-center justify-center">
-              {viewingFile.url.startsWith('data:image') || viewingFile.type === 'image' ? (
-                <img src={viewingFile.url} alt={viewingFile.name} className="max-w-full max-h-full object-contain rounded-xl shadow-sm border border-gray-200 bg-white" />
-              ) : viewingFile.url.startsWith('data:application/pdf') || viewingFile.type === 'pdf' || viewingFile.url.startsWith('blob:') ? (
-                <iframe src={viewingFile.url} className="w-full h-full rounded-xl shadow-sm border border-gray-200 bg-white" title={viewingFile.name} />
-              ) : (
+
+            <div className="flex-1 overflow-auto bg-gray-900 p-6 flex items-center justify-center">
+              {viewingFile.type === 'image' && (
+                <img 
+                  src={viewingFile.url} 
+                  alt={viewingFile.name} 
+                  className="max-h-[75vh] w-auto object-contain rounded-xl shadow-lg mx-auto" 
+                />
+              )}
+
+              {viewingFile.type === 'pdf' && (
+                <iframe 
+                  src={viewingFile.url} 
+                  title={viewingFile.name} 
+                  className="w-full h-[75vh] border-0 rounded-xl bg-white" 
+                />
+              )}
+
+              {viewingFile.type === 'youtube' && (
+                <iframe 
+                  src={viewingFile.url} 
+                  title={viewingFile.name} 
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                  allowFullScreen 
+                  className="w-full h-[75vh] border-0 rounded-xl bg-black" 
+                />
+              )}
+
+              {viewingFile.type === 'video' && (
+                <video 
+                  src={viewingFile.url} 
+                  controls 
+                  autoPlay 
+                  className="w-full max-h-[75vh] rounded-xl bg-black" 
+                />
+              )}
+
+              {viewingFile.type === 'file' && (
                 <div className="text-center p-12 bg-white rounded-2xl shadow-sm border border-gray-200 max-w-md">
                   <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
                     <FileText size={40} className="text-primary" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">File Preview Unavailable</h3>
-                  <p className="text-gray-500 mb-8">This file type cannot be previewed directly in the browser.</p>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">{viewingFile.name}</h3>
                   <a 
                     href={viewingFile.url} 
                     download={viewingFile.name} 
                     className="inline-flex items-center justify-center w-full px-6 py-3 bg-primary text-white rounded-xl font-bold hover:bg-orange-600 transition-colors shadow-sm"
                   >
-                    Download File
+                    Download Resource File
                   </a>
                 </div>
               )}
