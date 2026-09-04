@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, ChevronDown, ChevronUp, PlayCircle, FileText, CheckCircle, Plus, Trash2, X, Upload, Edit2, Download, ExternalLink } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, PlayCircle, FileText, CheckCircle, Plus, Trash2, X, Upload, Edit2, Download, Image as ImageIcon } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { getFromCloudflare, saveToCloudflare, replaceInCloudflare, isMuniUser } from '../utils/cloudflare';
 import { MUNI_STUDENTS } from '../data/students';
@@ -56,10 +56,11 @@ const compressImageFile = (file: File): Promise<string> => {
   });
 };
 
-// Convert Base64 Data URL to Blob for native PDF rendering
+// Convert Base64 Data URL to Blob safely
 const dataURLtoBlob = (dataurl: string, defaultMime = 'application/pdf'): Blob | null => {
   try {
     const arr = dataurl.split(',');
+    if (arr.length < 2) return null;
     const mimeMatch = arr[0].match(/:(.*?);/);
     const mime = mimeMatch ? mimeMatch[1] : defaultMime;
     const bstr = atob(arr[1]);
@@ -80,6 +81,9 @@ const getYouTubeEmbedUrl = (url: string): string | null => {
   const match = url.match(regExp);
   return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : null;
 };
+
+// Valid sample PDF Data URL for lesson notes fallback
+const SAMPLE_PDF_DATA_URL = 'data:application/pdf;base64,JVBERi0xLjQKJSDigJzCocKw4oCNEzEwMCAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwovUGFnZXMgMiAwIFIKPj4KZW5kb2JqCjIgMCBvYmoKPDAKL1R5cGUgL1BhZ2VzCi9LaWRzIFszIDAgUl0KL0NvdW50IDEKPj4KZW5kb2JqCjMgMCBvYmoKPDAKL1R5cGUgL1BhZ2UKL1BhcmVudCAyIDAgUgovTWVkaWFCb3ggWzAgMCA2MTIgNzkyXQovQ29udGVudHMgNCAwIFIKL1Jlc291cmNlcyA8PAovRm9udCA8PAovRjEgNSAwIFIKPj4KPj4KZW5kb2JqCjQgMCBvYmoKPDAKL0xlbmd0aCA0NQo+PgpzdHJlYW0KQlQKL0YxIDI0IFRmCjEwMCA3MDAgVGQKKExlc3NvbiBOb3RlcykgVGoKRVQKZW5kc3RyZWFtCmVuZG9iago1IDAgb2JqCjw8Ci9UeXBlIC9Gb250Ci9TdWJ0eXBlIC9UeXBlMQovQmFzZUZvbnQgL0hlbHZldGljYQo+PgplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmCjAwMDAwMDAwMDkgMDAwMDAgbgowMDAwMDAwMDU4IDAwMDAwIG4KMDAwMDAwMDEwMSAwMDAwMCBuCjAwMDAwMDAyMTEgMDAwMDAgbgowMDAwMDAwMzA2IDAwMDAwIG4KdHJhaWxlcgo8PAovU2l6ZSA2Ci9Sb290IDEgMC BSCj4+CnN0YXJ0eHJlZg0MzgxCiUlRU9G';
 
 const CourseContent: React.FC = () => {
   const [expandedId, setExpandedId] = useState<number | null>(1);
@@ -111,7 +115,7 @@ const CourseContent: React.FC = () => {
     return isMuni ? 'anuragLmsCoursesRevit_muni@geonixa.com' : 'anuragLmsCoursesRevit';
   };
 
-  // Load courses safely without accidentally overwriting active sessions
+  // Load courses safely
   const loadCourses = async () => {
     setIsLoading(true);
     try {
@@ -268,45 +272,59 @@ const CourseContent: React.FC = () => {
     }
   };
 
-  // Open PDF or Screenshot image in viewer modal for Muni Mentor and Muni Students
+  // Open PDF or Screenshot image correctly based on actual file type
   const handleOpenResource = (session: any) => {
     const rawUrl = session.pdfDataUrl || '';
     const name = session.pdfName || 'Lesson Notes';
 
-    const isImg = rawUrl.startsWith('data:image') || /\.(png|jpg|jpeg|webp|gif)$/i.test(name);
-    const isPdf = rawUrl.startsWith('data:application/pdf') || name.endsWith('.pdf');
+    const nameLower = name.toLowerCase();
+    const isImage = rawUrl.startsWith('data:image/') || /\.(png|jpg|jpeg|webp|gif|bmp|svg)$/i.test(nameLower);
+    const isPdf = rawUrl.startsWith('data:application/pdf') || nameLower.endsWith('.pdf');
 
-    if (rawUrl && rawUrl.startsWith('data:')) {
-      const blob = dataURLtoBlob(rawUrl, isImg ? 'image/jpeg' : 'application/pdf');
+    // 1. If it's an Image file
+    if (isImage && rawUrl.length > 20) {
+      setViewingFile({
+        name,
+        url: rawUrl,
+        type: 'image'
+      });
+      return;
+    }
+
+    // 2. If it's a PDF file with Data URL
+    if (isPdf && rawUrl.startsWith('data:application/pdf')) {
+      const blob = dataURLtoBlob(rawUrl, 'application/pdf');
       if (blob) {
         const blobUrl = URL.createObjectURL(blob);
         setViewingFile({
           name,
           url: blobUrl,
-          type: isImg ? 'image' : 'pdf',
+          type: 'pdf',
           isBlob: true
         });
         return;
       }
     }
 
+    // 3. If it's an HTTP/HTTPS/Blob URL
     if (rawUrl && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://') || rawUrl.startsWith('blob:'))) {
       setViewingFile({
         name,
         url: rawUrl,
-        type: isImg ? 'image' : isPdf ? 'pdf' : 'file'
+        type: isImage ? 'image' : 'pdf'
       });
       return;
     }
 
-    // Default sample PDF viewer if no custom file was uploaded
-    const sampleBlob = dataURLtoBlob('data:application/pdf;base64,JVBERi0xLjQKJSDigJzCocKw4oCNEzEwMCAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwovUGFnZXMgMiAwIFIKPj4KZW5kb2JqCjIgMCBvYmoKPDAKL1R5cGUgL1BhZ2VzCi9LaWRzIFszIDAgUl0KL0NvdW50IDEKPj4KZW5kb2JqCjMgMCBvYmoKPDAKL1R5cGUgL1BhZ2UKL1BhcmVudCAyIDAgUgovTWVkaWFCb3ggWzAgMCA2MTIgNzkyXQovQ29udGVudHMgNCAwIFIKL1Jlc291cmNlcyA8PAovRm9udCA8PAovRjEgNSAwIFIKPj4KPj4KZW5kb2JqCjQgMCBvYmoKPDAKL0xlbmd0aCA0NQo+PgpzdHJlYW0KQlQKL0YxIDI0IFRmCjEwMCA3MDAgVGQKKExlc3NvbiBOb3RlcykgVGoKRVQKZW5kc3RyZWFtCmVuZG9iago1IDAgb2JqCjw8Ci9UeXBlIC9Gb250Ci9TdWJ0eXBlIC9UeXBlMQovQmFzZUZvbnQgL0hlbHZldGljYQo+PgplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmCjAwMDAwMDAwMDkgMDAwMDAgbgowMDAwMDAwMDU4IDAwMDAwIG4KMDAwMDAwMDEwMSAwMDAwMCBuCjAwMDAwMDAyMTEgMDAwMDAgbgowMDAwMDAwMzA2IDAwMDAwIG4KdHJhaWxlcgo8PAovU2l6ZSA2Ci9Sb290IDEgMC BSCj4+CnN0YXJ0eHJlZg0MzgxCiUlRU9G');
-    const sampleBlobUrl = sampleBlob ? URL.createObjectURL(sampleBlob) : '';
+    // 4. Default Sample PDF Fallback for lesson notes
+    const sampleBlob = dataURLtoBlob(SAMPLE_PDF_DATA_URL, 'application/pdf');
+    const sampleUrl = sampleBlob ? URL.createObjectURL(sampleBlob) : '';
+
     setViewingFile({
       name,
-      url: sampleBlobUrl || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+      url: sampleUrl || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
       type: 'pdf',
-      isBlob: !!sampleBlobUrl
+      isBlob: !!sampleUrl
     });
   };
 
@@ -567,13 +585,11 @@ const CourseContent: React.FC = () => {
               )}
 
               {viewingFile.type === 'pdf' && (
-                <object 
-                  data={viewingFile.url} 
-                  type="application/pdf" 
-                  className="w-full h-[75vh] rounded-xl bg-white"
-                >
-                  <embed src={viewingFile.url} type="application/pdf" className="w-full h-[75vh] rounded-xl bg-white" />
-                </object>
+                <iframe 
+                  src={viewingFile.url} 
+                  title={viewingFile.name} 
+                  className="w-full h-[75vh] border-0 rounded-xl bg-white" 
+                />
               )}
 
               {viewingFile.type === 'youtube' && (
