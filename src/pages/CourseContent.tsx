@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, ChevronDown, ChevronUp, PlayCircle, FileText, CheckCircle, Plus, Trash2, X, Upload, Edit2 } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, PlayCircle, FileText, CheckCircle, Plus, Trash2, X, Upload, Edit2, Download, ExternalLink } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { getFromCloudflare, saveToCloudflare, replaceInCloudflare, isMuniUser } from '../utils/cloudflare';
 import { MUNI_STUDENTS } from '../data/students';
@@ -54,6 +54,24 @@ const compressImageFile = (file: File): Promise<string> => {
     reader.onerror = (err) => reject(err);
     reader.readAsDataURL(file);
   });
+};
+
+// Convert Base64 Data URL to Blob for native PDF rendering
+const dataURLtoBlob = (dataurl: string, defaultMime = 'application/pdf'): Blob | null => {
+  try {
+    const arr = dataurl.split(',');
+    const mimeMatch = arr[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : defaultMime;
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+  } catch (e) {
+    return null;
+  }
 };
 
 const getYouTubeEmbedUrl = (url: string): string | null => {
@@ -252,38 +270,44 @@ const CourseContent: React.FC = () => {
 
   // Open PDF or Screenshot image in viewer modal for Muni Mentor and Muni Students
   const handleOpenResource = (session: any) => {
-    const url = session.pdfDataUrl;
+    const rawUrl = session.pdfDataUrl || '';
     const name = session.pdfName || 'Lesson Notes';
 
-    if (url && typeof url === 'string' && url.length > 10) {
-      const isImg = url.startsWith('data:image') || /\.(png|jpg|jpeg|webp|gif)$/i.test(name);
-      const isPdf = url.startsWith('data:application/pdf') || name.endsWith('.pdf');
+    const isImg = rawUrl.startsWith('data:image') || /\.(png|jpg|jpeg|webp|gif)$/i.test(name);
+    const isPdf = rawUrl.startsWith('data:application/pdf') || name.endsWith('.pdf');
 
-      if (isPdf && url.startsWith('data:application/pdf')) {
-        fetch(url)
-          .then(res => res.blob())
-          .then(blob => {
-            const blobUrl = URL.createObjectURL(blob);
-            setViewingFile({ name, url: blobUrl, type: 'pdf', isBlob: true });
-          })
-          .catch(() => {
-            setViewingFile({ name, url, type: 'pdf' });
-          });
-      } else {
+    if (rawUrl && rawUrl.startsWith('data:')) {
+      const blob = dataURLtoBlob(rawUrl, isImg ? 'image/jpeg' : 'application/pdf');
+      if (blob) {
+        const blobUrl = URL.createObjectURL(blob);
         setViewingFile({
           name,
-          url,
-          type: isImg ? 'image' : isPdf ? 'pdf' : 'file'
+          url: blobUrl,
+          type: isImg ? 'image' : 'pdf',
+          isBlob: true
         });
+        return;
       }
-    } else {
-      // Fallback sample viewer
+    }
+
+    if (rawUrl && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://') || rawUrl.startsWith('blob:'))) {
       setViewingFile({
         name,
-        url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-        type: 'pdf'
+        url: rawUrl,
+        type: isImg ? 'image' : isPdf ? 'pdf' : 'file'
       });
+      return;
     }
+
+    // Default sample PDF viewer if no custom file was uploaded
+    const sampleBlob = dataURLtoBlob('data:application/pdf;base64,JVBERi0xLjQKJSDigJzCocKw4oCNEzEwMCAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwovUGFnZXMgMiAwIFIKPj4KZW5kb2JqCjIgMCBvYmoKPDAKL1R5cGUgL1BhZ2VzCi9LaWRzIFszIDAgUl0KL0NvdW50IDEKPj4KZW5kb2JqCjMgMCBvYmoKPDAKL1R5cGUgL1BhZ2UKL1BhcmVudCAyIDAgUgovTWVkaWFCb3ggWzAgMCA2MTIgNzkyXQovQ29udGVudHMgNCAwIFIKL1Jlc291cmNlcyA8PAovRm9udCA8PAovRjEgNSAwIFIKPj4KPj4KZW5kb2JqCjQgMCBvYmoKPDAKL0xlbmd0aCA0NQo+PgpzdHJlYW0KQlQKL0YxIDI0IFRmCjEwMCA3MDAgVGQKKExlc3NvbiBOb3RlcykgVGoKRVQKZW5kc3RyZWFtCmVuZG9iago1IDAgb2JqCjw8Ci9UeXBlIC9Gb250Ci9TdWJ0eXBlIC9UeXBlMQovQmFzZUZvbnQgL0hlbHZldGljYQo+PgplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmCjAwMDAwMDAwMDkgMDAwMDAgbgowMDAwMDAwMDU4IDAwMDAwIG4KMDAwMDAwMDEwMSAwMDAwMCBuCjAwMDAwMDAyMTEgMDAwMDAgbgowMDAwMDAwMzA2IDAwMDAwIG4KdHJhaWxlcgo8PAovU2l6ZSA2Ci9Sb290IDEgMC BSCj4+CnN0YXJ0eHJlZg0MzgxCiUlRU9G');
+    const sampleBlobUrl = sampleBlob ? URL.createObjectURL(sampleBlob) : '';
+    setViewingFile({
+      name,
+      url: sampleBlobUrl || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+      type: 'pdf',
+      isBlob: !!sampleBlobUrl
+    });
   };
 
   // Open Video recording in modal player for Muni Mentor and Muni Students
@@ -298,6 +322,17 @@ const CourseContent: React.FC = () => {
       url: embedUrl || url,
       type: embedUrl ? 'youtube' : 'video'
     });
+  };
+
+  const handleDownloadOrOpen = () => {
+    if (!viewingFile || !viewingFile.url) return;
+    const a = document.createElement('a');
+    a.href = viewingFile.url;
+    a.target = '_blank';
+    a.download = viewingFile.name || 'Resource_File';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   return (
@@ -501,15 +536,12 @@ const CourseContent: React.FC = () => {
               </div>
               <div className="flex items-center gap-2">
                 {viewingFile.url && (
-                  <a 
-                    href={viewingFile.url} 
-                    target="_blank" 
-                    rel="noreferrer"
-                    download={viewingFile.name}
-                    className="flex items-center gap-2 px-4 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl font-bold text-sm transition-colors"
+                  <button 
+                    onClick={handleDownloadOrOpen}
+                    className="flex items-center gap-2 px-4 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl font-bold text-sm transition-colors cursor-pointer"
                   >
-                    Open / Download
-                  </a>
+                    <Download size={15} /> Open / Download
+                  </button>
                 )}
                 <button 
                   onClick={() => {
@@ -530,16 +562,18 @@ const CourseContent: React.FC = () => {
                 <img 
                   src={viewingFile.url} 
                   alt={viewingFile.name} 
-                  className="max-h-[75vh] w-auto object-contain rounded-xl shadow-lg mx-auto" 
+                  className="max-h-[75vh] w-auto object-contain rounded-xl shadow-lg mx-auto bg-white" 
                 />
               )}
 
               {viewingFile.type === 'pdf' && (
-                <iframe 
-                  src={viewingFile.url} 
-                  title={viewingFile.name} 
-                  className="w-full h-[75vh] border-0 rounded-xl bg-white" 
-                />
+                <object 
+                  data={viewingFile.url} 
+                  type="application/pdf" 
+                  className="w-full h-[75vh] rounded-xl bg-white"
+                >
+                  <embed src={viewingFile.url} type="application/pdf" className="w-full h-[75vh] rounded-xl bg-white" />
+                </object>
               )}
 
               {viewingFile.type === 'youtube' && (
@@ -567,13 +601,12 @@ const CourseContent: React.FC = () => {
                     <FileText size={40} className="text-primary" />
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 mb-2">{viewingFile.name}</h3>
-                  <a 
-                    href={viewingFile.url} 
-                    download={viewingFile.name} 
-                    className="inline-flex items-center justify-center w-full px-6 py-3 bg-primary text-white rounded-xl font-bold hover:bg-orange-600 transition-colors shadow-sm"
+                  <button 
+                    onClick={handleDownloadOrOpen}
+                    className="inline-flex items-center justify-center w-full px-6 py-3 bg-primary text-white rounded-xl font-bold hover:bg-orange-600 transition-colors shadow-sm cursor-pointer gap-2"
                   >
-                    Download Resource File
-                  </a>
+                    <Download size={18} /> Download Resource File
+                  </button>
                 </div>
               )}
             </div>
