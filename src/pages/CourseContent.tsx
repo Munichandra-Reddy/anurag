@@ -82,17 +82,22 @@ const getYouTubeEmbedUrl = (url: string): string | null => {
   return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : null;
 };
 
-// Generate an SVG Image Data URL placeholder for image entries without raw base64 data
+// Generate a 100% valid Base64 SVG Image Data URL
 const generateImagePlaceholder = (title: string): string => {
+  const cleanTitle = (title || 'Screenshot Image').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500">
-    <rect width="800" height="500" fill="#1e293b"/>
-    <rect x="20" y="20" width="760" height="460" rx="16" fill="#0f172a" stroke="#334155" stroke-width="2"/>
+    <rect width="800" height="500" fill="#0f172a"/>
+    <rect x="20" y="20" width="760" height="460" rx="16" fill="#1e293b" stroke="#334155" stroke-width="2"/>
     <circle cx="400" cy="200" r="48" fill="#ef4444" opacity="0.2"/>
     <path d="M376 184l48 32-48 32v-64z" fill="#ef4444"/>
-    <text x="400" y="310" font-family="sans-serif" font-size="22" font-weight="bold" fill="#f8fafc" text-anchor="middle">${title}</text>
-    <text x="400" y="345" font-family="sans-serif" font-size="14" fill="#94a3b8" text-anchor="middle">Course Resource Attachment</text>
+    <text x="400" y="300" font-family="sans-serif" font-size="22" font-weight="bold" fill="#f8fafc" text-anchor="middle">${cleanTitle}</text>
+    <text x="400" y="335" font-family="sans-serif" font-size="14" fill="#94a3b8" text-anchor="middle">Screenshot Image Attachment</text>
   </svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  try {
+    return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
+  } catch (e) {
+    return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  }
 };
 
 const CourseContent: React.FC = () => {
@@ -283,7 +288,7 @@ const CourseContent: React.FC = () => {
     }
   };
 
-  // Open Document/Screenshot directly without ever triggering Chrome's broken PDF iframe plugin
+  // Open Document/Screenshot directly as native image or PDF document
   const handleOpenResource = (session: any) => {
     const rawUrl = session.pdfDataUrl || '';
     const name = session.pdfName || `${session.title || 'Lesson'} Notes`;
@@ -333,8 +338,8 @@ const CourseContent: React.FC = () => {
     // 4. Default session document viewer card
     setViewingFile({
       name,
-      url: '',
-      type: 'file',
+      url: generateImagePlaceholder(name),
+      type: 'image',
       sessionContent: session.content
     });
   };
@@ -354,18 +359,14 @@ const CourseContent: React.FC = () => {
   };
 
   const handleDownloadOrOpen = () => {
-    if (!viewingFile) return;
-    if (viewingFile.url && viewingFile.url.length > 10) {
-      const a = document.createElement('a');
-      a.href = viewingFile.url;
-      a.target = '_blank';
-      a.download = viewingFile.name || 'Resource_File';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } else {
-      alert(`Document: ${viewingFile.name}\n\n${viewingFile.sessionContent || ''}`);
-    }
+    if (!viewingFile || !viewingFile.url) return;
+    const a = document.createElement('a');
+    a.href = viewingFile.url;
+    a.target = '_blank';
+    a.download = viewingFile.name || 'Resource_File';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   return (
