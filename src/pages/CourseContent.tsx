@@ -84,7 +84,7 @@ const CourseContent: React.FC = () => {
 
     const interval = setInterval(() => {
       loadCourses();
-    }, 5000);
+    }, 3000);
 
     return () => {
       window.removeEventListener('focus', handleFocus);
@@ -187,14 +187,6 @@ const CourseContent: React.FC = () => {
           Course Content
         </div>
         <div className="flex items-center gap-3">
-          <button 
-            onClick={loadCourses}
-            disabled={isLoading}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-bold transition-colors cursor-pointer"
-            title="Refresh Course Content"
-          >
-            <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} /> Refresh
-          </button>
           {isMentor && !isAdding && (
             <button 
               onClick={() => {

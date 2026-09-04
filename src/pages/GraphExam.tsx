@@ -452,15 +452,6 @@ const GraphExam: React.FC = () => {
               : "Upload your question answer (Screenshot or PDF) for Graph Exam 1."}
           </p>
         </div>
-
-        <button 
-          onClick={loadData}
-          disabled={isLoading}
-          className="self-start md:self-auto flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-4 py-2.5 rounded-xl border border-white/20 backdrop-blur-md transition-all shrink-0 cursor-pointer"
-        >
-          <RefreshCw size={15} className={isLoading ? "animate-spin" : ""} />
-          Refresh Data
-        </button>
       </div>
 
       {submitSuccess && (
