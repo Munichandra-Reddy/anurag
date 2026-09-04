@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, ChevronDown, ChevronUp, PlayCircle, FileText, CheckCircle, Plus, Trash2, X, Upload, Edit2, Download, Image as ImageIcon } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, PlayCircle, FileText, CheckCircle, Plus, Trash2, X, Upload, Edit2, Download, ExternalLink, Image as ImageIcon } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { getFromCloudflare, saveToCloudflare, replaceInCloudflare, isMuniUser } from '../utils/cloudflare';
 import { MUNI_STUDENTS } from '../data/students';
@@ -82,8 +82,18 @@ const getYouTubeEmbedUrl = (url: string): string | null => {
   return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : null;
 };
 
-// Valid sample PDF Data URL for lesson notes fallback
-const SAMPLE_PDF_DATA_URL = 'data:application/pdf;base64,JVBERi0xLjQKJSDigJzCocKw4oCNEzEwMCAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwovUGFnZXMgMiAwIFIKPj4KZW5kb2JqCjIgMCBvYmoKPDAKL1R5cGUgL1BhZ2VzCi9LaWRzIFszIDAgUl0KL0NvdW50IDEKPj4KZW5kb2JqCjMgMCBvYmoKPDAKL1R5cGUgL1BhZ2UKL1BhcmVudCAyIDAgUgovTWVkaWFCb3ggWzAgMCA2MTIgNzkyXQovQ29udGVudHMgNCAwIFIKL1Jlc291cmNlcyA8PAovRm9udCA8PAovRjEgNSAwIFIKPj4KPj4KZW5kb2JqCjQgMCBvYmoKPDAKL0xlbmd0aCA0NQo+PgpzdHJlYW0KQlQKL0YxIDI0IFRmCjEwMCA3MDAgVGQKKExlc3NvbiBOb3RlcykgVGoKRVQKZW5kc3RyZWFtCmVuZG9iago1IDAgb2JqCjw8Ci9UeXBlIC9Gb250Ci9TdWJ0eXBlIC9UeXBlMQovQmFzZUZvbnQgL0hlbHZldGljYQo+PgplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmCjAwMDAwMDAwMDkgMDAwMDAgbgowMDAwMDAwMDU4IDAwMDAwIG4KMDAwMDAwMDEwMSAwMDAwMCBuCjAwMDAwMDAyMTEgMDAwMDAgbgowMDAwMDAwMzA2IDAwMDAwIG4KdHJhaWxlcgo8PAovU2l6ZSA2Ci9Sb290IDEgMC BSCj4+CnN0YXJ0eHJlZg0MzgxCiUlRU9G';
+// Generate an SVG Image Data URL placeholder for image entries without raw base64 data
+const generateImagePlaceholder = (title: string): string => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500">
+    <rect width="800" height="500" fill="#1e293b"/>
+    <rect x="20" y="20" width="760" height="460" rx="16" fill="#0f172a" stroke="#334155" stroke-width="2"/>
+    <circle cx="400" cy="200" r="48" fill="#ef4444" opacity="0.2"/>
+    <path d="M376 184l48 32-48 32v-64z" fill="#ef4444"/>
+    <text x="400" y="310" font-family="sans-serif" font-size="22" font-weight="bold" fill="#f8fafc" text-anchor="middle">${title}</text>
+    <text x="400" y="345" font-family="sans-serif" font-size="14" fill="#94a3b8" text-anchor="middle">Course Resource Attachment</text>
+  </svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+};
 
 const CourseContent: React.FC = () => {
   const [expandedId, setExpandedId] = useState<number | null>(1);
@@ -189,6 +199,7 @@ const CourseContent: React.FC = () => {
     name: string;
     url: string;
     type: 'image' | 'pdf' | 'youtube' | 'video' | 'file';
+    sessionContent?: string;
     isBlob?: boolean;
   } | null>(null);
 
@@ -272,27 +283,28 @@ const CourseContent: React.FC = () => {
     }
   };
 
-  // Open Document/PDF/Screenshot directly on screen without alert popups or broken cards
+  // Open Document/Screenshot directly without ever triggering Chrome's broken PDF iframe plugin
   const handleOpenResource = (session: any) => {
     const rawUrl = session.pdfDataUrl || '';
-    const name = session.pdfName || `${session.title || 'Lesson'} Notes.pdf`;
+    const name = session.pdfName || `${session.title || 'Lesson'} Notes`;
     const nameLower = name.toLowerCase();
 
     const isImage = rawUrl.startsWith('data:image/') || /\.(png|jpg|jpeg|webp|gif|bmp|svg)$/i.test(nameLower);
-    const isPdf = rawUrl.startsWith('data:application/pdf') || nameLower.endsWith('.pdf');
 
-    // 1. If uploaded image Data URL is present -> render image directly
-    if (isImage && rawUrl.startsWith('data:image/')) {
+    // 1. If it's an Image file or screenshot
+    if (isImage) {
+      const imgUrl = (rawUrl && rawUrl.length > 20) ? rawUrl : generateImagePlaceholder(name);
       setViewingFile({
         name,
-        url: rawUrl,
-        type: 'image'
+        url: imgUrl,
+        type: 'image',
+        sessionContent: session.content
       });
       return;
     }
 
-    // 2. If uploaded PDF Data URL is present -> render PDF directly
-    if (isPdf && rawUrl.startsWith('data:application/pdf')) {
+    // 2. If it's a PDF Data URL
+    if (rawUrl.startsWith('data:application/pdf')) {
       const blob = dataURLtoBlob(rawUrl, 'application/pdf');
       if (blob) {
         const blobUrl = URL.createObjectURL(blob);
@@ -300,31 +312,30 @@ const CourseContent: React.FC = () => {
           name,
           url: blobUrl,
           type: 'pdf',
+          sessionContent: session.content,
           isBlob: true
         });
         return;
       }
     }
 
-    // 3. If external HTTP / Blob URL is present -> render directly
+    // 3. If it's an HTTP/HTTPS/Blob URL
     if (rawUrl && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://') || rawUrl.startsWith('blob:'))) {
       setViewingFile({
         name,
         url: rawUrl,
-        type: isImage ? 'image' : 'pdf'
+        type: 'file',
+        sessionContent: session.content
       });
       return;
     }
 
-    // 4. Default Document Viewer fallback: Generate formatted PDF lesson notes on the fly
-    const sampleBlob = dataURLtoBlob(SAMPLE_PDF_DATA_URL, 'application/pdf');
-    const sampleUrl = sampleBlob ? URL.createObjectURL(sampleBlob) : '';
-
+    // 4. Default session document viewer card
     setViewingFile({
       name,
-      url: sampleUrl || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-      type: 'pdf',
-      isBlob: !!sampleUrl
+      url: '',
+      type: 'file',
+      sessionContent: session.content
     });
   };
 
@@ -344,7 +355,7 @@ const CourseContent: React.FC = () => {
 
   const handleDownloadOrOpen = () => {
     if (!viewingFile) return;
-    if (viewingFile.url && viewingFile.url.length > 5) {
+    if (viewingFile.url && viewingFile.url.length > 10) {
       const a = document.createElement('a');
       a.href = viewingFile.url;
       a.target = '_blank';
@@ -352,6 +363,8 @@ const CourseContent: React.FC = () => {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+    } else {
+      alert(`Document: ${viewingFile.name}\n\n${viewingFile.sessionContent || ''}`);
     }
   };
 
@@ -585,11 +598,19 @@ const CourseContent: React.FC = () => {
               )}
 
               {viewingFile.type === 'pdf' && (
-                <iframe 
-                  src={viewingFile.url} 
-                  title={viewingFile.name} 
-                  className="w-full h-[75vh] border-0 rounded-xl bg-white" 
-                />
+                <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900 text-white p-6 space-y-4 rounded-xl">
+                  <FileText size={64} className="text-primary animate-pulse" />
+                  <h3 className="text-xl font-bold">{viewingFile.name}</h3>
+                  <p className="text-xs text-gray-300 max-w-md text-center">
+                    PDF Document is ready to view. Click the button below to open directly in your browser.
+                  </p>
+                  <button 
+                    onClick={handleDownloadOrOpen}
+                    className="px-6 py-3 bg-primary text-white rounded-xl font-bold text-sm shadow-lg hover:bg-orange-600 transition-all cursor-pointer flex items-center gap-2"
+                  >
+                    <ExternalLink size={18} /> Open PDF Document
+                  </button>
+                </div>
               )}
 
               {viewingFile.type === 'youtube' && (
@@ -609,6 +630,26 @@ const CourseContent: React.FC = () => {
                   autoPlay 
                   className="w-full max-h-[75vh] rounded-xl bg-black" 
                 />
+              )}
+
+              {viewingFile.type === 'file' && (
+                <div className="text-center p-10 bg-white rounded-2xl shadow-sm border border-gray-200 max-w-md space-y-4">
+                  <FileText size={48} className="text-primary mx-auto" />
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">{viewingFile.name}</h3>
+                    {viewingFile.sessionContent && (
+                      <p className="text-xs text-gray-600 mt-2 bg-gray-50 p-3 rounded-xl border border-gray-100 text-left">
+                        {viewingFile.sessionContent}
+                      </p>
+                    )}
+                  </div>
+                  <button 
+                    onClick={handleDownloadOrOpen}
+                    className="inline-flex items-center justify-center w-full px-6 py-3 bg-primary text-white rounded-xl font-bold text-xs shadow-md cursor-pointer gap-2"
+                  >
+                    <Download size={16} /> Open / Download Resource File
+                  </button>
+                </div>
               )}
             </div>
           </div>
