@@ -4,7 +4,7 @@ import {
   FileText, CheckCircle2, Clock, Upload, Trash2, Search, 
   Eye, X, AlertCircle, FileCheck, FileCode, Sparkles, RefreshCw
 } from 'lucide-react';
-import { getFromCloudflare, replaceInCloudflare } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, replaceInCloudflare } from '../utils/cloudflare';
 import { MUNI_STUDENTS } from '../data/students';
 
 interface StudentSubmission {
@@ -23,7 +23,7 @@ interface StudentSubmission {
 const INDEX_KEY = 'graphExamIndex_muni';
 const SUB_PREFIX = 'graphExamSub_';
 
-// Helper to compress image files before Base64 encoding to stay well under 1MB Firestore limits
+// Helper to compress image files before Base64 encoding
 const compressImageFile = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -112,7 +112,7 @@ const GraphExam: React.FC = () => {
     fileData: string;
   } | null>(null);
 
-  // Load Muni students and submissions
+  // Load Muni students and submissions comprehensively across dictionary, index, and per-student keys
   const loadData = async () => {
     setIsLoading(true);
     try {
@@ -150,13 +150,21 @@ const GraphExam: React.FC = () => {
       const loadedSubmissions: Record<string, StudentSubmission> = {};
 
       if (!isMentorView && loggedInEmail) {
-        // Student View: Check single student submission document
+        // Student View: Check single student submission document + dict key
         const studentSubKey = `${SUB_PREFIX}${loggedInEmail}`;
         const cloudSub = await getFromCloudflare(studentSubKey);
         const localSubStr = localStorage.getItem(studentSubKey);
         const localSub = localSubStr ? JSON.parse(localSubStr) : null;
 
-        const activeSub = cloudSub !== null ? cloudSub : localSub;
+        const cloudDict = await getFromCloudflare('graphExamSubmissions_muni') || {};
+        const localDict = JSON.parse(localStorage.getItem('graphExamSubmissions_muni') || '{}');
+        const dictSub = cloudDict[loggedInEmail] || localDict[loggedInEmail];
+
+        const activeSub = (cloudSub && cloudSub.submittedAt) 
+          ? cloudSub 
+          : (localSub && localSub.submittedAt) 
+          ? localSub 
+          : dictSub;
 
         if (activeSub && activeSub.submittedAt && !activeSub.isDeleted) {
           loadedSubmissions[loggedInEmail] = activeSub;
@@ -165,26 +173,49 @@ const GraphExam: React.FC = () => {
           localStorage.removeItem(studentSubKey);
         }
       } else if (isMentorView) {
-        // Mentor View: Fetch submissions index
-        const cloudIndex = await getFromCloudflare(INDEX_KEY);
-        const localIndex = JSON.parse(localStorage.getItem(INDEX_KEY) || '[]');
-        const indexList: string[] = Array.from(new Set([...(Array.isArray(cloudIndex) ? cloudIndex : []), ...localIndex]));
+        // Mentor View: Fetch dictionary object + index list + per-student keys
+        const [cloudDict, cloudIndex] = await Promise.all([
+          getFromCloudflare('graphExamSubmissions_muni'),
+          getFromCloudflare(INDEX_KEY)
+        ]);
 
-        const fetchPromises = indexList.map(async (email) => {
+        const localDict = JSON.parse(localStorage.getItem('graphExamSubmissions_muni') || '{}');
+        const localIndex = JSON.parse(localStorage.getItem(INDEX_KEY) || '[]');
+
+        const combinedDict = { ...localDict, ...(cloudDict || {}) };
+
+        // Pre-fill from dictionary object
+        Object.keys(combinedDict).forEach(email => {
+          const clean = email.toLowerCase().trim();
+          const item = combinedDict[email];
+          if (item && item.submittedAt && !item.isDeleted) {
+            loadedSubmissions[clean] = item;
+          }
+        });
+
+        // Collect all emails to check per-student documents
+        const emailsToCheck = new Set<string>([
+          ...Object.keys(combinedDict).map(e => e.toLowerCase().trim()),
+          ...(Array.isArray(cloudIndex) ? cloudIndex : []).map(e => String(e).toLowerCase().trim()),
+          ...(Array.isArray(localIndex) ? localIndex : []).map(e => String(e).toLowerCase().trim()),
+          ...allList.map(s => s.email.toLowerCase().trim())
+        ]);
+
+        // Fetch per-student documents in parallel
+        const fetchPromises = Array.from(emailsToCheck).map(async (email) => {
           const k = `${SUB_PREFIX}${email}`;
           const cloudItem = await getFromCloudflare(k);
           const localItem = JSON.parse(localStorage.getItem(k) || 'null');
           const item = cloudItem !== null ? cloudItem : localItem;
-          return { email, item };
-        });
 
-        const results = await Promise.all(fetchPromises);
-        results.forEach(({ email, item }) => {
           if (item && item.submittedAt && !item.isDeleted) {
             loadedSubmissions[email] = item;
-            localStorage.setItem(`${SUB_PREFIX}${email}`, JSON.stringify(item));
+          } else if (item && item.isDeleted) {
+            delete loadedSubmissions[email];
           }
         });
+
+        await Promise.all(fetchPromises);
       }
 
       setSubmissions(loadedSubmissions);
@@ -299,6 +330,17 @@ const GraphExam: React.FC = () => {
       localStorage.setItem(INDEX_KEY, JSON.stringify(updatedIndex));
       await replaceInCloudflare(INDEX_KEY, updatedIndex);
 
+      // 3. Update dictionary object fallback
+      try {
+        const cloudDict = await getFromCloudflare('graphExamSubmissions_muni') || {};
+        const localDict = JSON.parse(localStorage.getItem('graphExamSubmissions_muni') || '{}');
+        const updatedDict = { ...localDict, ...cloudDict, [loggedInEmail]: newSubmission };
+        localStorage.setItem('graphExamSubmissions_muni', JSON.stringify(updatedDict));
+        await saveToCloudflare('graphExamSubmissions_muni', updatedDict);
+      } catch (e) {
+        // Ignore if dict exceeds size limit
+      }
+
       setSubmissions(prev => ({
         ...prev,
         [loggedInEmail]: newSubmission
@@ -343,7 +385,17 @@ const GraphExam: React.FC = () => {
       localStorage.setItem(INDEX_KEY, JSON.stringify(updatedIndex));
       await replaceInCloudflare(INDEX_KEY, updatedIndex);
 
-      // 3. Update local state
+      // 3. Remove from dictionary object
+      try {
+        const cloudDict = await getFromCloudflare('graphExamSubmissions_muni') || {};
+        const localDict = JSON.parse(localStorage.getItem('graphExamSubmissions_muni') || '{}');
+        const updatedDict = { ...localDict, ...cloudDict };
+        delete updatedDict[studentEmail];
+        localStorage.setItem('graphExamSubmissions_muni', JSON.stringify(updatedDict));
+        await replaceInCloudflare('graphExamSubmissions_muni', updatedDict);
+      } catch (e) {}
+
+      // 4. Update local state
       setSubmissions(prev => {
         const updated = { ...prev };
         delete updated[studentEmail];
@@ -379,7 +431,7 @@ const GraphExam: React.FC = () => {
   });
 
   const totalMuniCount = muniStudentsList.length;
-  const completedMuniCount = Object.keys(submissions).filter(email => muniStudentsList.some(s => s.email === email)).length;
+  const completedMuniCount = Object.keys(submissions).filter(email => muniStudentsList.some(s => s.email.toLowerCase().trim() === email.toLowerCase().trim())).length;
   const pendingMuniCount = Math.max(0, totalMuniCount - completedMuniCount);
 
   return (
@@ -645,7 +697,7 @@ const GraphExam: React.FC = () => {
                     </tr>
                   ) : (
                     mentorTableData.map(student => {
-                      const sub = submissions[student.email];
+                      const sub = submissions[student.email.toLowerCase().trim()];
                       const isCompleted = !!sub;
 
                       return (
