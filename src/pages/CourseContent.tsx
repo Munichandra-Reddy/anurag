@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, ChevronDown, ChevronUp, PlayCircle, FileText, CheckCircle, Plus, Trash2, X, Upload, Edit2, Download, Image as ImageIcon } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, PlayCircle, FileText, CheckCircle, Plus, Trash2, X, Upload, Edit2, Download, ExternalLink, Image as ImageIcon } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { getFromCloudflare, saveToCloudflare, replaceInCloudflare, isMuniUser } from '../utils/cloudflare';
 import { MUNI_STUDENTS } from '../data/students';
@@ -81,9 +81,6 @@ const getYouTubeEmbedUrl = (url: string): string | null => {
   const match = url.match(regExp);
   return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : null;
 };
-
-// Valid sample PDF Data URL for lesson notes fallback
-const SAMPLE_PDF_DATA_URL = 'data:application/pdf;base64,JVBERi0xLjQKJSDigJzCocKw4oCNEzEwMCAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwovUGFnZXMgMiAwIFIKPj4KZW5kb2JqCjIgMCBvYmoKPDAKL1R5cGUgL1BhZ2VzCi9LaWRzIFszIDAgUl0KL0NvdW50IDEKPj4KZW5kb2JqCjMgMCBvYmoKPDAKL1R5cGUgL1BhZ2UKL1BhcmVudCAyIDAgUgovTWVkaWFCb3ggWzAgMCA2MTIgNzkyXQovQ29udGVudHMgNCAwIFIKL1Jlc291cmNlcyA8PAovRm9udCA8PAovRjEgNSAwIFIKPj4KPj4KZW5kb2JqCjQgMCBvYmoKPDAKL0xlbmd0aCA0NQo+PgpzdHJlYW0KQlQKL0YxIDI0IFRmCjEwMCA3MDAgVGQKKExlc3NvbiBOb3RlcykgVGoKRVQKZW5kc3RyZWFtCmVuZG9iago1IDAgb2JqCjw8Ci9UeXBlIC9Gb250Ci9TdWJ0eXBlIC9UeXBlMQovQmFzZUZvbnQgL0hlbHZldGljYQo+PgplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmCjAwMDAwMDAwMDkgMDAwMDAgbgowMDAwMDAwMDU4IDAwMDAwIG4KMDAwMDAwMDEwMSAwMDAwMCBuCjAwMDAwMDAyMTEgMDAwMDAgbgowMDAwMDAwMzA2IDAwMDAwIG4KdHJhaWxlcgo8PAovU2l6ZSA2Ci9Sb290IDEgMC BSCj4+CnN0YXJ0eHJlZg0MzgxCiUlRU9G';
 
 const CourseContent: React.FC = () => {
   const [expandedId, setExpandedId] = useState<number | null>(1);
@@ -276,13 +273,13 @@ const CourseContent: React.FC = () => {
   const handleOpenResource = (session: any) => {
     const rawUrl = session.pdfDataUrl || '';
     const name = session.pdfName || 'Lesson Notes';
-
     const nameLower = name.toLowerCase();
+
     const isImage = rawUrl.startsWith('data:image/') || /\.(png|jpg|jpeg|webp|gif|bmp|svg)$/i.test(nameLower);
     const isPdf = rawUrl.startsWith('data:application/pdf') || nameLower.endsWith('.pdf');
 
     // 1. If it's an Image file
-    if (isImage && rawUrl.length > 20) {
+    if (isImage) {
       setViewingFile({
         name,
         url: rawUrl,
@@ -306,25 +303,21 @@ const CourseContent: React.FC = () => {
       }
     }
 
-    // 3. If it's an HTTP/HTTPS/Blob URL
+    // 3. If it's a web URL (HTTP/HTTPS/Blob)
     if (rawUrl && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://') || rawUrl.startsWith('blob:'))) {
       setViewingFile({
         name,
         url: rawUrl,
-        type: isImage ? 'image' : 'pdf'
+        type: isPdf ? 'pdf' : 'file'
       });
       return;
     }
 
-    // 4. Default Sample PDF Fallback for lesson notes
-    const sampleBlob = dataURLtoBlob(SAMPLE_PDF_DATA_URL, 'application/pdf');
-    const sampleUrl = sampleBlob ? URL.createObjectURL(sampleBlob) : '';
-
+    // 4. Default resource card fallback
     setViewingFile({
       name,
-      url: sampleUrl || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-      type: 'pdf',
-      isBlob: !!sampleUrl
+      url: rawUrl,
+      type: 'file'
     });
   };
 
@@ -343,14 +336,18 @@ const CourseContent: React.FC = () => {
   };
 
   const handleDownloadOrOpen = () => {
-    if (!viewingFile || !viewingFile.url) return;
-    const a = document.createElement('a');
-    a.href = viewingFile.url;
-    a.target = '_blank';
-    a.download = viewingFile.name || 'Resource_File';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    if (!viewingFile) return;
+    if (viewingFile.url && viewingFile.url.length > 5) {
+      const a = document.createElement('a');
+      a.href = viewingFile.url;
+      a.target = '_blank';
+      a.download = viewingFile.name || 'Resource_File';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else {
+      alert(`Resource file: ${viewingFile.name}`);
+    }
   };
 
   return (
@@ -553,14 +550,12 @@ const CourseContent: React.FC = () => {
                 <h3 className="font-bold text-gray-900 text-lg truncate pr-4">{viewingFile.name}</h3>
               </div>
               <div className="flex items-center gap-2">
-                {viewingFile.url && (
-                  <button 
-                    onClick={handleDownloadOrOpen}
-                    className="flex items-center gap-2 px-4 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl font-bold text-sm transition-colors cursor-pointer"
-                  >
-                    <Download size={15} /> Open / Download
-                  </button>
-                )}
+                <button 
+                  onClick={handleDownloadOrOpen}
+                  className="flex items-center gap-2 px-4 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl font-bold text-sm transition-colors cursor-pointer"
+                >
+                  <Download size={15} /> Open / Download
+                </button>
                 <button 
                   onClick={() => {
                     if (viewingFile?.isBlob) {
@@ -576,21 +571,49 @@ const CourseContent: React.FC = () => {
             </div>
 
             <div className="flex-1 overflow-auto bg-gray-900 p-6 flex items-center justify-center">
-              {viewingFile.type === 'image' && (
+              {viewingFile.type === 'image' && viewingFile.url && viewingFile.url.length > 20 ? (
                 <img 
                   src={viewingFile.url} 
                   alt={viewingFile.name} 
                   className="max-h-[75vh] w-auto object-contain rounded-xl shadow-lg mx-auto bg-white" 
                 />
-              )}
+              ) : viewingFile.type === 'image' ? (
+                <div className="text-center p-10 bg-white rounded-2xl shadow-sm border border-gray-200 max-w-md space-y-4">
+                  <ImageIcon size={48} className="text-primary mx-auto" />
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">{viewingFile.name}</h3>
+                    <p className="text-xs text-gray-500 mt-1">Image screenshot resource file.</p>
+                  </div>
+                  <button 
+                    onClick={handleDownloadOrOpen}
+                    className="inline-flex items-center justify-center w-full px-6 py-2.5 bg-primary text-white rounded-xl font-bold text-xs shadow-md cursor-pointer gap-2"
+                  >
+                    <Download size={16} /> Open / Download File
+                  </button>
+                </div>
+              ) : null}
 
-              {viewingFile.type === 'pdf' && (
+              {viewingFile.type === 'pdf' && viewingFile.url && viewingFile.url.length > 20 ? (
                 <iframe 
                   src={viewingFile.url} 
                   title={viewingFile.name} 
                   className="w-full h-[75vh] border-0 rounded-xl bg-white" 
                 />
-              )}
+              ) : viewingFile.type === 'pdf' ? (
+                <div className="text-center p-10 bg-white rounded-2xl shadow-sm border border-gray-200 max-w-md space-y-4">
+                  <FileText size={48} className="text-primary mx-auto" />
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">{viewingFile.name}</h3>
+                    <p className="text-xs text-gray-500 mt-1">PDF Document resource file.</p>
+                  </div>
+                  <button 
+                    onClick={handleDownloadOrOpen}
+                    className="inline-flex items-center justify-center w-full px-6 py-3 bg-primary text-white rounded-xl font-bold text-xs shadow-md cursor-pointer gap-2"
+                  >
+                    <Download size={16} /> Open / Download PDF
+                  </button>
+                </div>
+              ) : null}
 
               {viewingFile.type === 'youtube' && (
                 <iframe 
@@ -612,16 +635,17 @@ const CourseContent: React.FC = () => {
               )}
 
               {viewingFile.type === 'file' && (
-                <div className="text-center p-12 bg-white rounded-2xl shadow-sm border border-gray-200 max-w-md">
-                  <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <FileText size={40} className="text-primary" />
+                <div className="text-center p-10 bg-white rounded-2xl shadow-sm border border-gray-200 max-w-md space-y-4">
+                  <FileText size={48} className="text-primary mx-auto" />
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">{viewingFile.name}</h3>
+                    <p className="text-xs text-gray-500 mt-1">Course Resource File</p>
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">{viewingFile.name}</h3>
                   <button 
                     onClick={handleDownloadOrOpen}
-                    className="inline-flex items-center justify-center w-full px-6 py-3 bg-primary text-white rounded-xl font-bold hover:bg-orange-600 transition-colors shadow-sm cursor-pointer gap-2"
+                    className="inline-flex items-center justify-center w-full px-6 py-3 bg-primary text-white rounded-xl font-bold text-xs shadow-md cursor-pointer gap-2"
                   >
-                    <Download size={18} /> Download Resource File
+                    <Download size={16} /> Open / Download Resource File
                   </button>
                 </div>
               )}
