@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, ChevronDown, ChevronUp, PlayCircle, FileText, CheckCircle, Plus, Trash2, X, Upload, Edit2, RefreshCw } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, PlayCircle, FileText, CheckCircle, Plus, Trash2, X, Upload, Edit2 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
-import { getFromCloudflare, saveToCloudflare, replaceInCloudflare, getMentorKey, isMuniUser } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, replaceInCloudflare, isMuniUser } from '../utils/cloudflare';
 import { MUNI_STUDENTS } from '../data/students';
 
 const defaultSessions = [
@@ -45,7 +45,7 @@ const CourseContent: React.FC = () => {
     return isMuni ? 'anuragLmsCoursesRevit_muni@geonixa.com' : 'anuragLmsCoursesRevit';
   };
 
-  // Load courses from Cloudflare Firestore & localStorage
+  // Load courses safely without accidentally overwriting active sessions with empty polling responses
   const loadCourses = async () => {
     setIsLoading(true);
     try {
@@ -56,11 +56,18 @@ const CourseContent: React.FC = () => {
 
       let resolvedSessions: any[] = [];
 
-      if (cloudCourses && Array.isArray(cloudCourses)) {
+      // 1. If Cloudflare has non-empty sessions array, use it & sync to localStorage
+      if (Array.isArray(cloudCourses) && cloudCourses.length > 0) {
         resolvedSessions = cloudCourses;
         localStorage.setItem(courseKey, JSON.stringify(cloudCourses));
-      } else if (localCourses && Array.isArray(localCourses)) {
+      } 
+      // 2. If localStorage has non-empty sessions array, use it as robust fallback
+      else if (Array.isArray(localCourses) && localCourses.length > 0) {
         resolvedSessions = localCourses;
+      } 
+      // 3. Fallback to cloud array if present or default
+      else if (Array.isArray(cloudCourses)) {
+        resolvedSessions = cloudCourses;
       } else {
         resolvedSessions = courseKey.includes('_muni') ? [] : defaultSessions;
       }
@@ -76,7 +83,6 @@ const CourseContent: React.FC = () => {
   useEffect(() => {
     loadCourses();
 
-    // Auto-refresh when tab comes into focus or every 5 seconds for real-time replication
     const handleFocus = () => {
       loadCourses();
     };
@@ -128,15 +134,36 @@ const CourseContent: React.FC = () => {
     }
   };
 
-  const handleAddCourse = (e: React.FormEvent) => {
+  const handleAddCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !newContent.trim()) return;
 
+    let pdfKey = '';
+    if (newPdfDataUrl) {
+      pdfKey = `coursePdf_${Date.now()}`;
+      try {
+        localStorage.setItem(pdfKey, newPdfDataUrl);
+        await replaceInCloudflare(pdfKey, { pdfDataUrl: newPdfDataUrl });
+      } catch (e) {
+        console.error("Failed to save PDF resource:", e);
+      }
+    }
+
     if (editingId) {
       const updatedSessions = sessionsData.map(s => 
-        s.id === editingId ? { ...s, title: newTitle, content: newContent, pdfName: newPdfName, pdfDataUrl: newPdfDataUrl, videoUrl: newVideoUrl } : s
+        s.id === editingId 
+          ? { 
+              ...s, 
+              title: newTitle, 
+              content: newContent, 
+              pdfName: newPdfName || s.pdfName, 
+              pdfKey: pdfKey || s.pdfKey,
+              pdfDataUrl: newPdfDataUrl ? (newPdfDataUrl.length < 300000 ? newPdfDataUrl : '') : s.pdfDataUrl, 
+              videoUrl: newVideoUrl 
+            } 
+          : s
       );
-      saveCourses(updatedSessions);
+      await saveCourses(updatedSessions);
       setEditingId(null);
     } else {
       const newSession = {
@@ -144,10 +171,11 @@ const CourseContent: React.FC = () => {
         title: newTitle,
         content: newContent,
         pdfName: newPdfName,
-        pdfDataUrl: newPdfDataUrl,
+        pdfKey: pdfKey,
+        pdfDataUrl: newPdfDataUrl.length < 300000 ? newPdfDataUrl : '',
         videoUrl: newVideoUrl
       };
-      saveCourses([...sessionsData, newSession]);
+      await saveCourses([...sessionsData, newSession]);
     }
 
     setNewTitle('');
@@ -171,11 +199,35 @@ const CourseContent: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleRemoveCourse = (e: React.MouseEvent, id: number) => {
+  const handleRemoveCourse = async (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
     if (window.confirm("Are you sure you want to remove this course session? It will be removed for all Muni Mentor students.")) {
       const updated = sessionsData.filter((s: any) => s.id !== id);
-      saveCourses(updated);
+      await saveCourses(updated);
+    }
+  };
+
+  const handleOpenPdf = async (session: any) => {
+    let pdfUrl = session.pdfDataUrl;
+    if (!pdfUrl && session.pdfKey) {
+      const localPdf = localStorage.getItem(session.pdfKey);
+      const cloudPdfObj = await getFromCloudflare(session.pdfKey);
+      pdfUrl = localPdf || cloudPdfObj?.pdfDataUrl || '';
+    }
+
+    if (pdfUrl) {
+      if (pdfUrl.startsWith('data:application/pdf')) {
+        fetch(pdfUrl)
+          .then(res => res.blob())
+          .then(blob => {
+            const blobUrl = URL.createObjectURL(blob);
+            setViewingFile({ name: session.pdfName || 'Lesson Notes', url: blobUrl, isBlob: true, type: 'pdf' });
+          });
+      } else {
+        setViewingFile({ name: session.pdfName || 'Lesson Notes', url: pdfUrl });
+      }
+    } else {
+      alert(`Opening document: ${session.pdfName || 'Lesson Notes'}`);
     }
   };
 
@@ -340,24 +392,9 @@ const CourseContent: React.FC = () => {
                   </p>
                   
                   <div className="flex flex-col md:flex-row flex-wrap gap-3 mt-4">
-                    {(session.pdfName || defaultSessions.some(s => s.id === session.id)) && (
+                    {(session.pdfName || session.pdfKey || defaultSessions.some(s => s.id === session.id)) && (
                       <button 
-                        onClick={() => {
-                          if (session.pdfDataUrl) {
-                            if (session.pdfDataUrl.startsWith('data:application/pdf')) {
-                              fetch(session.pdfDataUrl)
-                                .then(res => res.blob())
-                                .then(blob => {
-                                  const blobUrl = URL.createObjectURL(blob);
-                                  setViewingFile({ name: session.pdfName, url: blobUrl, isBlob: true, type: 'pdf' });
-                                });
-                            } else {
-                              setViewingFile({ name: session.pdfName, url: session.pdfDataUrl });
-                            }
-                          } else {
-                            alert(`Opening document: ${session.pdfName || 'Lesson Notes'}`);
-                          }
-                        }}
+                        onClick={() => handleOpenPdf(session)}
                         className="flex items-center justify-center md:justify-start gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors w-full md:w-auto cursor-pointer"
                       >
                         <FileText size={16} className="text-blue-500" /> {session.pdfName || 'Lesson Notes'}
