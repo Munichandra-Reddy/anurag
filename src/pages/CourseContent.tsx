@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, ChevronDown, ChevronUp, PlayCircle, FileText, CheckCircle, Plus, Trash2, X, Upload, Edit2 } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, PlayCircle, FileText, CheckCircle, Plus, Trash2, X, Upload, Edit2, RefreshCw } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
-import { getFromCloudflare, saveToCloudflare, replaceInCloudflare, getMentorKey } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, replaceInCloudflare, getMentorKey, isMuniUser } from '../utils/cloudflare';
+import { MUNI_STUDENTS } from '../data/students';
 
 const defaultSessions = [
   { id: 1, title: 'Introduction to Autodesk Revit & BIM', content: 'Understand the concept of Building Information Modeling (BIM) and how Revit fits into the architectural workflow. Learn about project templates and basic setup.' },
@@ -20,32 +21,90 @@ const CourseContent: React.FC = () => {
   const isMentor = location.pathname.includes('/mentor-dashboard');
 
   const [sessionsData, setSessionsData] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const loggedInEmail = (sessionStorage.getItem('loggedInEmail') || '').toLowerCase().trim();
+
+  // Determine if logged in user is a Muni mentor or Muni student
+  const checkIsMuni = async (): Promise<boolean> => {
+    if (!loggedInEmail) return false;
+    if (loggedInEmail === 'muni@geonixa.com' || loggedInEmail === 'raju@anurag.com') return true;
+    if (MUNI_STUDENTS.some(s => (s.email || '').toLowerCase().trim() === loggedInEmail)) return true;
+
+    const localMuni = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
+    if (Array.isArray(localMuni) && localMuni.some((s: any) => (s?.email || '').toLowerCase().trim() === loggedInEmail)) return true;
+
+    const cloudMuni = await getFromCloudflare('registeredStudents_muni@geonixa.com') || [];
+    if (Array.isArray(cloudMuni) && cloudMuni.some((s: any) => (s?.email || '').toLowerCase().trim() === loggedInEmail)) return true;
+
+    return isMuniUser();
+  };
+
+  const getCourseStorageKey = async (): Promise<string> => {
+    const isMuni = await checkIsMuni();
+    return isMuni ? 'anuragLmsCoursesRevit_muni@geonixa.com' : 'anuragLmsCoursesRevit';
+  };
+
+  // Load courses from Cloudflare Firestore & localStorage
+  const loadCourses = async () => {
+    setIsLoading(true);
+    try {
+      const courseKey = await getCourseStorageKey();
+      const cloudCourses = await getFromCloudflare(courseKey);
+      const saved = localStorage.getItem(courseKey);
+      const localCourses = saved ? JSON.parse(saved) : null;
+
+      let resolvedSessions: any[] = [];
+
+      if (cloudCourses && Array.isArray(cloudCourses)) {
+        resolvedSessions = cloudCourses;
+        localStorage.setItem(courseKey, JSON.stringify(cloudCourses));
+      } else if (localCourses && Array.isArray(localCourses)) {
+        resolvedSessions = localCourses;
+      } else {
+        resolvedSessions = courseKey.includes('_muni') ? [] : defaultSessions;
+      }
+
+      setSessionsData(resolvedSessions);
+    } catch (err) {
+      console.error("Failed to load course sessions:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadCourses = async () => {
-      const courseKey = getMentorKey('anuragLmsCoursesRevit');
-      const cloudCourses = await getFromCloudflare(courseKey);
-      if (cloudCourses && Array.isArray(cloudCourses)) {
-        setSessionsData(cloudCourses);
-      } else {
-        const saved = localStorage.getItem(courseKey);
-        const parsed = saved ? JSON.parse(saved) : null;
-        if (parsed && Array.isArray(parsed)) {
-          setSessionsData(parsed);
-        } else {
-          setSessionsData(courseKey.includes('_muni') ? [] : defaultSessions);
-        }
-      }
-    };
     loadCourses();
+
+    // Auto-refresh when tab comes into focus or every 5 seconds for real-time replication
+    const handleFocus = () => {
+      loadCourses();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    const interval = setInterval(() => {
+      loadCourses();
+    }, 5000);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(interval);
+    };
   }, []);
 
+  // Save/Update/Delete courses to Cloudflare & localStorage
   const saveCourses = async (newSessions: any[]) => {
     setSessionsData(newSessions);
-    const courseKey = getMentorKey('anuragLmsCoursesRevit');
-    localStorage.setItem(courseKey, JSON.stringify(newSessions));
-    await saveToCloudflare(courseKey, newSessions);
-    await replaceInCloudflare(courseKey, newSessions);
+    try {
+      const courseKey = await getCourseStorageKey();
+      localStorage.setItem(courseKey, JSON.stringify(newSessions));
+      
+      // Use replaceInCloudflare (WITHOUT merge) so deletions & edits physically overwrite Firestore
+      await replaceInCloudflare(courseKey, newSessions);
+      await saveToCloudflare(courseKey, newSessions);
+    } catch (err) {
+      console.error("Failed to save course sessions:", err);
+    }
   };
 
   const [isAdding, setIsAdding] = useState(false);
@@ -68,8 +127,6 @@ const CourseContent: React.FC = () => {
       reader.readAsDataURL(file);
     }
   };
-
-  // Removed the useEffect that auto-saves to localStorage
 
   const handleAddCourse = (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,13 +168,15 @@ const CourseContent: React.FC = () => {
     setNewPdfDataUrl(session.pdfDataUrl || '');
     setNewVideoUrl(session.videoUrl || '');
     
-    // Scroll to top where form is
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleRemoveCourse = (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
-    saveCourses(sessionsData.filter((s: any) => s.id !== id));
+    if (window.confirm("Are you sure you want to remove this course session? It will be removed for all Muni Mentor students.")) {
+      const updated = sessionsData.filter((s: any) => s.id !== id);
+      saveCourses(updated);
+    }
   };
 
   return (
@@ -128,6 +187,14 @@ const CourseContent: React.FC = () => {
           Course Content
         </div>
         <div className="flex items-center gap-3">
+          <button 
+            onClick={loadCourses}
+            disabled={isLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+            title="Refresh Course Content"
+          >
+            <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} /> Refresh
+          </button>
           {isMentor && !isAdding && (
             <button 
               onClick={() => {
@@ -139,7 +206,7 @@ const CourseContent: React.FC = () => {
                 setNewPdfDataUrl('');
                 setNewVideoUrl('');
               }}
-              className="flex items-center gap-2 px-4 py-1.5 bg-primary text-white rounded-lg text-sm font-bold hover:bg-orange-600 transition-colors shadow-sm"
+              className="flex items-center gap-2 px-4 py-1.5 bg-primary text-white rounded-lg text-sm font-bold hover:bg-orange-600 transition-colors shadow-sm cursor-pointer"
             >
               <Plus size={16} /> Session Course
             </button>
@@ -156,7 +223,7 @@ const CourseContent: React.FC = () => {
         <div className="bg-white border-2 border-primary/20 p-6 rounded-2xl shadow-sm mb-6 relative">
           <button 
             onClick={() => { setIsAdding(false); setEditingId(null); }}
-            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1 bg-gray-50 rounded-full"
+            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1 bg-gray-50 rounded-full cursor-pointer"
           >
             <X size={18} />
           </button>
@@ -210,13 +277,13 @@ const CourseContent: React.FC = () => {
               <button 
                 type="button"
                 onClick={() => { setIsAdding(false); setEditingId(null); }}
-                className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 text-sm transition-colors"
+                className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 text-sm transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button 
                 type="submit"
-                className="px-6 py-2 bg-primary text-white rounded-xl font-medium hover:bg-orange-600 text-sm transition-colors shadow-sm"
+                className="px-6 py-2 bg-primary text-white rounded-xl font-medium hover:bg-orange-600 text-sm transition-colors shadow-sm cursor-pointer"
               >
                 {editingId ? 'Update Course' : 'Save Course'}
               </button>
@@ -256,14 +323,14 @@ const CourseContent: React.FC = () => {
                     <div className="flex items-center gap-1">
                       <button 
                         onClick={(e) => handleEditCourse(e, session)}
-                        className="p-2 text-gray-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                        className="p-2 text-gray-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                         title="Edit Session"
                       >
                         <Edit2 size={18} />
                       </button>
                       <button 
                         onClick={(e) => handleRemoveCourse(e, session.id)}
-                        className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                         title="Remove Session"
                       >
                         <Trash2 size={18} />
@@ -299,7 +366,7 @@ const CourseContent: React.FC = () => {
                             alert(`Opening document: ${session.pdfName || 'Lesson Notes'}`);
                           }
                         }}
-                        className="flex items-center justify-center md:justify-start gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors w-full md:w-auto"
+                        className="flex items-center justify-center md:justify-start gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors w-full md:w-auto cursor-pointer"
                       >
                         <FileText size={16} className="text-blue-500" /> {session.pdfName || 'Lesson Notes'}
                       </button>
@@ -310,7 +377,7 @@ const CourseContent: React.FC = () => {
                       </a>
                     )}
                     {!isMentor && (
-                      <button className="md:ml-auto flex items-center justify-center md:justify-start gap-2 px-4 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg text-sm font-bold hover:bg-green-100 transition-colors w-full md:w-auto mt-2 md:mt-0">
+                      <button className="md:ml-auto flex items-center justify-center md:justify-start gap-2 px-4 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg text-sm font-bold hover:bg-green-100 transition-colors w-full md:w-auto mt-2 md:mt-0 cursor-pointer">
                         <CheckCircle size={16} /> Mark Completed
                       </button>
                     )}
@@ -349,7 +416,7 @@ const CourseContent: React.FC = () => {
                     }
                     setViewingFile(null);
                   }}
-                  className="p-2 text-gray-500 hover:bg-gray-200 hover:text-gray-900 rounded-full transition-colors"
+                  className="p-2 text-gray-500 hover:bg-gray-200 hover:text-gray-900 rounded-full transition-colors cursor-pointer"
                 >
                   <X size={24} />
                 </button>
