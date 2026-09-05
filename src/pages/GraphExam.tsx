@@ -171,33 +171,39 @@ const GraphExam: React.FC = () => {
 
       if (!isMentorView && loggedInEmail) {
         // Student View: Check single student submission document + pdf key + dict key
-        const studentSubKey = `${SUB_PREFIX}${loggedInEmail}`;
-        const cloudPdfKey = `graphExamPdf_${loggedInEmail}`;
-        const [cloudSub, cloudPdfSub] = await Promise.all([
+        const cleanEmail = loggedInEmail.toLowerCase().trim();
+        const studentSubKey = `${SUB_PREFIX}${cleanEmail}`;
+        const cloudPdfKey = `graphExamPdf_${cleanEmail}`;
+
+        const [cloudSub, cloudPdfSub, cloudDict] = await Promise.all([
           getFromCloudflare(studentSubKey),
-          getFromCloudflare(cloudPdfKey)
+          getFromCloudflare(cloudPdfKey),
+          getFromCloudflare('graphExamSubmissions_muni')
         ]);
 
         const localSubStr = localStorage.getItem(studentSubKey);
         const localSub = localSubStr ? JSON.parse(localSubStr) : null;
 
-        const cloudDict = await getFromCloudflare('graphExamSubmissions_muni') || {};
         const localDict = JSON.parse(localStorage.getItem('graphExamSubmissions_muni') || '{}');
-        const dictSub = cloudDict[loggedInEmail] || localDict[loggedInEmail];
+        const combinedDict = { ...(localDict || {}), ...(cloudDict || {}) };
 
-        const activeSub = (cloudSub && cloudSub.submittedAt) 
-          ? cloudSub 
-          : (cloudPdfSub && cloudPdfSub.submittedAt)
-          ? cloudPdfSub
-          : (localSub && localSub.submittedAt) 
-          ? localSub 
-          : dictSub;
+        const dictKey = Object.keys(combinedDict).find(k => k.toLowerCase().trim() === cleanEmail);
+        const dictSub = dictKey ? combinedDict[dictKey] : null;
 
-        if (activeSub && activeSub.submittedAt && !activeSub.isDeleted) {
-          loadedSubmissions[loggedInEmail] = activeSub;
-          localStorage.setItem(studentSubKey, JSON.stringify(activeSub));
+        const isValidSub = (s: any) => s && s.submittedAt && !s.isDeleted;
+
+        const activeSub = [cloudSub, cloudPdfSub, dictSub, localSub].find(isValidSub);
+
+        if (activeSub) {
+          loadedSubmissions[cleanEmail] = activeSub;
+          try {
+            localStorage.setItem(studentSubKey, JSON.stringify(activeSub));
+          } catch (e) {}
         } else {
-          localStorage.removeItem(studentSubKey);
+          try {
+            localStorage.removeItem(studentSubKey);
+            localStorage.removeItem(cloudPdfKey);
+          } catch (e) {}
         }
       } else if (isMentorView) {
         // Mentor View: Fetch dictionary object + index list + per-student keys
