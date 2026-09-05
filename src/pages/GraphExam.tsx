@@ -271,7 +271,7 @@ const GraphExam: React.FC = () => {
 
     const interval = setInterval(() => {
       loadData();
-    }, 3000);
+    }, 30000);
 
     return () => {
       window.removeEventListener('focus', handleFocus);

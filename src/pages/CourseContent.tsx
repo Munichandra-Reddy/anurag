@@ -170,7 +170,7 @@ const CourseContent: React.FC = () => {
 
     const interval = setInterval(() => {
       loadCourses();
-    }, 3000);
+    }, 30000);
 
     return () => {
       window.removeEventListener('focus', handleFocus);
