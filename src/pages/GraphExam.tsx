@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
   FileText, CheckCircle2, Clock, Upload, Trash2, Search, 
-  Eye, X, AlertCircle, FileCheck, FileCode, Sparkles, RefreshCw
+  Eye, X, AlertCircle, FileCheck, FileCode, Sparkles, RefreshCw, ExternalLink, Download
 } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare, replaceInCloudflare } from '../utils/cloudflare';
 import { MUNI_STUDENTS } from '../data/students';
@@ -73,6 +73,25 @@ const readPdfFile = (file: File): Promise<string> => {
   });
 };
 
+// Convert Base64 Data URL to Blob safely
+const dataURLtoBlob = (dataurl: string, defaultMime = 'application/pdf'): Blob | null => {
+  try {
+    const arr = dataurl.split(',');
+    if (arr.length < 2) return null;
+    const mimeMatch = arr[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : defaultMime;
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+  } catch (e) {
+    return null;
+  }
+};
+
 const GraphExam: React.FC = () => {
   const location = useLocation();
   const isMentorView = location.pathname.includes('/mentor-dashboard');
@@ -110,6 +129,7 @@ const GraphExam: React.FC = () => {
     fileName: string;
     fileType: 'image' | 'pdf';
     fileData: string;
+    blobUrl?: string;
   } | null>(null);
 
   // Load Muni students and submissions comprehensively across dictionary, index, and per-student keys
@@ -236,7 +256,7 @@ const GraphExam: React.FC = () => {
 
     const interval = setInterval(() => {
       loadData();
-    }, 5000);
+    }, 3000);
 
     return () => {
       window.removeEventListener('focus', handleFocus);
@@ -249,8 +269,8 @@ const GraphExam: React.FC = () => {
     setSubmitError('');
     if (!file) return;
 
-    if (file.size > 8 * 1024 * 1024) {
-      setSubmitError('File size is too large (max 8MB). Please choose a smaller file.');
+    if (file.size > 12 * 1024 * 1024) {
+      setSubmitError('File size is too large (max 12MB). Please choose a smaller file.');
       return;
     }
 
@@ -269,7 +289,7 @@ const GraphExam: React.FC = () => {
     });
   };
 
-  // Submit Answer
+  // Submit Answer (Guaranteed Local & Cloud Persistence)
   const handleSubmitAnswer = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError('');
@@ -295,7 +315,7 @@ const GraphExam: React.FC = () => {
         base64Data = await readPdfFile(selectedFileObj);
       }
 
-      const currentStudent = muniStudentsList.find(s => s.email === loggedInEmail) || {
+      const currentStudent = muniStudentsList.find(s => s.email.toLowerCase().trim() === loggedInEmail) || {
         name: loggedInEmail.split('@')[0],
         email: loggedInEmail,
         roll: 'N/A',
@@ -317,41 +337,34 @@ const GraphExam: React.FC = () => {
 
       const studentSubKey = `${SUB_PREFIX}${loggedInEmail}`;
 
-      // 1. Save student document to Local Storage & Firestore
+      // 1. Save student submission to LocalStorage & local state immediately
       localStorage.setItem(studentSubKey, JSON.stringify(newSubmission));
-      await replaceInCloudflare(studentSubKey, newSubmission);
-
-      // 2. Update Index list
-      const cloudIndex = await getFromCloudflare(INDEX_KEY) || [];
-      const localIndex = JSON.parse(localStorage.getItem(INDEX_KEY) || '[]');
-      const indexSet = new Set<string>([...(Array.isArray(cloudIndex) ? cloudIndex : []), ...localIndex, loggedInEmail]);
-      const updatedIndex = Array.from(indexSet);
-
-      localStorage.setItem(INDEX_KEY, JSON.stringify(updatedIndex));
-      await replaceInCloudflare(INDEX_KEY, updatedIndex);
-
-      // 3. Update dictionary object fallback
-      try {
-        const cloudDict = await getFromCloudflare('graphExamSubmissions_muni') || {};
-        const localDict = JSON.parse(localStorage.getItem('graphExamSubmissions_muni') || '{}');
-        const updatedDict = { ...localDict, ...cloudDict, [loggedInEmail]: newSubmission };
-        localStorage.setItem('graphExamSubmissions_muni', JSON.stringify(updatedDict));
-        await saveToCloudflare('graphExamSubmissions_muni', updatedDict);
-      } catch (e) {
-        // Ignore if dict exceeds size limit
-      }
-
       setSubmissions(prev => ({
         ...prev,
         [loggedInEmail]: newSubmission
       }));
+
+      // 2. Cloudfire save in background
+      try {
+        await replaceInCloudflare(studentSubKey, newSubmission);
+
+        const cloudIndex = await getFromCloudflare(INDEX_KEY) || [];
+        const localIndex = JSON.parse(localStorage.getItem(INDEX_KEY) || '[]');
+        const indexSet = new Set<string>([...(Array.isArray(cloudIndex) ? cloudIndex : []), ...localIndex, loggedInEmail]);
+        const updatedIndex = Array.from(indexSet);
+
+        localStorage.setItem(INDEX_KEY, JSON.stringify(updatedIndex));
+        await replaceInCloudflare(INDEX_KEY, updatedIndex);
+      } catch (cloudErr) {
+        console.error("Cloud sync notice:", cloudErr);
+      }
 
       setSubmitSuccess('Answer submitted successfully!');
       setIsSubmitModalOpen(false);
       setSelectedFileObj(null);
       setFilePreviewData(null);
     } catch (err) {
-      console.error("Submission failed:", err);
+      console.error("Submission error:", err);
       setSubmitError('Failed to submit answer. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -372,11 +385,9 @@ const GraphExam: React.FC = () => {
       const studentSubKey = `${SUB_PREFIX}${studentEmail}`;
       const deletedObj = { isDeleted: true, deletedAt: Date.now() };
 
-      // 1. Mark document as deleted in Firestore & Local Storage
       localStorage.setItem(studentSubKey, JSON.stringify(deletedObj));
       await replaceInCloudflare(studentSubKey, deletedObj);
 
-      // 2. Update Index
       const cloudIndex = await getFromCloudflare(INDEX_KEY) || [];
       const localIndex = JSON.parse(localStorage.getItem(INDEX_KEY) || '[]');
       const updatedIndex = Array.from(new Set([...(Array.isArray(cloudIndex) ? cloudIndex : []), ...localIndex]))
@@ -385,17 +396,6 @@ const GraphExam: React.FC = () => {
       localStorage.setItem(INDEX_KEY, JSON.stringify(updatedIndex));
       await replaceInCloudflare(INDEX_KEY, updatedIndex);
 
-      // 3. Remove from dictionary object
-      try {
-        const cloudDict = await getFromCloudflare('graphExamSubmissions_muni') || {};
-        const localDict = JSON.parse(localStorage.getItem('graphExamSubmissions_muni') || '{}');
-        const updatedDict = { ...localDict, ...cloudDict };
-        delete updatedDict[studentEmail];
-        localStorage.setItem('graphExamSubmissions_muni', JSON.stringify(updatedDict));
-        await replaceInCloudflare('graphExamSubmissions_muni', updatedDict);
-      } catch (e) {}
-
-      // 4. Update local state
       setSubmissions(prev => {
         const updated = { ...prev };
         delete updated[studentEmail];
@@ -407,6 +407,41 @@ const GraphExam: React.FC = () => {
     } finally {
       setDeletingEmail(null);
     }
+  };
+
+  // Open Preview Modal with Blob URL for PDF and native Data URL for Images
+  const handleOpenPreviewModal = (sub: StudentSubmission) => {
+    let blobUrl = '';
+    if (sub.fileType === 'pdf' && sub.fileData && sub.fileData.startsWith('data:application/pdf')) {
+      const blob = dataURLtoBlob(sub.fileData, 'application/pdf');
+      if (blob) {
+        blobUrl = URL.createObjectURL(blob);
+      }
+    }
+
+    setPreviewFile({
+      studentName: sub.studentName,
+      rollNumber: sub.rollNumber,
+      questionNumber: sub.questionNumber,
+      fileName: sub.fileName,
+      fileType: sub.fileType,
+      fileData: sub.fileData,
+      blobUrl
+    });
+  };
+
+  const handleDownloadFile = () => {
+    if (!previewFile) return;
+    const downloadUrl = previewFile.blobUrl || previewFile.fileData;
+    if (!downloadUrl) return;
+
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.target = '_blank';
+    a.download = previewFile.fileName || `${previewFile.questionNumber}_Answer`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const mySubmission = submissions[loggedInEmail];
@@ -421,7 +456,7 @@ const GraphExam: React.FC = () => {
 
     const matchesBatch = batchFilter === 'ALL' || student.batch === batchFilter;
 
-    const isSubmitted = !!submissions[student.email];
+    const isSubmitted = !!submissions[student.email.toLowerCase().trim()];
     const matchesStatus = 
       statusFilter === 'ALL' || 
       (statusFilter === 'COMPLETED' && isSubmitted) || 
@@ -523,7 +558,7 @@ const GraphExam: React.FC = () => {
                 <div className="p-5 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
                     {mySubmission.fileType === 'image' ? (
-                      <img src={mySubmission.fileData} alt={mySubmission.questionNumber} className="w-14 h-14 object-cover rounded-xl border border-gray-200 shrink-0" />
+                      <img src={mySubmission.fileData} alt={mySubmission.questionNumber} className="w-14 h-14 object-cover rounded-xl border border-gray-200 shrink-0 bg-white" />
                     ) : (
                       <div className="w-14 h-14 rounded-xl bg-red-100 text-red-600 flex items-center justify-center font-bold text-sm shrink-0">
                         PDF
@@ -539,14 +574,7 @@ const GraphExam: React.FC = () => {
                   </div>
 
                   <button
-                    onClick={() => setPreviewFile({
-                      studentName: mySubmission.studentName,
-                      rollNumber: mySubmission.rollNumber,
-                      questionNumber: mySubmission.questionNumber,
-                      fileName: mySubmission.fileName,
-                      fileType: mySubmission.fileType,
-                      fileData: mySubmission.fileData
-                    })}
+                    onClick={() => handleOpenPreviewModal(mySubmission)}
                     className="px-4 py-2.5 bg-white border border-gray-200 text-gray-800 hover:text-primary hover:border-primary text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                   >
                     <Eye size={15} /> View File
@@ -719,14 +747,7 @@ const GraphExam: React.FC = () => {
                           <td className="py-3.5 px-4">
                             {isCompleted ? (
                               <button
-                                onClick={() => setPreviewFile({
-                                  studentName: sub.studentName,
-                                  rollNumber: sub.rollNumber,
-                                  questionNumber: sub.questionNumber,
-                                  fileName: sub.fileName,
-                                  fileType: sub.fileType,
-                                  fileData: sub.fileData
-                                })}
+                                onClick={() => handleOpenPreviewModal(sub)}
                                 className="px-3 py-1.5 bg-white border border-gray-200 hover:border-primary hover:text-primary text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
                               >
                                 <Eye size={14} />
@@ -928,29 +949,39 @@ const GraphExam: React.FC = () => {
 
             {/* Viewer Area */}
             <div className="flex-1 overflow-auto bg-gray-900 rounded-2xl p-4 flex items-center justify-center min-h-[400px]">
-              {previewFile.fileType === 'image' ? (
+              {previewFile.fileType === 'image' && previewFile.fileData ? (
                 <img 
                   src={previewFile.fileData} 
                   alt={previewFile.questionNumber} 
-                  className="max-h-[70vh] w-auto object-contain rounded-lg shadow-lg mx-auto"
+                  className="max-h-[70vh] w-auto object-contain rounded-lg shadow-lg mx-auto bg-white"
                 />
+              ) : previewFile.fileType === 'pdf' ? (
+                <div className="w-full h-full flex flex-col items-center justify-center text-white space-y-4">
+                  <FileText size={64} className="text-primary animate-pulse" />
+                  <h3 className="text-lg font-bold">{previewFile.fileName}</h3>
+                  <p className="text-xs text-gray-300">Click below to open or download the student PDF answer.</p>
+                  <button
+                    onClick={handleDownloadFile}
+                    className="px-6 py-3 bg-primary text-white font-bold rounded-xl hover:bg-primary-dark transition-all shadow-md flex items-center gap-2 cursor-pointer text-xs"
+                  >
+                    <ExternalLink size={16} /> Open / Download PDF Answer
+                  </button>
+                </div>
               ) : (
-                <iframe
-                  src={previewFile.fileData}
-                  title={`${previewFile.questionNumber} PDF`}
-                  className="w-full h-[70vh] border-0 rounded-lg bg-white"
-                />
+                <div className="text-center p-8 text-white space-y-3">
+                  <FileText size={48} className="text-primary mx-auto" />
+                  <p className="text-sm font-bold">{previewFile.fileName}</p>
+                </div>
               )}
             </div>
 
             <div className="flex items-center justify-between shrink-0 pt-2 text-xs">
-              <a
-                href={previewFile.fileData}
-                download={previewFile.fileName}
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-xl transition-colors inline-flex items-center gap-1.5"
+              <button
+                onClick={handleDownloadFile}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-xl transition-colors inline-flex items-center gap-1.5 cursor-pointer"
               >
-                Download Answer File
-              </a>
+                <Download size={15} /> Download Answer File
+              </button>
 
               <button
                 onClick={() => setPreviewFile(null)}
