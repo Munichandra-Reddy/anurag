@@ -33,7 +33,7 @@ const compressImageFile = (file: File): Promise<string> => {
         const canvas = document.createElement('canvas');
         let width = img.width;
         let height = img.height;
-        const maxDim = 1200;
+        const maxDim = 900;
 
         if (width > maxDim || height > maxDim) {
           if (width > height) {
@@ -50,7 +50,7 @@ const compressImageFile = (file: File): Promise<string> => {
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(img, 0, 0, width, height);
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.65);
           resolve(compressedDataUrl);
         } else {
           resolve(event.target?.result as string);
@@ -170,9 +170,14 @@ const GraphExam: React.FC = () => {
       const loadedSubmissions: Record<string, StudentSubmission> = {};
 
       if (!isMentorView && loggedInEmail) {
-        // Student View: Check single student submission document + dict key
+        // Student View: Check single student submission document + pdf key + dict key
         const studentSubKey = `${SUB_PREFIX}${loggedInEmail}`;
-        const cloudSub = await getFromCloudflare(studentSubKey);
+        const cloudPdfKey = `graphExamPdf_${loggedInEmail}`;
+        const [cloudSub, cloudPdfSub] = await Promise.all([
+          getFromCloudflare(studentSubKey),
+          getFromCloudflare(cloudPdfKey)
+        ]);
+
         const localSubStr = localStorage.getItem(studentSubKey);
         const localSub = localSubStr ? JSON.parse(localSubStr) : null;
 
@@ -182,6 +187,8 @@ const GraphExam: React.FC = () => {
 
         const activeSub = (cloudSub && cloudSub.submittedAt) 
           ? cloudSub 
+          : (cloudPdfSub && cloudPdfSub.submittedAt)
+          ? cloudPdfSub
           : (localSub && localSub.submittedAt) 
           ? localSub 
           : dictSub;
@@ -221,15 +228,23 @@ const GraphExam: React.FC = () => {
           ...allList.map(s => s.email.toLowerCase().trim())
         ]);
 
-        // Fetch per-student documents in parallel
+        // Fetch per-student documents in parallel (both SUB_PREFIX and PDF prefix)
         const fetchPromises = Array.from(emailsToCheck).map(async (email) => {
           const k = `${SUB_PREFIX}${email}`;
-          const cloudItem = await getFromCloudflare(k);
+          const pdfK = `graphExamPdf_${email}`;
+          
+          const [cloudItem, cloudPdfItem] = await Promise.all([
+            getFromCloudflare(k),
+            getFromCloudflare(pdfK)
+          ]);
+          
           const localItem = JSON.parse(localStorage.getItem(k) || 'null');
-          const item = cloudItem !== null ? cloudItem : localItem;
+          const item = cloudItem !== null ? cloudItem : (cloudPdfItem !== null ? cloudPdfItem : localItem);
 
           if (item && item.submittedAt && !item.isDeleted) {
-            loadedSubmissions[email] = item;
+            if (!loadedSubmissions[email] || (item.fileData && !loadedSubmissions[email].fileData)) {
+              loadedSubmissions[email] = item;
+            }
           } else if (item && item.isDeleted) {
             delete loadedSubmissions[email];
           }
@@ -269,16 +284,21 @@ const GraphExam: React.FC = () => {
     setSubmitError('');
     if (!file) return;
 
-    if (file.size > 12 * 1024 * 1024) {
-      setSubmitError('File size is too large (max 12MB). Please choose a smaller file.');
-      return;
-    }
-
     const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
     const isImage = file.type.startsWith('image/') || /\.(png|jpg|jpeg|webp|gif)$/i.test(file.name);
 
     if (!isPdf && !isImage) {
       setSubmitError('Invalid file type. Please select a Screenshot (Image) or PDF file.');
+      return;
+    }
+
+    if (isPdf && file.size > 800 * 1024) {
+      setSubmitError('PDF file size is too large (max 800KB to sync with Muni Mentor dashboard). Please compress your PDF file or upload a Screenshot image.');
+      return;
+    }
+
+    if (isImage && file.size > 15 * 1024 * 1024) {
+      setSubmitError('Image file size is too large (max 15MB).');
       return;
     }
 
@@ -289,7 +309,7 @@ const GraphExam: React.FC = () => {
     });
   };
 
-  // Submit Answer (Guaranteed Local & Cloud Persistence)
+  // Submit Answer (Guaranteed Local & Cloud Persistence across multiple keys)
   const handleSubmitAnswer = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError('');
@@ -336,18 +356,30 @@ const GraphExam: React.FC = () => {
       };
 
       const studentSubKey = `${SUB_PREFIX}${loggedInEmail}`;
+      const pdfSubKey = `graphExamPdf_${loggedInEmail}`;
 
       // 1. Save student submission to LocalStorage & local state immediately
       localStorage.setItem(studentSubKey, JSON.stringify(newSubmission));
+      localStorage.setItem(pdfSubKey, JSON.stringify(newSubmission));
+      
       setSubmissions(prev => ({
         ...prev,
         [loggedInEmail]: newSubmission
       }));
 
-      // 2. Cloudfire save in background
+      // 2. Cloudfire save in background across multiple keys to guarantee Muni Mentor access
       try {
         await replaceInCloudflare(studentSubKey, newSubmission);
+        await replaceInCloudflare(pdfSubKey, newSubmission);
 
+        // Also update graphExamSubmissions_muni (combined dictionary)
+        const cloudDict = await getFromCloudflare('graphExamSubmissions_muni') || {};
+        const localDict = JSON.parse(localStorage.getItem('graphExamSubmissions_muni') || '{}');
+        const updatedDict = { ...localDict, ...(cloudDict || {}), [loggedInEmail]: newSubmission };
+        localStorage.setItem('graphExamSubmissions_muni', JSON.stringify(updatedDict));
+        await replaceInCloudflare('graphExamSubmissions_muni', updatedDict);
+
+        // Also update graphExamIndex_muni (index array)
         const cloudIndex = await getFromCloudflare(INDEX_KEY) || [];
         const localIndex = JSON.parse(localStorage.getItem(INDEX_KEY) || '[]');
         const indexSet = new Set<string>([...(Array.isArray(cloudIndex) ? cloudIndex : []), ...localIndex, loggedInEmail]);
@@ -383,10 +415,21 @@ const GraphExam: React.FC = () => {
     setDeletingEmail(studentEmail);
     try {
       const studentSubKey = `${SUB_PREFIX}${studentEmail}`;
+      const pdfSubKey = `graphExamPdf_${studentEmail}`;
       const deletedObj = { isDeleted: true, deletedAt: Date.now() };
 
       localStorage.setItem(studentSubKey, JSON.stringify(deletedObj));
+      localStorage.setItem(pdfSubKey, JSON.stringify(deletedObj));
+
       await replaceInCloudflare(studentSubKey, deletedObj);
+      await replaceInCloudflare(pdfSubKey, deletedObj);
+
+      const cloudDict = await getFromCloudflare('graphExamSubmissions_muni') || {};
+      const localDict = JSON.parse(localStorage.getItem('graphExamSubmissions_muni') || '{}');
+      const updatedDict = { ...localDict, ...(cloudDict || {}) };
+      delete updatedDict[studentEmail];
+      localStorage.setItem('graphExamSubmissions_muni', JSON.stringify(updatedDict));
+      await replaceInCloudflare('graphExamSubmissions_muni', updatedDict);
 
       const cloudIndex = await getFromCloudflare(INDEX_KEY) || [];
       const localIndex = JSON.parse(localStorage.getItem(INDEX_KEY) || '[]');
@@ -409,23 +452,52 @@ const GraphExam: React.FC = () => {
     }
   };
 
-  // Open Preview Modal with Blob URL for PDF and native Data URL for Images
-  const handleOpenPreviewModal = (sub: StudentSubmission) => {
+  // Open Preview Modal with Blob URL for PDF and native Data URL for Images (with real-time cloud fallback)
+  const handleOpenPreviewModal = async (sub: StudentSubmission) => {
+    let currentSub = { ...sub };
+
+    // Fallback: If fileData is missing or truncated, fetch real-time from Cloudflare
+    if (!currentSub.fileData || currentSub.fileData.length < 20) {
+      try {
+        const studentEmail = currentSub.studentEmail.toLowerCase().trim();
+        const [cloudSub, cloudPdf, cloudDict] = await Promise.all([
+          getFromCloudflare(`${SUB_PREFIX}${studentEmail}`),
+          getFromCloudflare(`graphExamPdf_${studentEmail}`),
+          getFromCloudflare('graphExamSubmissions_muni')
+        ]);
+        const fetched = (cloudSub && cloudSub.fileData) 
+          ? cloudSub 
+          : (cloudPdf && cloudPdf.fileData) 
+          ? cloudPdf 
+          : (cloudDict && cloudDict[studentEmail]);
+
+        if (fetched && fetched.fileData) {
+          currentSub = { ...currentSub, ...fetched };
+          setSubmissions(prev => ({
+            ...prev,
+            [studentEmail]: currentSub
+          }));
+        }
+      } catch (err) {
+        console.error("Failed to load missing fileData:", err);
+      }
+    }
+
     let blobUrl = '';
-    if (sub.fileType === 'pdf' && sub.fileData && sub.fileData.startsWith('data:application/pdf')) {
-      const blob = dataURLtoBlob(sub.fileData, 'application/pdf');
+    if (currentSub.fileType === 'pdf' && currentSub.fileData && currentSub.fileData.startsWith('data:application/pdf')) {
+      const blob = dataURLtoBlob(currentSub.fileData, 'application/pdf');
       if (blob) {
         blobUrl = URL.createObjectURL(blob);
       }
     }
 
     setPreviewFile({
-      studentName: sub.studentName,
-      rollNumber: sub.rollNumber,
-      questionNumber: sub.questionNumber,
-      fileName: sub.fileName,
-      fileType: sub.fileType,
-      fileData: sub.fileData,
+      studentName: currentSub.studentName,
+      rollNumber: currentSub.rollNumber,
+      questionNumber: currentSub.questionNumber,
+      fileName: currentSub.fileName,
+      fileType: currentSub.fileType,
+      fileData: currentSub.fileData,
       blobUrl
     });
   };
@@ -949,11 +1021,14 @@ const GraphExam: React.FC = () => {
 
             {/* Viewer Area */}
             <div className="flex-1 overflow-auto bg-gray-900 rounded-2xl p-4 flex items-center justify-center min-h-[400px]">
-              {previewFile.fileType === 'image' && previewFile.fileData ? (
+              {previewFile.fileType === 'image' && previewFile.fileData && previewFile.fileData.length > 20 ? (
                 <img 
                   src={previewFile.fileData} 
                   alt={previewFile.questionNumber} 
                   className="max-h-[70vh] w-auto object-contain rounded-lg shadow-lg mx-auto bg-white"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                  }}
                 />
               ) : previewFile.fileType === 'pdf' ? (
                 <div className="w-full h-full flex flex-col items-center justify-center text-white space-y-4">
@@ -970,7 +1045,14 @@ const GraphExam: React.FC = () => {
               ) : (
                 <div className="text-center p-8 text-white space-y-3">
                   <FileText size={48} className="text-primary mx-auto" />
-                  <p className="text-sm font-bold">{previewFile.fileName}</p>
+                  <p className="text-sm font-bold">{previewFile.fileName || 'Submitted Document'}</p>
+                  <p className="text-xs text-gray-400">File content ready for mentor inspection.</p>
+                  <button
+                    onClick={handleDownloadFile}
+                    className="px-5 py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-primary-dark transition-all shadow-md flex items-center gap-2 mx-auto cursor-pointer text-xs"
+                  >
+                    <Download size={15} /> Download File
+                  </button>
                 </div>
               )}
             </div>
