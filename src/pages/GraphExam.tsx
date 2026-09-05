@@ -292,8 +292,8 @@ const GraphExam: React.FC = () => {
       return;
     }
 
-    if (isPdf && file.size > 800 * 1024) {
-      setSubmitError('PDF file size is too large (max 800KB to sync with Muni Mentor dashboard). Please compress your PDF file or upload a Screenshot image.');
+    if (isPdf && file.size > 750 * 1024) {
+      setSubmitError('PDF file size is too large (max 750KB to sync with Muni Mentor dashboard). Please compress your PDF file or upload a Screenshot image.');
       return;
     }
 
@@ -358,16 +358,27 @@ const GraphExam: React.FC = () => {
       const studentSubKey = `${SUB_PREFIX}${loggedInEmail}`;
       const pdfSubKey = `graphExamPdf_${loggedInEmail}`;
 
-      // 1. Save student submission to LocalStorage & local state immediately
-      localStorage.setItem(studentSubKey, JSON.stringify(newSubmission));
-      localStorage.setItem(pdfSubKey, JSON.stringify(newSubmission));
-      
+      // 1. Update react state immediately for instant feedback
       setSubmissions(prev => ({
         ...prev,
         [loggedInEmail]: newSubmission
       }));
 
-      // 2. Cloudfire save in background across multiple keys to guarantee Muni Mentor access
+      // 2. Safe LocalStorage save (QuotaExceededError safety wrapper)
+      try {
+        localStorage.setItem(studentSubKey, JSON.stringify(newSubmission));
+        localStorage.setItem(pdfSubKey, JSON.stringify(newSubmission));
+      } catch (localErr) {
+        console.warn("LocalStorage full, saving lightweight submission metadata locally:", localErr);
+        try {
+          const lightSub = { ...newSubmission, fileData: '' };
+          localStorage.setItem(studentSubKey, JSON.stringify(lightSub));
+        } catch (e) {
+          // ignore local quota error
+        }
+      }
+
+      // 3. Cloudfire save across multiple keys to guarantee Muni Mentor access
       try {
         await replaceInCloudflare(studentSubKey, newSubmission);
         await replaceInCloudflare(pdfSubKey, newSubmission);
@@ -376,7 +387,11 @@ const GraphExam: React.FC = () => {
         const cloudDict = await getFromCloudflare('graphExamSubmissions_muni') || {};
         const localDict = JSON.parse(localStorage.getItem('graphExamSubmissions_muni') || '{}');
         const updatedDict = { ...localDict, ...(cloudDict || {}), [loggedInEmail]: newSubmission };
-        localStorage.setItem('graphExamSubmissions_muni', JSON.stringify(updatedDict));
+        
+        try {
+          localStorage.setItem('graphExamSubmissions_muni', JSON.stringify(updatedDict));
+        } catch (e) {}
+        
         await replaceInCloudflare('graphExamSubmissions_muni', updatedDict);
 
         // Also update graphExamIndex_muni (index array)
@@ -385,7 +400,10 @@ const GraphExam: React.FC = () => {
         const indexSet = new Set<string>([...(Array.isArray(cloudIndex) ? cloudIndex : []), ...localIndex, loggedInEmail]);
         const updatedIndex = Array.from(indexSet);
 
-        localStorage.setItem(INDEX_KEY, JSON.stringify(updatedIndex));
+        try {
+          localStorage.setItem(INDEX_KEY, JSON.stringify(updatedIndex));
+        } catch (e) {}
+
         await replaceInCloudflare(INDEX_KEY, updatedIndex);
       } catch (cloudErr) {
         console.error("Cloud sync notice:", cloudErr);
@@ -395,9 +413,9 @@ const GraphExam: React.FC = () => {
       setIsSubmitModalOpen(false);
       setSelectedFileObj(null);
       setFilePreviewData(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Submission error:", err);
-      setSubmitError('Failed to submit answer. Please try again.');
+      setSubmitError(err?.message || 'Failed to submit answer. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -418,8 +436,10 @@ const GraphExam: React.FC = () => {
       const pdfSubKey = `graphExamPdf_${studentEmail}`;
       const deletedObj = { isDeleted: true, deletedAt: Date.now() };
 
-      localStorage.setItem(studentSubKey, JSON.stringify(deletedObj));
-      localStorage.setItem(pdfSubKey, JSON.stringify(deletedObj));
+      try {
+        localStorage.setItem(studentSubKey, JSON.stringify(deletedObj));
+        localStorage.setItem(pdfSubKey, JSON.stringify(deletedObj));
+      } catch (e) {}
 
       await replaceInCloudflare(studentSubKey, deletedObj);
       await replaceInCloudflare(pdfSubKey, deletedObj);
@@ -428,7 +448,11 @@ const GraphExam: React.FC = () => {
       const localDict = JSON.parse(localStorage.getItem('graphExamSubmissions_muni') || '{}');
       const updatedDict = { ...localDict, ...(cloudDict || {}) };
       delete updatedDict[studentEmail];
-      localStorage.setItem('graphExamSubmissions_muni', JSON.stringify(updatedDict));
+
+      try {
+        localStorage.setItem('graphExamSubmissions_muni', JSON.stringify(updatedDict));
+      } catch (e) {}
+
       await replaceInCloudflare('graphExamSubmissions_muni', updatedDict);
 
       const cloudIndex = await getFromCloudflare(INDEX_KEY) || [];
@@ -436,7 +460,10 @@ const GraphExam: React.FC = () => {
       const updatedIndex = Array.from(new Set([...(Array.isArray(cloudIndex) ? cloudIndex : []), ...localIndex]))
         .filter(email => email !== studentEmail);
 
-      localStorage.setItem(INDEX_KEY, JSON.stringify(updatedIndex));
+      try {
+        localStorage.setItem(INDEX_KEY, JSON.stringify(updatedIndex));
+      } catch (e) {}
+
       await replaceInCloudflare(INDEX_KEY, updatedIndex);
 
       setSubmissions(prev => {
