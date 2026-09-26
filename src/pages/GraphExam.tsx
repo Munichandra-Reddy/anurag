@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
   FileText, CheckCircle2, Clock, Upload, Trash2, Search, 
-  Eye, X, AlertCircle, FileCheck, FileCode, Sparkles, RefreshCw, ExternalLink, Download
+  Eye, X, AlertCircle, FileCheck, FileCode, Sparkles, RefreshCw, ExternalLink, Download, Award
 } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare, replaceInCloudflare } from '../utils/cloudflare';
 import { MUNI_STUDENTS } from '../data/students';
@@ -18,6 +18,7 @@ interface StudentSubmission {
   fileType: 'image' | 'pdf';
   fileData: string; // Base64 data URL
   isDeleted?: boolean;
+  marks?: string | number;
 }
 
 const INDEX_KEY = 'graphExamIndex_muni';
@@ -121,6 +122,12 @@ const GraphExam: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [deletingEmail, setDeletingEmail] = useState<string | null>(null);
 
+  // Marks states
+  const [studentMarksDict, setStudentMarksDict] = useState<Record<string, string | number>>({});
+  const [editingMarks, setEditingMarks] = useState<Record<string, string>>({});
+  const [savingMarksEmail, setSavingMarksEmail] = useState<string | null>(null);
+  const [savedMarksStatus, setSavedMarksStatus] = useState<Record<string, boolean>>({});
+
   // Preview Modal state
   const [previewFile, setPreviewFile] = useState<{
     studentName: string;
@@ -136,6 +143,11 @@ const GraphExam: React.FC = () => {
   const loadData = async () => {
     setIsLoading(true);
     try {
+      // 0. Fetch Marks Dictionary
+      const cloudMarks = await getFromCloudflare('graphExamMarks_muni') || {};
+      const localMarks = JSON.parse(localStorage.getItem('graphExamMarks_muni') || '{}');
+      const combinedMarks = { ...(localMarks || {}), ...(cloudMarks || {}) };
+      setStudentMarksDict(combinedMarks);
       // 1. Fetch Muni Student List
       const cloudMuniStudents = await getFromCloudflare('registeredStudents_muni@geonixa.com') || [];
       const localMuniStudents = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
@@ -485,6 +497,76 @@ const GraphExam: React.FC = () => {
     }
   };
 
+  // Save Student Marks (Mentor)
+  const handleSaveMarks = async (studentEmail: string) => {
+    const cleanEmail = studentEmail.toLowerCase().trim();
+    const markVal = editingMarks[cleanEmail] !== undefined
+      ? editingMarks[cleanEmail]
+      : (studentMarksDict[cleanEmail] ?? (submissions[cleanEmail]?.marks ?? ''));
+
+    setSavingMarksEmail(cleanEmail);
+
+    try {
+      // 1. Update marks dictionary state & local/cloud storage
+      const localMarks = JSON.parse(localStorage.getItem('graphExamMarks_muni') || '{}');
+      const cloudMarks = await getFromCloudflare('graphExamMarks_muni') || {};
+      const updatedMarks = { ...(localMarks || {}), ...(cloudMarks || {}), [cleanEmail]: markVal };
+
+      setStudentMarksDict(updatedMarks);
+
+      try {
+        localStorage.setItem('graphExamMarks_muni', JSON.stringify(updatedMarks));
+      } catch (e) {}
+
+      await replaceInCloudflare('graphExamMarks_muni', updatedMarks);
+
+      // 2. If student submission exists, update submission object with marks as well
+      if (submissions[cleanEmail]) {
+        const updatedSub = {
+          ...submissions[cleanEmail],
+          marks: markVal
+        };
+
+        setSubmissions(prev => ({
+          ...prev,
+          [cleanEmail]: updatedSub
+        }));
+
+        const studentSubKey = `${SUB_PREFIX}${cleanEmail}`;
+        const pdfSubKey = `graphExamPdf_${cleanEmail}`;
+
+        try {
+          localStorage.setItem(studentSubKey, JSON.stringify(updatedSub));
+          localStorage.setItem(pdfSubKey, JSON.stringify(updatedSub));
+        } catch (e) {}
+
+        await replaceInCloudflare(studentSubKey, updatedSub);
+        await replaceInCloudflare(pdfSubKey, updatedSub);
+
+        // Also update graphExamSubmissions_muni dictionary
+        const cloudDict = await getFromCloudflare('graphExamSubmissions_muni') || {};
+        const localDict = JSON.parse(localStorage.getItem('graphExamSubmissions_muni') || '{}');
+        const updatedDict = { ...(localDict || {}), ...(cloudDict || {}), [cleanEmail]: updatedSub };
+
+        try {
+          localStorage.setItem('graphExamSubmissions_muni', JSON.stringify(updatedDict));
+        } catch (e) {}
+
+        await replaceInCloudflare('graphExamSubmissions_muni', updatedDict);
+      }
+
+      setSavedMarksStatus(prev => ({ ...prev, [cleanEmail]: true }));
+      setTimeout(() => {
+        setSavedMarksStatus(prev => ({ ...prev, [cleanEmail]: false }));
+      }, 2500);
+    } catch (err) {
+      console.error("Failed to save student marks:", err);
+      alert("Failed to save marks. Please try again.");
+    } finally {
+      setSavingMarksEmail(null);
+    }
+  };
+
   // Open Preview Modal with Blob URL for PDF and native Data URL for Images (with real-time cloud fallback)
   const handleOpenPreviewModal = async (sub: StudentSubmission) => {
     let currentSub = { ...sub };
@@ -695,6 +777,46 @@ const GraphExam: React.FC = () => {
                 </p>
               </div>
             )}
+
+            {/* Student Marks Display Section */}
+            {(() => {
+              const studentCleanEmail = loggedInEmail.toLowerCase().trim();
+              const myMarks = studentMarksDict[studentCleanEmail] ?? (mySubmission?.marks ?? '');
+              const hasMarks = myMarks !== undefined && myMarks !== null && String(myMarks).trim() !== '';
+
+              return (
+                <div className="pt-2 border-t border-gray-100">
+                  <div className="p-5 bg-gradient-to-r from-red-50/80 via-white to-amber-50/80 border border-red-200/70 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center font-black shrink-0 shadow-sm">
+                        <Award size={24} />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Graph Exam 1 Marks</h4>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {hasMarks ? (
+                            <span className="text-xl font-black text-gray-900 flex items-center gap-1.5">
+                              <span className="text-primary">{myMarks}</span>
+                              {!String(myMarks).includes('/') && <span className="text-xs font-semibold text-gray-400">/ 100</span>}
+                            </span>
+                          ) : (
+                            <span className="text-xs font-bold text-amber-700 bg-amber-100/80 px-2.5 py-1 rounded-lg">
+                              Pending Mentor Evaluation
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {hasMarks && (
+                      <div className="px-3.5 py-1.5 bg-emerald-100 text-emerald-800 border border-emerald-300 font-extrabold text-xs rounded-full flex items-center gap-1.5 self-start sm:self-auto">
+                        <CheckCircle2 size={14} className="text-emerald-600" /> Graded by Muni Mentor
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -809,19 +931,21 @@ const GraphExam: React.FC = () => {
                     <th className="py-3.5 px-4">Question Number</th>
                     <th className="py-3.5 px-4">Answers (PDF / Screenshot)</th>
                     <th className="py-3.5 px-4">Status</th>
+                    <th className="py-3.5 px-4">Marks</th>
                     <th className="py-3.5 px-4 text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-xs">
                   {mentorTableData.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-gray-400 italic">
+                      <td colSpan={7} className="py-8 text-center text-gray-400 italic">
                         No student records found matching filter criteria.
                       </td>
                     </tr>
                   ) : (
                     mentorTableData.map(student => {
-                      const sub = submissions[student.email.toLowerCase().trim()];
+                      const studentCleanEmail = student.email.toLowerCase().trim();
+                      const sub = submissions[studentCleanEmail];
                       const isCompleted = !!sub;
 
                       return (
@@ -874,6 +998,40 @@ const GraphExam: React.FC = () => {
                                 <Clock size={12} /> Pending
                               </span>
                             )}
+                          </td>
+
+                          {/* Marks (Input + Submit Button) */}
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                placeholder="Enter marks"
+                                value={editingMarks[studentCleanEmail] !== undefined
+                                  ? editingMarks[studentCleanEmail]
+                                  : (studentMarksDict[studentCleanEmail] ?? (sub?.marks ?? ''))}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  setEditingMarks(prev => ({ ...prev, [studentCleanEmail]: val }));
+                                }}
+                                className="w-24 px-2.5 py-1.5 bg-gray-50 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
+                              />
+                              <button
+                                onClick={() => handleSaveMarks(student.email)}
+                                disabled={savingMarksEmail === studentCleanEmail}
+                                className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1 cursor-pointer shrink-0 disabled:opacity-50"
+                              >
+                                {savingMarksEmail === studentCleanEmail ? (
+                                  <RefreshCw size={13} className="animate-spin" />
+                                ) : savedMarksStatus[studentCleanEmail] ? (
+                                  <>
+                                    <CheckCircle2 size={13} className="text-emerald-300" />
+                                    <span>Saved</span>
+                                  </>
+                                ) : (
+                                  'Submit'
+                                )}
+                              </button>
+                            </div>
                           </td>
 
                           {/* Delete Action */}
