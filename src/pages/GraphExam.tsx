@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
   FileText, CheckCircle2, Clock, Upload, Trash2, Search, 
-  Eye, X, AlertCircle, FileCheck, FileCode, Sparkles, RefreshCw, ExternalLink, Download, Award
+  Eye, X, AlertCircle, FileCheck, FileCode, Sparkles, RefreshCw, ExternalLink, Download, Award, Edit2
 } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare, replaceInCloudflare } from '../utils/cloudflare';
 import { MUNI_STUDENTS } from '../data/students';
@@ -125,6 +125,7 @@ const GraphExam: React.FC = () => {
   // Marks states
   const [studentMarksDict, setStudentMarksDict] = useState<Record<string, string | number>>({});
   const [editingMarks, setEditingMarks] = useState<Record<string, string>>({});
+  const [editingMarksMode, setEditingMarksMode] = useState<Record<string, boolean>>({});
   const [savingMarksEmail, setSavingMarksEmail] = useState<string | null>(null);
   const [savedMarksStatus, setSavedMarksStatus] = useState<Record<string, boolean>>({});
 
@@ -556,6 +557,7 @@ const GraphExam: React.FC = () => {
       }
 
       setSavedMarksStatus(prev => ({ ...prev, [cleanEmail]: true }));
+      setEditingMarksMode(prev => ({ ...prev, [cleanEmail]: false }));
       setTimeout(() => {
         setSavedMarksStatus(prev => ({ ...prev, [cleanEmail]: false }));
       }, 2500);
@@ -1000,38 +1002,68 @@ const GraphExam: React.FC = () => {
                             )}
                           </td>
 
-                          {/* Marks (Input + Submit Button) */}
+                          {/* Marks (Fixed Display + Edit Button or Input + Submit Button) */}
                           <td className="py-3.5 px-4">
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="text"
-                                placeholder="Enter marks"
-                                value={editingMarks[studentCleanEmail] !== undefined
-                                  ? editingMarks[studentCleanEmail]
-                                  : (studentMarksDict[studentCleanEmail] ?? (sub?.marks ?? ''))}
-                                onChange={e => {
-                                  const val = e.target.value;
-                                  setEditingMarks(prev => ({ ...prev, [studentCleanEmail]: val }));
-                                }}
-                                className="w-24 px-2.5 py-1.5 bg-gray-50 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
-                              />
-                              <button
-                                onClick={() => handleSaveMarks(student.email)}
-                                disabled={savingMarksEmail === studentCleanEmail}
-                                className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1 cursor-pointer shrink-0 disabled:opacity-50"
-                              >
-                                {savingMarksEmail === studentCleanEmail ? (
-                                  <RefreshCw size={13} className="animate-spin" />
-                                ) : savedMarksStatus[studentCleanEmail] ? (
-                                  <>
-                                    <CheckCircle2 size={13} className="text-emerald-300" />
-                                    <span>Saved</span>
-                                  </>
-                                ) : (
-                                  'Submit'
-                                )}
-                              </button>
-                            </div>
+                            {(() => {
+                              const savedMark = studentMarksDict[studentCleanEmail] ?? (sub?.marks ?? '');
+                              const hasSavedMark = savedMark !== undefined && savedMark !== null && String(savedMark).trim() !== '';
+                              const isEditing = editingMarksMode[studentCleanEmail];
+
+                              if (hasSavedMark && !isEditing) {
+                                return (
+                                  <div className="flex items-center gap-2">
+                                    <span className="px-3 py-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200/80 rounded-xl font-extrabold text-xs inline-flex items-center gap-1.5 shadow-2xs">
+                                      <CheckCircle2 size={13} className="text-emerald-600" />
+                                      <span>{savedMark} {!String(savedMark).toLowerCase().includes('mark') && 'Marks'}</span>
+                                    </span>
+                                    <button
+                                      onClick={() => {
+                                        setEditingMarks(prev => ({ ...prev, [studentCleanEmail]: String(savedMark) }));
+                                        setEditingMarksMode(prev => ({ ...prev, [studentCleanEmail]: true }));
+                                      }}
+                                      className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-primary font-bold text-xs rounded-xl transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                                      title="Edit student marks"
+                                    >
+                                      <Edit2 size={13} />
+                                      <span>Edit</span>
+                                    </button>
+                                  </div>
+                                );
+                              }
+
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="text"
+                                    placeholder="Enter marks"
+                                    value={editingMarks[studentCleanEmail] !== undefined
+                                      ? editingMarks[studentCleanEmail]
+                                      : (studentMarksDict[studentCleanEmail] ?? (sub?.marks ?? ''))}
+                                    onChange={e => {
+                                      const val = e.target.value;
+                                      setEditingMarks(prev => ({ ...prev, [studentCleanEmail]: val }));
+                                    }}
+                                    className="w-24 px-2.5 py-1.5 bg-gray-50 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
+                                  />
+                                  <button
+                                    onClick={() => handleSaveMarks(student.email)}
+                                    disabled={savingMarksEmail === studentCleanEmail}
+                                    className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1 cursor-pointer shrink-0 disabled:opacity-50"
+                                  >
+                                    {savingMarksEmail === studentCleanEmail ? (
+                                      <RefreshCw size={13} className="animate-spin" />
+                                    ) : savedMarksStatus[studentCleanEmail] ? (
+                                      <>
+                                        <CheckCircle2 size={13} className="text-emerald-300" />
+                                        <span>Saved</span>
+                                      </>
+                                    ) : (
+                                      'Submit'
+                                    )}
+                                  </button>
+                                </div>
+                              );
+                            })()}
                           </td>
 
                           {/* Delete Action */}
