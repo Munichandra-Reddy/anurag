@@ -799,7 +799,7 @@ const GraphExam: React.FC = () => {
                           {hasMarks ? (
                             <span className="text-xl font-black text-gray-900 flex items-center gap-1.5">
                               <span className="text-primary">{myMarks}</span>
-                              {!String(myMarks).includes('/') && <span className="text-xs font-semibold text-gray-400">/ 100</span>}
+                              {!String(myMarks).includes('/') && <span className="text-xs font-semibold text-gray-400">/ 20</span>}
                             </span>
                           ) : (
                             <span className="text-xs font-bold text-amber-700 bg-amber-100/80 px-2.5 py-1 rounded-lg">
@@ -809,12 +809,6 @@ const GraphExam: React.FC = () => {
                         </div>
                       </div>
                     </div>
-
-                    {hasMarks && (
-                      <div className="px-3.5 py-1.5 bg-emerald-100 text-emerald-800 border border-emerald-300 font-extrabold text-xs rounded-full flex items-center gap-1.5 self-start sm:self-auto">
-                        <CheckCircle2 size={14} className="text-emerald-600" /> Graded by Muni Mentor
-                      </div>
-                    )}
                   </div>
                 </div>
               );
