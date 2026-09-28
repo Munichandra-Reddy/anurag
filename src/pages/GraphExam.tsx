@@ -794,7 +794,7 @@ const GraphExam: React.FC = () => {
                         <Award size={24} />
                       </div>
                       <div>
-                        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Graph Exam 1 Marks</h4>
+                        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Graph 1 Marks</h4>
                         <div className="flex items-center gap-2 mt-0.5">
                           {hasMarks ? (
                             <span className="text-xl font-black text-gray-900 flex items-center gap-1.5">
@@ -927,7 +927,7 @@ const GraphExam: React.FC = () => {
                     <th className="py-3.5 px-4">Question Number</th>
                     <th className="py-3.5 px-4">Answers (PDF / Screenshot)</th>
                     <th className="py-3.5 px-4">Status</th>
-                    <th className="py-3.5 px-4">Marks</th>
+                    <th className="py-3.5 px-4">Graph 1 Marks</th>
                     <th className="py-3.5 px-4 text-center">Action</th>
                   </tr>
                 </thead>
@@ -1029,7 +1029,7 @@ const GraphExam: React.FC = () => {
                                 <div className="flex items-center gap-2">
                                   <input
                                     type="text"
-                                    placeholder="Enter marks"
+                                    placeholder="Enter graph 1 marks"
                                     value={editingMarks[studentCleanEmail] !== undefined
                                       ? editingMarks[studentCleanEmail]
                                       : (studentMarksDict[studentCleanEmail] ?? (sub?.marks ?? ''))}
