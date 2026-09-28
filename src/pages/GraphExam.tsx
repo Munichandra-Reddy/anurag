@@ -754,7 +754,7 @@ const GraphExam: React.FC = () => {
                       </div>
                     )}
                     <div>
-                      <span className="px-2.5 py-1 bg-primary/10 text-primary text-xs font-bold rounded-lg inline-block mb-1">
+                      <span className="px-2.5 py-1 bg-primary/10 text-primary text-xs font-bold rounded-lg inline-block whitespace-nowrap mb-1">
                         {mySubmission.questionNumber}
                       </span>
                       <p className="text-xs font-bold text-gray-800 truncate max-w-xs">{mySubmission.fileName}</p>
@@ -960,7 +960,7 @@ const GraphExam: React.FC = () => {
                           {/* Question Number */}
                           <td className="py-3.5 px-4">
                             {isCompleted && sub.questionNumber ? (
-                              <span className="px-2.5 py-1 bg-primary/10 text-primary font-bold rounded-lg text-xs">
+                              <span className="px-2.5 py-1 bg-primary/10 text-primary font-bold rounded-lg text-xs whitespace-nowrap">
                                 {sub.questionNumber}
                               </span>
                             ) : (
@@ -1219,7 +1219,7 @@ const GraphExam: React.FC = () => {
             <div className="flex items-center justify-between border-b border-gray-100 pb-3 shrink-0">
               <div>
                 <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 bg-primary text-white rounded-md text-xs">
+                  <span className="px-2.5 py-0.5 bg-primary text-white rounded-md text-xs whitespace-nowrap">
                     {previewFile.questionNumber}
                   </span>
                   Answer File: {previewFile.fileName}
