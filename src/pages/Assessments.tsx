@@ -51,6 +51,7 @@ const Assessments: React.FC = () => {
 
   const [preExams, setPreExams] = useState<any[]>([]);
   const [preSubmissions, setPreSubmissions] = useState<any>(null);
+  const [manualPreMarks, setManualPreMarks] = useState<Record<string, any>>({});
 
   const loadPreData = async () => {
     if (!loggedInEmail) return;
@@ -60,11 +61,15 @@ const Assessments: React.FC = () => {
       try { setPreSubmissions(JSON.parse(localSaved)); } catch (e) {}
     }
 
-    const [examsData, subsData] = await Promise.all([
+    const [examsData, subsData, cloudManualPre] = await Promise.all([
       getFromCloudflare('anuragLmsPreAssessmentsData'),
-      getFromCloudflare(subKey)
+      getFromCloudflare(subKey),
+      getFromCloudflare('preAssessmentManualMarks_muni')
     ]);
     
+    const localManualPre = JSON.parse(localStorage.getItem('preAssessmentManualMarks_muni') || '{}');
+    setManualPreMarks({ ...(localManualPre || {}), ...(cloudManualPre || {}) });
+
     const normalizedEmail = (loggedInEmail || '').toLowerCase().trim();
     const cloudMuniStudents = await getFromCloudflare('registeredStudents_muni@geonixa.com') || [];
     const localMuniStudents = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
@@ -458,32 +463,70 @@ const Assessments: React.FC = () => {
               </>
             )}
 
-            {!isMentor && relevantExams.map((e: any) => {
-              const sub = preSubmissions?.[e.id] || (e.title === 'Pre-Assessment Test (Set 1)' ? preSubmissions?.['pre_muni_a1_set1'] : null) || (Object.values(preSubmissions || {}).find((s: any) => s && (s.submittedAt || s.marks)) as any);
-              const isEvaluated = sub?.marks !== undefined && sub?.marks?.total !== undefined;
-              return (
-                <div key={e.id} className="flex justify-between items-center pt-4 border-t border-gray-100 mt-4">
-                  <span className="font-bold text-gray-800 text-lg">
-                    {isEvaluated ? `Marks Obtained (${e.title})` : `Status (${e.title})`}
-                  </span>
-                  {isEvaluated ? (
+            {!isMentor && (() => {
+              const studentEmailClean = (loggedInEmail || '').toLowerCase().trim();
+              const studentManualMark = manualPreMarks[studentEmailClean] ?? preSubmissions?.manualMarks;
+              const hasManualMark = studentManualMark !== undefined && studentManualMark !== null && String(studentManualMark).trim() !== '';
+
+              if (hasManualMark) {
+                return (
+                  <div className="flex justify-between items-center pt-4 border-t border-gray-100 mt-4">
+                    <span className="font-bold text-gray-800 text-lg">
+                      Marks Obtained (Pre Assessment)
+                    </span>
                     <div className="flex items-center gap-3">
                       <span className="px-3 py-1 bg-green-50 text-green-700 font-bold rounded-lg text-sm border border-green-200">
                         Completed
                       </span>
-                      <span className="font-black text-green-600 text-2xl">{sub.marks.total} / 30M</span>
+                      <span className="font-black text-green-600 text-2xl">{studentManualMark} / 30M</span>
                     </div>
-                  ) : (
-                    <div className="flex items-center gap-3">
-                      <span className="px-3 py-1 bg-amber-50 text-amber-700 font-bold rounded-lg text-sm border border-amber-200">
-                        Pending
+                  </div>
+                );
+              }
+
+              if (relevantExams && relevantExams.length > 0) {
+                return relevantExams.map((e: any) => {
+                  const sub = preSubmissions?.[e.id] || (e.title === 'Pre-Assessment Test (Set 1)' ? preSubmissions?.['pre_muni_a1_set1'] : null) || (Object.values(preSubmissions || {}).find((s: any) => s && (s.submittedAt || s.marks)) as any);
+                  const isEvaluated = sub?.marks !== undefined && sub?.marks?.total !== undefined;
+                  return (
+                    <div key={e.id} className="flex justify-between items-center pt-4 border-t border-gray-100 mt-4">
+                      <span className="font-bold text-gray-800 text-lg">
+                        {isEvaluated ? `Marks Obtained (${e.title})` : `Status (${e.title})`}
                       </span>
-                      <span className="font-bold text-amber-600 text-base">Marks Pending</span>
+                      {isEvaluated ? (
+                        <div className="flex items-center gap-3">
+                          <span className="px-3 py-1 bg-green-50 text-green-700 font-bold rounded-lg text-sm border border-green-200">
+                            Completed
+                          </span>
+                          <span className="font-black text-green-600 text-2xl">{sub.marks.total} / 30M</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <span className="px-3 py-1 bg-amber-50 text-amber-700 font-bold rounded-lg text-sm border border-amber-200">
+                            Pending
+                          </span>
+                          <span className="font-bold text-amber-600 text-base">Marks Pending</span>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  );
+                });
+              }
+
+              return (
+                <div className="flex justify-between items-center pt-4 border-t border-gray-100 mt-4">
+                  <span className="font-bold text-gray-800 text-lg">
+                    Marks Obtained (Pre Assessment)
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="px-3 py-1 bg-amber-50 text-amber-700 font-bold rounded-lg text-sm border border-amber-200">
+                      Pending
+                    </span>
+                    <span className="font-bold text-amber-600 text-base">Marks Pending</span>
+                  </div>
                 </div>
               );
-            })}
+            })()}
           </div>
         </div>
 

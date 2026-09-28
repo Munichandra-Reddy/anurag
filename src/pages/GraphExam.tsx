@@ -129,6 +129,13 @@ const GraphExam: React.FC = () => {
   const [savingMarksEmail, setSavingMarksEmail] = useState<string | null>(null);
   const [savedMarksStatus, setSavedMarksStatus] = useState<Record<string, boolean>>({});
 
+  // Pre Assessment Marks states
+  const [preMarksDict, setPreMarksDict] = useState<Record<string, string | number>>({});
+  const [editingPreMarks, setEditingPreMarks] = useState<Record<string, string>>({});
+  const [editingPreMarksMode, setEditingPreMarksMode] = useState<Record<string, boolean>>({});
+  const [savingPreMarksEmail, setSavingPreMarksEmail] = useState<string | null>(null);
+  const [savedPreMarksStatus, setSavedPreMarksStatus] = useState<Record<string, boolean>>({});
+
   // Preview Modal state
   const [previewFile, setPreviewFile] = useState<{
     studentName: string;
@@ -149,6 +156,12 @@ const GraphExam: React.FC = () => {
       const localMarks = JSON.parse(localStorage.getItem('graphExamMarks_muni') || '{}');
       const combinedMarks = { ...(localMarks || {}), ...(cloudMarks || {}) };
       setStudentMarksDict(combinedMarks);
+
+      // 0b. Fetch Pre Assessment Manual Marks Dictionary
+      const cloudPreMarks = await getFromCloudflare('preAssessmentManualMarks_muni') || {};
+      const localPreMarks = JSON.parse(localStorage.getItem('preAssessmentManualMarks_muni') || '{}');
+      const combinedPreMarks = { ...(localPreMarks || {}), ...(cloudPreMarks || {}) };
+      setPreMarksDict(combinedPreMarks);
       // 1. Fetch Muni Student List
       const cloudMuniStudents = await getFromCloudflare('registeredStudents_muni@geonixa.com') || [];
       const localMuniStudents = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
@@ -569,6 +582,64 @@ const GraphExam: React.FC = () => {
     }
   };
 
+  // Save Pre Assessment Marks (Mentor)
+  const handleSavePreMarks = async (studentEmail: string) => {
+    const cleanEmail = studentEmail.toLowerCase().trim();
+    const markVal = editingPreMarks[cleanEmail] !== undefined
+      ? editingPreMarks[cleanEmail]
+      : (preMarksDict[cleanEmail] ?? '');
+
+    setSavingPreMarksEmail(cleanEmail);
+
+    try {
+      const localPreMarks = JSON.parse(localStorage.getItem('preAssessmentManualMarks_muni') || '{}');
+      const cloudPreMarks = await getFromCloudflare('preAssessmentManualMarks_muni') || {};
+      const updatedPreMarks = { ...(localPreMarks || {}), ...(cloudPreMarks || {}), [cleanEmail]: markVal };
+
+      setPreMarksDict(updatedPreMarks);
+
+      try {
+        localStorage.setItem('preAssessmentManualMarks_muni', JSON.stringify(updatedPreMarks));
+      } catch (e) {}
+
+      await replaceInCloudflare('preAssessmentManualMarks_muni', updatedPreMarks);
+      await saveToCloudflare('preAssessmentManualMarks_muni', updatedPreMarks);
+
+      // Sync to student's individual preAssessmentSubmissions key
+      const subKey = `preAssessmentSubmissions_${cleanEmail}`;
+      const localSubStr = localStorage.getItem(subKey);
+      let stuSub = localSubStr ? JSON.parse(localSubStr) : (await getFromCloudflare(subKey) || {});
+      if (!stuSub || typeof stuSub !== 'object') stuSub = {};
+
+      const updatedSub = {
+        ...stuSub,
+        manualMarks: markVal,
+        pre_muni_manual: {
+          submittedAt: new Date().toISOString(),
+          marks: { total: Number(markVal) || markVal }
+        }
+      };
+
+      try {
+        localStorage.setItem(subKey, JSON.stringify(updatedSub));
+      } catch (e) {}
+
+      await replaceInCloudflare(subKey, updatedSub);
+      await saveToCloudflare(subKey, updatedSub);
+
+      setSavedPreMarksStatus(prev => ({ ...prev, [cleanEmail]: true }));
+      setEditingPreMarksMode(prev => ({ ...prev, [cleanEmail]: false }));
+      setTimeout(() => {
+        setSavedPreMarksStatus(prev => ({ ...prev, [cleanEmail]: false }));
+      }, 2500);
+    } catch (err) {
+      console.error("Failed to save pre assessment marks:", err);
+      alert("Failed to save marks. Please try again.");
+    } finally {
+      setSavingPreMarksEmail(null);
+    }
+  };
+
   // Open Preview Modal with Blob URL for PDF and native Data URL for Images (with real-time cloud fallback)
   const handleOpenPreviewModal = async (sub: StudentSubmission) => {
     let currentSub = { ...sub };
@@ -928,13 +999,14 @@ const GraphExam: React.FC = () => {
                     <th className="py-3.5 px-4">Answers (PDF / Screenshot)</th>
                     <th className="py-3.5 px-4">Status</th>
                     <th className="py-3.5 px-4">Graph 1 Marks</th>
+                    <th className="py-3.5 px-4">Pre Assessment Marks</th>
                     <th className="py-3.5 px-4 text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-xs">
                   {mentorTableData.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-gray-400 italic">
+                      <td colSpan={8} className="py-8 text-center text-gray-400 italic">
                         No student records found matching filter criteria.
                       </td>
                     </tr>
@@ -1047,6 +1119,70 @@ const GraphExam: React.FC = () => {
                                     {savingMarksEmail === studentCleanEmail ? (
                                       <RefreshCw size={13} className="animate-spin" />
                                     ) : savedMarksStatus[studentCleanEmail] ? (
+                                      <>
+                                        <CheckCircle2 size={13} className="text-emerald-300" />
+                                        <span>Saved</span>
+                                      </>
+                                    ) : (
+                                      'Submit'
+                                    )}
+                                  </button>
+                                </div>
+                              );
+                            })()}
+                          </td>
+
+                          {/* Pre Assessment Marks (Fixed Display + Edit Button or Input + Submit Button) */}
+                          <td className="py-3.5 px-4">
+                            {(() => {
+                              const savedPreMark = preMarksDict[studentCleanEmail];
+                              const hasSavedPreMark = savedPreMark !== undefined && savedPreMark !== null && String(savedPreMark).trim() !== '';
+                              const isEditingPre = editingPreMarksMode[studentCleanEmail];
+
+                              if (hasSavedPreMark && !isEditingPre) {
+                                return (
+                                  <div className="flex items-center gap-2">
+                                    <span className="px-3 py-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200/80 rounded-xl font-extrabold text-xs inline-flex items-center gap-1.5 shadow-2xs">
+                                      <CheckCircle2 size={13} className="text-emerald-600" />
+                                      <span>{savedPreMark} {!String(savedPreMark).toLowerCase().includes('mark') && 'Marks'}</span>
+                                    </span>
+                                    <button
+                                      onClick={() => {
+                                        setEditingPreMarks(prev => ({ ...prev, [studentCleanEmail]: String(savedPreMark) }));
+                                        setEditingPreMarksMode(prev => ({ ...prev, [studentCleanEmail]: true }));
+                                      }}
+                                      className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-primary font-bold text-xs rounded-xl transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                                      title="Edit Pre Assessment marks"
+                                    >
+                                      <Edit2 size={13} />
+                                      <span>Edit</span>
+                                    </button>
+                                  </div>
+                                );
+                              }
+
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="text"
+                                    placeholder="Enter pre marks"
+                                    value={editingPreMarks[studentCleanEmail] !== undefined
+                                      ? editingPreMarks[studentCleanEmail]
+                                      : (preMarksDict[studentCleanEmail] ?? '')}
+                                    onChange={e => {
+                                      const val = e.target.value;
+                                      setEditingPreMarks(prev => ({ ...prev, [studentCleanEmail]: val }));
+                                    }}
+                                    className="w-24 px-2.5 py-1.5 bg-gray-50 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
+                                  />
+                                  <button
+                                    onClick={() => handleSavePreMarks(student.email)}
+                                    disabled={savingPreMarksEmail === studentCleanEmail}
+                                    className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1 cursor-pointer shrink-0 disabled:opacity-50"
+                                  >
+                                    {savingPreMarksEmail === studentCleanEmail ? (
+                                      <RefreshCw size={13} className="animate-spin" />
+                                    ) : savedPreMarksStatus[studentCleanEmail] ? (
                                       <>
                                         <CheckCircle2 size={13} className="text-emerald-300" />
                                         <span>Saved</span>
