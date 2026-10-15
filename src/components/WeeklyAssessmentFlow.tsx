@@ -42,8 +42,51 @@ interface Props {
   loggedInEmail: string;
 }
 
+const PERMANENT_SKILL_TEST_2: WeeklyExamData = {
+  id: 'skill_test_2',
+  title: 'Skill Test 2',
+  projectTitle: '',
+  portfolioTopic: '',
+  assessmentMode: 'mcq',
+  theoryPdfName: '',
+  theoryQuestions: SOLIDWORKS_SKILL_TEST_2_MCQS,
+  targetBatch: 'A2'
+};
+
+const ensureSkillTest2 = (examList: WeeklyExamData[], emailToCheck: string): WeeklyExamData[] => {
+  const muni = isMuniUser(emailToCheck);
+  if (!muni) return examList;
+
+  const examsKey = getMentorKey('anuragLmsWeeklyExams', emailToCheck);
+  const isRemoved = 
+    localStorage.getItem('muni_skill_test_2_explicitly_removed') === 'true' ||
+    localStorage.getItem(`${examsKey}_removed_skill_test_2`) === 'true' ||
+    localStorage.getItem('anuragLmsWeeklyExams_muni@geonixa.com_removed_skill_test_2') === 'true';
+
+  if (isRemoved) return examList;
+
+  const hasSkillTest2 = examList.some(e => 
+    e && (e.id === 'skill_test_2' || (e.title && e.title.toLowerCase().includes('skill test 2')))
+  );
+
+  if (!hasSkillTest2) {
+    return [PERMANENT_SKILL_TEST_2, ...examList];
+  }
+
+  return examList.map(e => {
+    if (e.id === 'skill_test_2' || (e.title && e.title.toLowerCase().includes('skill test 2'))) {
+      return {
+        ...e,
+        targetBatch: e.targetBatch || 'A2',
+        theoryQuestions: (e.theoryQuestions && e.theoryQuestions.length > 0) ? e.theoryQuestions : SOLIDWORKS_SKILL_TEST_2_MCQS
+      };
+    }
+    return e;
+  });
+};
+
 export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) => {
-  const currentEmail = loggedInEmail || sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail') || '';
+  const currentEmail = loggedInEmail || sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail') || (isMentor ? 'muni@geonixa.com' : '');
   const availableBatches = getMentorBatches(currentEmail);
   const isMuni = isMuniUser(currentEmail);
 
@@ -51,27 +94,23 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
   const [exams, setExams] = useState<WeeklyExamData[]>(() => {
     const examsKey = getMentorKey('anuragLmsWeeklyExams', currentEmail);
     const saved = localStorage.getItem(examsKey) || (isMuni ? localStorage.getItem('anuragLmsWeeklyExams_muni@geonixa.com') : null);
+    let initialList: WeeklyExamData[] = [];
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) initialList = parsed;
       } catch (e) {}
     }
-    const isRemoved = localStorage.getItem(`${examsKey}_removed_skill_test_2`) === 'true' ||
-                      localStorage.getItem('anuragLmsWeeklyExams_muni@geonixa.com_removed_skill_test_2') === 'true';
-    if (isMuni && !isRemoved) {
-      return [{
-        id: 'skill_test_2',
-        title: 'Skill Test 2',
-        projectTitle: '',
-        portfolioTopic: '',
-        assessmentMode: 'mcq',
-        theoryPdfName: '',
-        theoryQuestions: SOLIDWORKS_SKILL_TEST_2_MCQS,
-        targetBatch: 'A2'
-      }];
+    const withDefault = ensureSkillTest2(initialList, currentEmail);
+    if (withDefault.length > 0) {
+      try {
+        localStorage.setItem(examsKey, JSON.stringify(withDefault));
+        if (isMuni) {
+          localStorage.setItem('anuragLmsWeeklyExams_muni@geonixa.com', JSON.stringify(withDefault));
+        }
+      } catch (e) {}
     }
-    return [];
+    return withDefault;
   });
 
   const [isAdding, setIsAdding] = useState<false | 'weekly' | 'cie'>(false);
@@ -120,8 +159,12 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       const savedExamsStr = localStorage.getItem(examsKey) || (isMuni ? localStorage.getItem('anuragLmsWeeklyExams_muni@geonixa.com') : null);
       let localExams: WeeklyExamData[] = [];
       if (savedExamsStr) {
-        try { localExams = JSON.parse(savedExamsStr); } catch (e) { localExams = []; }
+        try {
+          const parsed = JSON.parse(savedExamsStr);
+          if (Array.isArray(parsed)) localExams = parsed;
+        } catch (e) { localExams = []; }
       }
+      localExams = ensureSkillTest2(localExams, email);
       if (localExams.length > 0) {
         setExams(localExams);
       }
@@ -132,48 +175,27 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
         cloudExams = await getFromCloudflare('anuragLmsWeeklyExams_muni@geonixa.com');
       }
 
-      const isSkillTest2Removed = localStorage.getItem(`${examsKey}_removed_skill_test_2`) === 'true' ||
-                                  localStorage.getItem('anuragLmsWeeklyExams_muni@geonixa.com_removed_skill_test_2') === 'true';
-
-      let finalExams: WeeklyExamData[] = [];
-
+      let candidateExams: WeeklyExamData[] = [];
       if (cloudExams && Array.isArray(cloudExams) && cloudExams.length > 0) {
-        // Cloud has exams - update state and sync to local storage
-        finalExams = cloudExams;
-        localStorage.setItem(examsKey, JSON.stringify(finalExams));
-        if (isMuni) {
-          localStorage.setItem('anuragLmsWeeklyExams_muni@geonixa.com', JSON.stringify(finalExams));
-        }
+        candidateExams = cloudExams;
       } else if (localExams.length > 0) {
-        // Local storage has exams, but cloud was empty/offline - PRESERVE LOCAL and push to cloud!
-        finalExams = localExams;
-        saveToCloudflare(examsKey, finalExams);
-        replaceInCloudflare(examsKey, finalExams);
-        if (isMuni) {
-          saveToCloudflare('anuragLmsWeeklyExams_muni@geonixa.com', finalExams);
-          replaceInCloudflare('anuragLmsWeeklyExams_muni@geonixa.com', finalExams);
-        }
-      } else if (isMuni && !isSkillTest2Removed) {
-        // Permanent default for Muni's portal / A2 batch students:
-        const defaultSkillTest2: WeeklyExamData = {
-          id: 'skill_test_2',
-          title: 'Skill Test 2',
-          projectTitle: '',
-          portfolioTopic: '',
-          assessmentMode: 'mcq',
-          theoryPdfName: '',
-          theoryQuestions: SOLIDWORKS_SKILL_TEST_2_MCQS,
-          targetBatch: 'A2'
-        };
-        finalExams = [defaultSkillTest2];
-        localStorage.setItem(examsKey, JSON.stringify(finalExams));
+        candidateExams = localExams;
+      }
+
+      const finalExams = ensureSkillTest2(candidateExams, email);
+
+      // Permanently store in localStorage
+      localStorage.setItem(examsKey, JSON.stringify(finalExams));
+      if (isMuni) {
         localStorage.setItem('anuragLmsWeeklyExams_muni@geonixa.com', JSON.stringify(finalExams));
-        saveToCloudflare(examsKey, finalExams);
-        replaceInCloudflare(examsKey, finalExams);
-        if (examsKey !== 'anuragLmsWeeklyExams_muni@geonixa.com') {
-          saveToCloudflare('anuragLmsWeeklyExams_muni@geonixa.com', finalExams);
-          replaceInCloudflare('anuragLmsWeeklyExams_muni@geonixa.com', finalExams);
-        }
+      }
+
+      // Sync to cloud
+      saveToCloudflare(examsKey, finalExams);
+      replaceInCloudflare(examsKey, finalExams);
+      if (isMuni && examsKey !== 'anuragLmsWeeklyExams_muni@geonixa.com') {
+        saveToCloudflare('anuragLmsWeeklyExams_muni@geonixa.com', finalExams);
+        replaceInCloudflare('anuragLmsWeeklyExams_muni@geonixa.com', finalExams);
       }
 
       setExams(finalExams);
@@ -316,10 +338,14 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     setExams(updatedExams);
     
     const examsKey = getMentorKey('anuragLmsWeeklyExams', currentEmail);
+    localStorage.removeItem('muni_skill_test_2_explicitly_removed');
     localStorage.removeItem(`${examsKey}_removed_${examId}`);
     localStorage.removeItem(`anuragLmsWeeklyExams_muni@geonixa.com_removed_${examId}`);
-    saveToCloudflare(`${examsKey}_removed_${examId}`, null);
-    if (isMuni) saveToCloudflare(`anuragLmsWeeklyExams_muni@geonixa.com_removed_${examId}`, null);
+    localStorage.removeItem(`${examsKey}_removed_skill_test_2`);
+    localStorage.removeItem('anuragLmsWeeklyExams_muni@geonixa.com_removed_skill_test_2');
+    saveToCloudflare('muni_skill_test_2_explicitly_removed', { removed: false });
+    saveToCloudflare(`${examsKey}_removed_${examId}`, { removed: false });
+    if (isMuni) saveToCloudflare(`anuragLmsWeeklyExams_muni@geonixa.com_removed_${examId}`, { removed: false });
 
     localStorage.setItem(examsKey, JSON.stringify(updatedExams));
     if (isMuni) {
@@ -1012,25 +1038,39 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
             }
             return true;
           }
+          // Student filter logic
+          const cleanEmail = (currentEmail || loggedInEmail || '').toLowerCase().trim();
+          const isSkillTest2Exam = exam.id === 'skill_test_2' || 
+                                   exam.id.startsWith('skill_test_2') || 
+                                   exam.title.toLowerCase().includes('skill test 2');
+
+          // Check if student belongs to A2 batch
+          const muniMatch = MUNI_STUDENTS.find(s => matchesStudentEmail(s?.email, cleanEmail));
+          const isA2Student = 
+            (muniMatch?.batch && muniMatch.batch.toLowerCase().trim() === 'a2') ||
+            MUNI_A2_STUDENTS.some(s => matchesStudentEmail(s?.email, cleanEmail)) ||
+            (studentDetails?.batch && studentDetails.batch.toLowerCase().trim() === 'a2');
+
+          if (isSkillTest2Exam) {
+            // A2 students MUST ALWAYS see Skill Test 2!
+            return isA2Student || !exam.targetBatch || exam.targetBatch === 'All Batches';
+          }
+
           if (!exam.targetBatch || exam.targetBatch === 'All Batches') return true;
           
           // Determine the student's batch — check all sources
           const rawStudentBatch = (() => {
-            const cleanEmail = (currentEmail || loggedInEmail || '').toLowerCase().trim();
-            // 1. Static MUNI_STUDENTS (most reliable for known students)
-            const muniMatch = MUNI_STUDENTS.find(s => matchesStudentEmail(s?.email, cleanEmail));
             if (muniMatch?.batch) return muniMatch.batch;
-            // 2. studentDetails loaded from cloud/local (registered students)
             if (studentDetails?.batch) return studentDetails.batch;
-            // 3. localStorage registered students
             const localStudents = JSON.parse(localStorage.getItem(getStudentsKey(cleanEmail)) || '[]');
             const localMatch = localStudents.find((s: any) => matchesStudentEmail(s?.email, cleanEmail));
             if (localMatch?.batch) return localMatch.batch;
             return '';
           })();
 
-          const targetBatchClean = exam.targetBatch.toLowerCase().replace(' batch', '').trim();
-          const studentBatchClean = rawStudentBatch.toLowerCase().replace(' batch', '').trim();
+          const cleanBatch = (b?: string) => (b || '').toLowerCase().replace(/batch/gi, '').trim();
+          const targetBatchClean = cleanBatch(exam.targetBatch);
+          const studentBatchClean = cleanBatch(rawStudentBatch);
 
           if (studentBatchClean) {
             return studentBatchClean === targetBatchClean || 
@@ -1039,9 +1079,9 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           }
           
           // Check if targetBatch is a project batch number
-          const targetProjectBatch = projectBatches.find(b => b.batchNumber.toLowerCase() === exam.targetBatch.toLowerCase());
+          const targetProjectBatch = projectBatches.find(b => cleanBatch(b.batchNumber) === targetBatchClean);
           if (targetProjectBatch) {
-            return (targetProjectBatch.memberEmails || []).some((e: string) => matchesStudentEmail(e, currentEmail));
+            return (targetProjectBatch.memberEmails || []).some((e: string) => matchesStudentEmail(e, cleanEmail));
           }
           
           return false;
@@ -1088,10 +1128,16 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                         setExams(newExams);
 
                         const examsKey = getMentorKey('anuragLmsWeeklyExams', currentEmail);
+                        if (exam.id === 'skill_test_2' || exam.title.toLowerCase().includes('skill test 2')) {
+                          localStorage.setItem('muni_skill_test_2_explicitly_removed', 'true');
+                          localStorage.setItem(`${examsKey}_removed_skill_test_2`, 'true');
+                          localStorage.setItem('anuragLmsWeeklyExams_muni@geonixa.com_removed_skill_test_2', 'true');
+                          saveToCloudflare('muni_skill_test_2_explicitly_removed', { removed: true, removedAt: new Date().toISOString() });
+                        }
                         localStorage.setItem(`${examsKey}_removed_${exam.id}`, 'true');
                         localStorage.setItem(`anuragLmsWeeklyExams_muni@geonixa.com_removed_${exam.id}`, 'true');
-                        saveToCloudflare(`${examsKey}_removed_${exam.id}`, true);
-                        if (isMuni) saveToCloudflare(`anuragLmsWeeklyExams_muni@geonixa.com_removed_${exam.id}`, true);
+                        saveToCloudflare(`${examsKey}_removed_${exam.id}`, { removed: true });
+                        if (isMuni) saveToCloudflare(`anuragLmsWeeklyExams_muni@geonixa.com_removed_${exam.id}`, { removed: true });
 
                         localStorage.setItem(examsKey, JSON.stringify(newExams));
                         if (isMuni) {

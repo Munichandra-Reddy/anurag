@@ -94,6 +94,15 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
           exam = exams.find((e: any) => e.id.startsWith(`${pattern}_`) || (pattern === 'skill_test_2' && e.id.startsWith('week1_')) || (pattern === 'week1' && e.id.startsWith('skill_test_2_')));
         }
       }
+
+      if (!exam && isSkillTest2) {
+        exam = {
+          id: 'skill_test_2',
+          title: 'Skill Test 2',
+          theoryQuestions: SOLIDWORKS_SKILL_TEST_2_MCQS,
+          targetBatch: 'A2'
+        };
+      }
       
       setTargetExam(exam);
     };
