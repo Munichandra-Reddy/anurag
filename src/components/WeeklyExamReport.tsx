@@ -224,10 +224,32 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         let localSubmissionData = JSON.parse(localStorage.getItem(submissionKey) || 'null');
         let cloudSubmissionData = await getFromCloudflare(submissionKey);
 
-        if (!localSubmissionData && !cloudSubmissionData && altPattern) {
-          const altSubKey = `weeklyReportSubmission_${selectedStudent.email}_${altPattern}`;
-          localSubmissionData = JSON.parse(localStorage.getItem(altSubKey) || 'null');
-          cloudSubmissionData = await getFromCloudflare(altSubKey);
+        if (!localSubmissionData && !cloudSubmissionData) {
+          const possibleKeys = [
+            `weeklyReportSubmission_${selectedStudent.email}_skill_test_2`,
+            `weeklyReportSubmission_${selectedStudent.email}_week1`,
+            `weeklyReportSubmission_${selectedStudent.email}_${pattern}_${selectedStudent.batch || ''}`,
+            `weeklyReportSubmission_${selectedStudent.email}_skill_test_2_${selectedStudent.batch || ''}`
+          ];
+          for (const pKey of possibleKeys) {
+            const loc = JSON.parse(localStorage.getItem(pKey) || 'null');
+            const cld = await getFromCloudflare(pKey);
+            if (loc || cld) {
+              localSubmissionData = loc;
+              cloudSubmissionData = cld;
+              break;
+            }
+          }
+        }
+
+        if (!localSubmissionData && !cloudSubmissionData) {
+          const mapKey = `weeklyExamSubmissions_${selectedStudent.email}`;
+          const localMap = JSON.parse(localStorage.getItem(mapKey) || '{}');
+          const cloudMap = await getFromCloudflare(mapKey) || {};
+          const fullMap = { ...(localMap || {}), ...(cloudMap || {}) };
+          if (fullMap[pattern] || fullMap['skill_test_2'] || fullMap['week1']) {
+            cloudSubmissionData = fullMap[pattern] || fullMap['skill_test_2'] || fullMap['week1'];
+          }
         }
         setStudentSubmission(cloudSubmissionData || localSubmissionData);
         
@@ -279,6 +301,12 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
             else if (altPattern) {
               const altCloud = await getFromCloudflare(`weeklyReportSubmission_${student.email}_${altPattern}`);
               if (altCloud) hasSubmitted = true;
+            }
+            if (!hasSubmitted) {
+              const subMap = JSON.parse(localStorage.getItem(`weeklyExamSubmissions_${student.email}`) || '{}');
+              if (subMap[pattern] || (altPattern && subMap[altPattern]) || subMap['skill_test_2'] || subMap['week1']) {
+                hasSubmitted = true;
+              }
             }
           }
           newStatuses[student.email] = { isCompleted, hasSubmitted };
