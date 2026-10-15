@@ -9,12 +9,12 @@ import { cn } from '../utils/cn';
 const MentorDashboardLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const userEmail = sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail') || '';
-  const isMuniMentor = (userEmail || '').toLowerCase().trim() === 'muni@geonixa.com';
+  const userEmail = (sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail') || '').toLowerCase().trim();
+  const isMuniMentor = userEmail === 'muni@geonixa.com' || userEmail === 'munichandrar572@gmail.com';
 
   React.useEffect(() => {
     // Route Guard: strict access only for authorized mentors
-    const mentorEmails = ['maheshk@geonixa.com', 'jithendravarma.l@gmail.com', 'muni@geonixa.com'];
+    const mentorEmails = ['maheshk@geonixa.com', 'jithendravarma.l@gmail.com', 'muni@geonixa.com', 'munichandrar572@gmail.com'];
     if (!userEmail) {
       navigate('/login');
     } else if (!mentorEmails.includes(userEmail)) {

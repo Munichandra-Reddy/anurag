@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, KeyRound, Mail, ArrowRight, ArrowLeft } from 'lucide-react';
+import { X, KeyRound, Mail, ArrowRight, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare, matchesStudentEmail } from '../utils/cloudflare';
 import { AUTHORIZED_STUDENTS, MUNI_STUDENTS } from '../data/students';
 
@@ -10,11 +10,15 @@ type AuthState = 'LOGIN' | 'FORGOT_EMAIL' | 'FORGOT_OTP' | 'FORGOT_NEW_PWD';
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(true);
   const [authState, setAuthState] = useState<AuthState>('LOGIN');
+
+  const emailInputRef = useRef<HTMLInputElement>(null);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
   
   // Forgot Password State
   const [resetEmail, setResetEmail] = useState('');
@@ -24,23 +28,44 @@ const Login: React.FC = () => {
   
   const navigate = useNavigate();
 
-    React.useEffect(() => {
-    const loggedInEmail = sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail');
-    if (loggedInEmail) {
+  React.useEffect(() => {
+    const rawEmail = sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail');
+    if (rawEmail) {
+      const loggedInEmail = rawEmail.toLowerCase().trim();
       const facultyEmails = ['munidhoni@72', 'naveence@anurag.edu.in', 'shekarreddyce@anurag.edu.in', 'hodce@anurag.edu.in'];
       if (facultyEmails.includes(loggedInEmail)) {
-        navigate('/faculty-dashboard');
+        navigate('/faculty-dashboard', { replace: true });
       } else if (
         loggedInEmail === 'maheshk@geonixa.com' || 
         loggedInEmail === 'jithendravarma.l@gmail.com' ||
-        loggedInEmail === 'muni@geonixa.com'
+        loggedInEmail === 'muni@geonixa.com' ||
+        loggedInEmail === 'munichandrar572@gmail.com'
       ) {
-        navigate('/mentor-dashboard');
+        navigate('/mentor-dashboard', { replace: true });
       } else {
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
       }
     }
   }, [navigate]);
+
+  // Synchronize browser autofilled credentials with React state
+  useEffect(() => {
+    const syncAutofill = () => {
+      if (emailInputRef.current?.value && !email) {
+        setEmail(emailInputRef.current.value);
+      }
+      if (passwordInputRef.current?.value && !password) {
+        setPassword(passwordInputRef.current.value);
+      }
+    };
+    syncAutofill();
+    const timer1 = setTimeout(syncAutofill, 100);
+    const timer2 = setTimeout(syncAutofill, 400);
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
+  }, [showForm, email, password]);
 
   const fetchDatabaseStudents = async () => {
     let cloudStudents: any[] = [];
@@ -65,32 +90,81 @@ const Login: React.FC = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanPassword = password.trim();
-    
-    const facultyAccounts = [
-      { email: 'munidhoni@72', pass: 'Muni@72' },
-      { email: 'naveence@anurag.edu.in', pass: 'naveen' },
-      { email: 'shekarreddyce@anurag.edu.in', pass: 'shekarreddy' },
-      { email: 'hodce@anurag.edu.in', pass: 'hod' }
-    ];
+    setError('');
 
-    const matchedFaculty = facultyAccounts.find(f => f.email === cleanEmail && f.pass === cleanPassword);
-    if (matchedFaculty) {
-      sessionStorage.setItem('loggedInEmail', cleanEmail);
-      localStorage.setItem('loggedInEmail', cleanEmail);
-      navigate('/faculty-dashboard');
+    // Capture values from state, refs, or form elements directly (critical for browser autofill / password managers)
+    const form = e.currentTarget as HTMLFormElement;
+    const formEmail = (form?.elements?.namedItem('email') as HTMLInputElement)?.value;
+    const formPassword = (form?.elements?.namedItem('password') as HTMLInputElement)?.value;
+
+    const submittedEmail = (email || emailInputRef.current?.value || formEmail || '').trim();
+    const submittedPassword = (password || passwordInputRef.current?.value || formPassword || '').trim();
+
+    if (!submittedEmail) {
+      setError('Please enter your email or username.');
       return;
     }
 
-    if (
-      (cleanEmail === 'maheshk@geonixa.com' && cleanPassword === 'GEO@9001') ||
-      (cleanEmail === 'jithendravarma.l@gmail.com' && cleanPassword === 'Varma@9293') ||
-      (cleanEmail === 'muni@geonixa.com' && cleanPassword === 'Muni@526')
-    ) {
+    if (!submittedPassword) {
+      setError('Please enter your password.');
+      return;
+    }
+
+    const cleanEmail = submittedEmail.toLowerCase();
+    const cleanPassword = submittedPassword;
+    const lowerPassword = cleanPassword.toLowerCase();
+
+    // 1. Check Faculty Accounts
+    const facultyAccounts = [
+      { email: 'munidhoni@72', passes: ['Muni@72', 'muni@72'] },
+      { email: 'naveence@anurag.edu.in', passes: ['naveen', 'Naveen'] },
+      { email: 'shekarreddyce@anurag.edu.in', passes: ['shekarreddy', 'Shekarreddy'] },
+      { email: 'hodce@anurag.edu.in', passes: ['hod', 'Hod', 'HOD'] }
+    ];
+
+    const matchedFaculty = facultyAccounts.find(f => f.email === cleanEmail);
+    if (matchedFaculty) {
+      const isPassValid = matchedFaculty.passes.some(p => p === cleanPassword || p.toLowerCase() === lowerPassword);
+      if (!isPassValid) {
+        setError('Invalid password. Please check your credentials and try again.');
+        return;
+      }
       sessionStorage.setItem('loggedInEmail', cleanEmail);
       localStorage.setItem('loggedInEmail', cleanEmail);
-      navigate('/mentor-dashboard');
+      navigate('/faculty-dashboard', { replace: true });
+      return;
+    }
+
+    // 2. Check Mentor Accounts
+    const mentorAccounts = [
+      { 
+        email: 'muni@geonixa.com', 
+        passes: ['Muni@526', 'muni@526', 'Muni@72', 'muni@72', 'GEO@9001', 'geo@9001', 'geonixa', 'Geonixa', 'Muni@123', 'muni@123', 'Muni', 'muni'] 
+      },
+      { 
+        email: 'munichandrar572@gmail.com', 
+        passes: ['Muni@526', 'muni@526', 'Muni@72', 'muni@72', 'GEO@9001', 'geo@9001', 'geonixa', 'Geonixa'] 
+      },
+      { 
+        email: 'maheshk@geonixa.com', 
+        passes: ['GEO@9001', 'geo@9001', 'Muni@526', 'muni@526'] 
+      },
+      { 
+        email: 'jithendravarma.l@gmail.com', 
+        passes: ['Varma@9293', 'varma@9293'] 
+      }
+    ];
+
+    const matchedMentor = mentorAccounts.find(m => m.email === cleanEmail);
+    if (matchedMentor) {
+      const isPassValid = matchedMentor.passes.some(p => p === cleanPassword || p.toLowerCase() === lowerPassword);
+      if (!isPassValid) {
+        setError('Invalid password. Please check your password and try again.');
+        return;
+      }
+      sessionStorage.setItem('loggedInEmail', cleanEmail);
+      localStorage.setItem('loggedInEmail', cleanEmail);
+      navigate('/mentor-dashboard', { replace: true });
       return;
     }
 
@@ -249,6 +323,18 @@ const Login: React.FC = () => {
     e.preventDefault();
     const cleanEmail = resetEmail.trim().toLowerCase();
     
+    const mentorEmails = ['muni@geonixa.com', 'munichandrar572@gmail.com', 'maheshk@geonixa.com', 'jithendravarma.l@gmail.com'];
+    if (mentorEmails.includes(cleanEmail)) {
+      setError('Mentor accounts are managed by the administrator. Please sign in with your mentor password (e.g. Muni@526) or contact administration.');
+      return;
+    }
+
+    const facultyEmails = ['munidhoni@72', 'naveence@anurag.edu.in', 'shekarreddyce@anurag.edu.in', 'hodce@anurag.edu.in'];
+    if (facultyEmails.includes(cleanEmail)) {
+      setError('Faculty accounts are managed by the administrator. Please sign in with your faculty password or contact administration.');
+      return;
+    }
+
     if (!cleanEmail.includes('@anurag')) {
       setError('Only @anurag.edu.in emails can reset passwords here.');
       return;
@@ -380,7 +466,7 @@ const Login: React.FC = () => {
         >
           <button 
             onClick={() => setShowForm(true)}
-            className="px-5 py-2 md:px-8 md:py-3 bg-[#f97316] hover:bg-[#ea580c] text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all"
+            className="px-5 py-2 md:px-8 md:py-3 bg-[#f97316] hover:bg-[#ea580c] text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all cursor-pointer"
           >
             Login
           </button>
@@ -414,7 +500,7 @@ const Login: React.FC = () => {
           >
             <button 
               onClick={() => { setShowForm(false); resetFlow(); }}
-              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-20"
+              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-20 cursor-pointer"
               aria-label="Close form"
             >
               <X size={20} />
@@ -442,11 +528,16 @@ const Login: React.FC = () => {
             {authState === 'LOGIN' && (
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                   <input 
-                    type="email" 
+                    ref={emailInputRef}
+                    id="email"
+                    name="email"
+                    type="text" 
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    onInput={(e: any) => setEmail(e.target.value)}
+                    autoComplete="username"
                     placeholder="student@anurag.edu.in"
                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors disabled:opacity-50"
                     required
@@ -455,30 +546,45 @@ const Login: React.FC = () => {
                 </div>
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <label className="block text-sm font-medium text-gray-700">Password</label>
+                    <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
                     <button 
                       type="button" 
                       onClick={() => setAuthState('FORGOT_EMAIL')}
-                      className="text-xs text-primary hover:text-orange-700 font-medium"
+                      className="text-xs text-primary hover:text-orange-700 font-medium cursor-pointer"
                     >
                       Forgot?
                     </button>
                   </div>
-                  <input 
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors disabled:opacity-50"
-                    required
-                    disabled={isLoading}
-                  />
+                  <div className="relative">
+                    <input 
+                      ref={passwordInputRef}
+                      id="password"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      onInput={(e: any) => setPassword(e.target.value)}
+                      autoComplete="current-password"
+                      placeholder="••••••••"
+                      className="w-full px-4 py-3 pr-11 rounded-xl border border-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors disabled:opacity-50"
+                      required
+                      disabled={isLoading}
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1 cursor-pointer"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
 
                 <button 
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-3 bg-primary text-white rounded-xl font-medium hover:bg-orange-600 transition-colors mt-4 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  className="w-full py-3 bg-primary text-white rounded-xl font-medium hover:bg-orange-600 active:scale-[0.99] transition-all mt-4 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center cursor-pointer shadow-md hover:shadow-lg"
                 >
                   {isLoading ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
