@@ -329,20 +329,35 @@ export const MUNI_A1_STUDENTS = [
 
 export const MUNI_A2_STUDENTS = [
   { id: 2001, roll: '24EG103A53', name: 'VANGA UDAY KIRAN', email: '24eg103a53@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
+  { id: 2101, roll: '24CG103A53', name: 'VANGA UDAY KIRAN', email: '24cg103a53@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
   { id: 2002, roll: '24EG103A54', name: 'MARRI V S N SANDEEP REDDY', email: '24eg103a54@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
+  { id: 2102, roll: '24CG103A54', name: 'MARRI V S N SANDEEP REDDY', email: '24cg103a54@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
   { id: 2003, roll: '24EG103A55', name: 'ATLA JAGADISH', email: '24eg103a55@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
+  { id: 2103, roll: '24CG103A55', name: 'ATLA JAGADISH', email: '24cg103a55@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
   { id: 2004, roll: '24EG103A56', name: 'MOKA DURGA SHASHIDHAR NAIDU', email: '24eg103a56@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
+  { id: 2104, roll: '24CG103A56', name: 'MOKA DURGA SHASHIDHAR NAIDU', email: '24cg103a56@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
   { id: 2005, roll: '24EG103A57', name: 'MALLUGARI JASWANTH GOUD', email: '24eg103a57@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
+  { id: 2105, roll: '24CG103A57', name: 'MALLUGARI JASWANTH GOUD', email: '24cg103a57@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
   { id: 2006, roll: '24EG103A58', name: 'PAMIREDDY DEEPESH KUMAR REDDY', email: '24eg103a58@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
+  { id: 2106, roll: '24CG103A58', name: 'PAMIREDDY DEEPESH KUMAR REDDY', email: '24cg103a58@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
   { id: 2007, roll: '24EG103A59', name: 'PEBBETI NANDHINI', email: '24eg103a59@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
+  { id: 2107, roll: '24CG103A59', name: 'PEBBETI NANDHINI', email: '24cg103a59@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
   { id: 2008, roll: '24EG103A60', name: 'ABHIRAM GARISEPALLI', email: '24eg103a60@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
+  { id: 2108, roll: '24CG103A60', name: 'ABHIRAM GARISEPALLI', email: '24cg103a60@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
   { id: 2009, roll: '24EG103A61', name: 'BOORUGU SATHWIKA', email: '24eg103a61@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
+  { id: 2109, roll: '24CG103A61', name: 'BOORUGU SATHWIKA', email: '24cg103a61@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
   { id: 2010, roll: '24EG103A62', name: 'NAIMISHA RAJ CHEEMALA', email: '24eg103a62@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
+  { id: 2110, roll: '24CG103A62', name: 'NAIMISHA RAJ CHEEMALA', email: '24cg103a62@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
   { id: 2011, roll: '24EG103A63', name: 'CHEMUDALA SPOORTHI', email: '24eg103a63@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
+  { id: 2111, roll: '24CG103A63', name: 'CHEMUDALA SPOORTHI', email: '24cg103a63@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
   { id: 2012, roll: '24EG103A64', name: 'THATITHOTI GANESH', email: '24eg103a64@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
+  { id: 2112, roll: '24CG103A64', name: 'THATITHOTI GANESH', email: '24cg103a64@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
   { id: 2013, roll: '24EG103A65', name: 'DARAVATH AVINASH', email: '24eg103a65@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
-  { id: 2014, roll: '24EG103A66', name: 'GARIKAPATI BALA YOGI', email: '24eg103a66@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' }
+  { id: 2113, roll: '24CG103A65', name: 'DARAVATH AVINASH', email: '24cg103a65@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
+  { id: 2014, roll: '24EG103A66', name: 'GARIKAPATI BALA YOGI', email: '24eg103a66@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' },
+  { id: 2114, roll: '24CG103A66', name: 'GARIKAPATI BALA YOGI', email: '24cg103a66@anurag.edu.in', batch: 'A2', registeredAt: '2026-08-19' }
 ];
+
 
 export const MUNI_B1_STUDENTS = [
   { id: 3001, roll: '24EG103B01', name: 'KOLLIPARA AKSHAY', email: '24eg103b01@anurag.edu.in', batch: 'B1', registeredAt: '2026-08-19' },

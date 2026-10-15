@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, KeyRound, Mail, ArrowRight, ArrowLeft } from 'lucide-react';
-import { getFromCloudflare, saveToCloudflare } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, matchesStudentEmail } from '../utils/cloudflare';
 import { AUTHORIZED_STUDENTS, MUNI_STUDENTS } from '../data/students';
 
 type AuthState = 'LOGIN' | 'FORGOT_EMAIL' | 'FORGOT_OTP' | 'FORGOT_NEW_PWD';
@@ -25,7 +25,7 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
 
     React.useEffect(() => {
-    const loggedInEmail = sessionStorage.getItem('loggedInEmail');
+    const loggedInEmail = sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail');
     if (loggedInEmail) {
       const facultyEmails = ['munidhoni@72', 'naveence@anurag.edu.in', 'shekarreddyce@anurag.edu.in', 'hodce@anurag.edu.in'];
       if (facultyEmails.includes(loggedInEmail)) {
@@ -69,6 +69,7 @@ const Login: React.FC = () => {
     const matchedFaculty = facultyAccounts.find(f => f.email === cleanEmail && f.pass === cleanPassword);
     if (matchedFaculty) {
       sessionStorage.setItem('loggedInEmail', cleanEmail);
+      localStorage.setItem('loggedInEmail', cleanEmail);
       navigate('/faculty-dashboard');
       return;
     }
@@ -79,6 +80,7 @@ const Login: React.FC = () => {
       (cleanEmail === 'muni@geonixa.com' && cleanPassword === 'Muni@526')
     ) {
       sessionStorage.setItem('loggedInEmail', cleanEmail);
+      localStorage.setItem('loggedInEmail', cleanEmail);
       navigate('/mentor-dashboard');
       return;
     }
@@ -87,9 +89,12 @@ const Login: React.FC = () => {
       setIsLoading(true);
       setError('');
       try {
-        const muniMatch = MUNI_STUDENTS.find(s => s.email.toLowerCase() === cleanEmail);
+        const muniMatch = MUNI_STUDENTS.find(s => matchesStudentEmail(s.email, cleanEmail));
         if (muniMatch) {
-          if (cleanPassword !== muniMatch.roll && cleanPassword.toLowerCase() !== muniMatch.roll.toLowerCase()) {
+          const matchRoll = muniMatch.roll.toLowerCase();
+          const altRoll = matchRoll.replace(/^(\d{2})eg/i, '$1cg');
+          const inputPass = cleanPassword.toLowerCase();
+          if (inputPass !== matchRoll && inputPass !== altRoll) {
             setError('Invalid password. Your password is your Hall Ticket Number.');
             setIsLoading(false);
             return;
@@ -106,7 +111,7 @@ const Login: React.FC = () => {
             const newMuniStudent = {
               id: muniMatch.id || Date.now(),
               name: muniMatch.name,
-              email: muniMatch.email,
+              email: cleanEmail,
               password: muniMatch.roll,
               registeredAt: new Date().toISOString(),
               batch: muniMatch.batch || 'A2'
@@ -117,6 +122,7 @@ const Login: React.FC = () => {
           }
 
           sessionStorage.setItem('loggedInEmail', cleanEmail);
+          localStorage.setItem('loggedInEmail', cleanEmail);
           navigate('/dashboard');
           setIsLoading(false);
           return;

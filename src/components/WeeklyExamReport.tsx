@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, FileText, ArrowLeft, Send, CheckCircle2, Edit, X, Check, HelpCircle, ChevronDown, ChevronUp, Award } from 'lucide-react';
-import { getFromCloudflare, saveToCloudflare, getMentorKey, getStudentsKey, isMuniUser } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, getMentorKey, getStudentsKey, isMuniUser, matchesStudentEmail } from '../utils/cloudflare';
 import { SOLIDWORKS_SKILL_TEST_2_MCQS } from '../data/solidworksSkillTest2Mcqs';
 
 interface Student {
@@ -26,11 +26,12 @@ interface WeeklyExamReportProps {
 }
 
 export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isMentor, loggedInEmail, onBack }) => {
+  const currentEmail = loggedInEmail || sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail') || '';
   const isCie = pattern.startsWith('CIE');
   const isSkillTest2 = pattern === 'skill_test_2' || 
     pattern.startsWith('skill_test_2') || 
     pattern.toLowerCase().includes('skill') || 
-    ((pattern === 'week1' || pattern.startsWith('week1')) && isMuniUser());
+    ((pattern === 'week1' || pattern.startsWith('week1')) && isMuniUser(currentEmail));
 
   const [students, setStudents] = useState<Student[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -61,12 +62,16 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
   // Load the target exam to evaluate objective questions
   useEffect(() => {
     const loadExam = async () => {
-      const examKey = getMentorKey('anuragLmsWeeklyExams');
-      const cloudExams = await getFromCloudflare(examKey) || await getFromCloudflare('anuragLmsWeeklyExams');
-      let exams = cloudExams && Array.isArray(cloudExams) ? cloudExams : [];
-      if (exams.length === 0) {
-        exams = JSON.parse(localStorage.getItem(examKey) || localStorage.getItem('anuragLmsWeeklyExams') || '[]');
-      }
+      const examKey = getMentorKey('anuragLmsWeeklyExams', currentEmail);
+      let localExams: any[] = [];
+      try {
+        const localStr = localStorage.getItem(examKey) || localStorage.getItem('anuragLmsWeeklyExams_muni@geonixa.com');
+        if (localStr) localExams = JSON.parse(localStr);
+      } catch (e) {}
+
+      const cloudExams = await getFromCloudflare(examKey) || await getFromCloudflare('anuragLmsWeeklyExams_muni@geonixa.com') || await getFromCloudflare('anuragLmsWeeklyExams');
+      let exams = cloudExams && Array.isArray(cloudExams) && cloudExams.length > 0 ? cloudExams : localExams;
+
       let exam = exams.find((e: any) => e.id === pattern);
       if (!exam) {
         if (pattern === 'skill_test_2') {
@@ -77,10 +82,10 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
       }
       
       if (!exam && !isMentor) {
-        const studentsKey = getStudentsKey();
+        const studentsKey = getStudentsKey(currentEmail);
         const cloudStudents = await getFromCloudflare(studentsKey) || [];
         const localStudents = JSON.parse(localStorage.getItem(studentsKey) || '[]');
-        const student = [...localStudents, ...cloudStudents].find(s => s?.email === loggedInEmail);
+        const student = [...localStudents, ...cloudStudents].find(s => matchesStudentEmail(s?.email, currentEmail));
         
         if (student && student.batch) {
           exam = exams.find((e: any) => (e.id.startsWith(`${pattern}_`) || (pattern === 'skill_test_2' && e.id.startsWith('week1_')) || (pattern === 'week1' && e.id.startsWith('skill_test_2_'))) && e.targetBatch === student.batch);
@@ -93,7 +98,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
       setTargetExam(exam);
     };
     loadExam();
-  }, [pattern, isMentor, loggedInEmail]);
+  }, [pattern, isMentor, currentEmail]);
 
   // Load students for mentor
   useEffect(() => {
@@ -118,7 +123,8 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
   useEffect(() => {
     if (!isMentor) {
       const loadReport = async () => {
-        let reportKey = `weeklyReport_${loggedInEmail}_${pattern}`;
+        const studentEmail = currentEmail || loggedInEmail;
+        let reportKey = `weeklyReport_${studentEmail}_${pattern}`;
         let cloudReport = await getFromCloudflare(reportKey);
         let localReport = JSON.parse(localStorage.getItem(reportKey) || 'null');
         
@@ -126,7 +132,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         if (!cloudReport && !localReport) {
           const altPattern = pattern === 'skill_test_2' ? 'week1' : (pattern === 'week1' ? 'skill_test_2' : null);
           if (altPattern) {
-            const altKey = `weeklyReport_${loggedInEmail}_${altPattern}`;
+            const altKey = `weeklyReport_${studentEmail}_${altPattern}`;
             localReport = JSON.parse(localStorage.getItem(altKey) || 'null');
             cloudReport = await getFromCloudflare(altKey);
           }
@@ -135,7 +141,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         // If not found by exact pattern (e.g. week1), try looking for a batch-specific report (e.g. week1_Morning)
         if (!cloudReport && !localReport) {
           const allKeys = Object.keys(localStorage);
-          const matchedKey = allKeys.find(k => k.startsWith(`weeklyReport_${loggedInEmail}_${pattern}_`) || (pattern === 'skill_test_2' && k.startsWith(`weeklyReport_${loggedInEmail}_week1_`)));
+          const matchedKey = allKeys.find(k => k.startsWith(`weeklyReport_${studentEmail}_${pattern}_`) || (pattern === 'skill_test_2' && k.startsWith(`weeklyReport_${studentEmail}_week1_`)));
           if (matchedKey) {
             localReport = JSON.parse(localStorage.getItem(matchedKey) || 'null');
             cloudReport = await getFromCloudflare(matchedKey);
@@ -144,10 +150,10 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
 
         // Fallback for Skill Test 2: If student submitted their exam, auto-evaluate score directly
         if (!cloudReport && !localReport && isSkillTest2) {
-          let subKey = `weeklyReportSubmission_${loggedInEmail}_skill_test_2`;
+          let subKey = `weeklyReportSubmission_${studentEmail}_skill_test_2`;
           let subData = JSON.parse(localStorage.getItem(subKey) || 'null') || await getFromCloudflare(subKey);
           if (!subData) {
-            const subMap = JSON.parse(localStorage.getItem(`weeklyExamSubmissions_${loggedInEmail}`) || '{}');
+            const subMap = JSON.parse(localStorage.getItem(`weeklyExamSubmissions_${studentEmail}`) || '{}');
             subData = subMap['skill_test_2'] || subMap['week1'];
             if (!subData) {
               const matchedEntry = Object.entries(subMap).find(([k]) => k.startsWith('skill_test_2') || k.startsWith('week1') || k.includes('skill'));
@@ -155,7 +161,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
             }
           }
           if (!subData) {
-            const altSubKey = `weeklyReportSubmission_${loggedInEmail}_week1`;
+            const altSubKey = `weeklyReportSubmission_${studentEmail}_week1`;
             subData = JSON.parse(localStorage.getItem(altSubKey) || 'null') || await getFromCloudflare(altSubKey);
           }
           if (subData && subData.theoryAnswers && Array.isArray(subData.theoryAnswers)) {
@@ -166,10 +172,10 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
             localReport = autoReport;
             localStorage.setItem(reportKey, JSON.stringify(autoReport));
             saveToCloudflare(reportKey, autoReport);
-            localStorage.setItem(`weeklyReport_${loggedInEmail}_skill_test_2`, JSON.stringify(autoReport));
-            saveToCloudflare(`weeklyReport_${loggedInEmail}_skill_test_2`, autoReport);
-            localStorage.setItem(`weeklyReport_${loggedInEmail}_week1`, JSON.stringify(autoReport));
-            saveToCloudflare(`weeklyReport_${loggedInEmail}_week1`, autoReport);
+            localStorage.setItem(`weeklyReport_${studentEmail}_skill_test_2`, JSON.stringify(autoReport));
+            saveToCloudflare(`weeklyReport_${studentEmail}_skill_test_2`, autoReport);
+            localStorage.setItem(`weeklyReport_${studentEmail}_week1`, JSON.stringify(autoReport));
+            saveToCloudflare(`weeklyReport_${studentEmail}_week1`, autoReport);
           }
         }
         

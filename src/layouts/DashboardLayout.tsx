@@ -5,7 +5,7 @@ import {
   Key, FileText, LogOut, Users, MessageSquare, BarChart, Award, Menu, X, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { cn } from '../utils/cn';
-import { getFromCloudflare } from '../utils/cloudflare';
+import { getFromCloudflare, matchesStudentEmail, isMuniUser } from '../utils/cloudflare';
 import { MUNI_STUDENTS, AUTHORIZED_STUDENTS_TRUNCATED as AUTHORIZED_STUDENTS } from '../data/students';
 
 const getInitials = (name: string) => {
@@ -20,7 +20,7 @@ const getInitials = (name: string) => {
 const DashboardLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const userEmail = sessionStorage.getItem('loggedInEmail') || '';
+  const userEmail = sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail') || '';
   const profileKey = `anuragLmsProfile_${userEmail}`;
   const [profile, setProfile] = useState<any>(null);
 
@@ -34,11 +34,8 @@ const DashboardLayout: React.FC = () => {
 
       const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
       const localMuniStudents = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
-      const allStudentsMap = new Map();
-      [...MUNI_STUDENTS, ...AUTHORIZED_STUDENTS, ...localStudents, ...localMuniStudents, ...(cloudStudents || []), ...(cloudMuniStudents || [])].forEach(s => {
-        if (s && s.email) allStudentsMap.set((s.email || '').toLowerCase().trim(), s);
-      });
-      const currentStudent = allStudentsMap.get((userEmail || '').toLowerCase().trim());
+      const allStudentsList = [...MUNI_STUDENTS, ...AUTHORIZED_STUDENTS, ...localStudents, ...localMuniStudents, ...(cloudStudents || []), ...(cloudMuniStudents || [])];
+      const currentStudent = allStudentsList.find(s => matchesStudentEmail(s?.email, userEmail));
       const resolvedName = currentStudent?.name || userEmail.split('@')[0];
 
       let activeProfile = cloudProfile;
@@ -83,13 +80,7 @@ const DashboardLayout: React.FC = () => {
     const checkMuni = async () => {
       const email = (userEmail || '').toLowerCase().trim();
       if (!email) return;
-      const cloudMuniStudents = await getFromCloudflare('registeredStudents_muni@geonixa.com') || [];
-      const localMuniStudents = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
-      const isMuni = email === 'muni@geonixa.com' 
-        || email === 'raju@anurag.com'
-        || MUNI_STUDENTS.some(s => (s.email || '').toLowerCase().trim() === email)
-        || [...cloudMuniStudents, ...localMuniStudents].some((s: any) => (s?.email || '').toLowerCase().trim() === email);
-      setIsMuniStudent(isMuni);
+      setIsMuniStudent(isMuniUser(email));
     };
     checkMuni();
   }, [userEmail]);
@@ -224,6 +215,7 @@ const DashboardLayout: React.FC = () => {
           <button 
             onClick={() => {
               sessionStorage.removeItem('loggedInEmail');
+              localStorage.removeItem('loggedInEmail');
               navigate('/login');
             }}
             className="flex items-center justify-between text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors w-full text-sm font-bold p-2 rounded-lg"

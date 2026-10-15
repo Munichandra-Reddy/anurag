@@ -72,37 +72,51 @@ export const getFromCloudflare = async (key: string): Promise<any> => {
 
 import { MUNI_STUDENTS } from '../data/students';
 
-export const isMuniUser = (): boolean => {
-  const userEmail = (sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail') || '').toLowerCase().trim();
+export const normalizeStudentEmail = (email?: string | null): string => {
+  if (!email) return '';
+  return email.toLowerCase().trim().replace(/^(\d{2})cg/i, '$1eg');
+};
+
+export const matchesStudentEmail = (email1?: string | null, email2?: string | null): boolean => {
+  if (!email1 || !email2) return false;
+  const e1 = email1.toLowerCase().trim();
+  const e2 = email2.toLowerCase().trim();
+  if (e1 === e2) return true;
+  return normalizeStudentEmail(e1) === normalizeStudentEmail(e2);
+};
+
+export const isMuniUser = (emailToCheck?: string): boolean => {
+  const userEmail = (emailToCheck || sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail') || '').toLowerCase().trim();
   if (!userEmail) return false;
   if (userEmail === 'muni@geonixa.com' || userEmail === 'raju@anurag.com') return true;
-  if (MUNI_STUDENTS.some(s => (s.email || '').toLowerCase().trim() === userEmail)) return true;
+  if (MUNI_STUDENTS.some(s => matchesStudentEmail(s.email, userEmail))) return true;
 
   const localMuniStudents = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
-  if (Array.isArray(localMuniStudents) && localMuniStudents.some((s: any) => (s?.email || '').toLowerCase().trim() === userEmail)) return true;
+  if (Array.isArray(localMuniStudents) && localMuniStudents.some((s: any) => matchesStudentEmail(s?.email, userEmail))) return true;
 
   return false;
 };
 
-export const getStudentsKey = (): string => {
-  if (isMuniUser()) {
+export const getStudentsKey = (emailToCheck?: string): string => {
+  if (isMuniUser(emailToCheck)) {
     return 'registeredStudents_muni@geonixa.com';
   }
   return 'registeredStudents';
 };
 
-export const getMentorKey = (baseKey: string): string => {
-  if (isMuniUser()) {
+export const getMentorKey = (baseKey: string, emailToCheck?: string): string => {
+  if (isMuniUser(emailToCheck)) {
     return `${baseKey}_muni@geonixa.com`;
   }
   return baseKey;
 };
 
-export const getMentorBatches = (): string[] => {
-  if (isMuniUser()) {
+export const getMentorBatches = (emailToCheck?: string): string[] => {
+  if (isMuniUser(emailToCheck)) {
     return ['A1', 'A2', 'B1', 'B2'];
   }
   return ['Morning', 'Evening'];
 };
+
 
 

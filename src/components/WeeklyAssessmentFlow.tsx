@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, X, Upload, Link as LinkIcon, FileText, CheckCircle2, Award, PlayCircle } from 'lucide-react';
 import { WeeklyExamReport } from './WeeklyExamReport';
-import { getFromCloudflare, saveToCloudflare, replaceInCloudflare, getMentorKey, getStudentsKey, getMentorBatches, isMuniUser } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, replaceInCloudflare, getMentorKey, getStudentsKey, getMentorBatches, isMuniUser, matchesStudentEmail } from '../utils/cloudflare';
 import { SOLIDWORKS_60_MCQS } from '../data/solidworks60Mcqs';
 import { SOLIDWORKS_SKILL_TEST_2_MCQS } from '../data/solidworksSkillTest2Mcqs';
 import { MUNI_STUDENTS } from '../data/students';
@@ -43,9 +43,37 @@ interface Props {
 }
 
 export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) => {
-  const availableBatches = getMentorBatches();
-  const isMuni = isMuniUser();
-  const [exams, setExams] = useState<WeeklyExamData[]>([]);
+  const currentEmail = loggedInEmail || sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail') || '';
+  const availableBatches = getMentorBatches(currentEmail);
+  const isMuni = isMuniUser(currentEmail);
+
+  // Lazy-initialize exams from localStorage to ensure instant display on refresh with NO empty flicker or data loss
+  const [exams, setExams] = useState<WeeklyExamData[]>(() => {
+    const examsKey = getMentorKey('anuragLmsWeeklyExams', currentEmail);
+    const saved = localStorage.getItem(examsKey) || (isMuni ? localStorage.getItem('anuragLmsWeeklyExams_muni@geonixa.com') : null);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {}
+    }
+    const isRemoved = localStorage.getItem(`${examsKey}_removed_skill_test_2`) === 'true' ||
+                      localStorage.getItem('anuragLmsWeeklyExams_muni@geonixa.com_removed_skill_test_2') === 'true';
+    if (isMuni && !isRemoved) {
+      return [{
+        id: 'skill_test_2',
+        title: 'Skill Test 2',
+        projectTitle: '',
+        portfolioTopic: '',
+        assessmentMode: 'mcq',
+        theoryPdfName: '',
+        theoryQuestions: SOLIDWORKS_SKILL_TEST_2_MCQS,
+        targetBatch: 'A2'
+      }];
+    }
+    return [];
+  });
+
   const [isAdding, setIsAdding] = useState<false | 'weekly' | 'cie'>(false);
   
   // Filter state
@@ -84,28 +112,49 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
 
   useEffect(() => {
     const fetchData = async () => {
-      // For students, always read from the mentor's key since exams are published by the mentor
-      const examsKey = getMentorKey('anuragLmsWeeklyExams');
-      const batchesKey = getMentorKey('anuragLmsProjectBatchData');
+      const email = currentEmail;
+      const examsKey = getMentorKey('anuragLmsWeeklyExams', email);
+      const batchesKey = getMentorKey('anuragLmsProjectBatchData', email);
 
-      // Load created exams — trust whatever is saved in Cloudflare/localStorage.
-      // NEVER auto-overwrite on page load; only the mentor's Remove button should delete an exam.
-      const cloudExams = await getFromCloudflare(examsKey);
-      let loadedExams: WeeklyExamData[] = [];
-      if (cloudExams && Array.isArray(cloudExams)) {
-        loadedExams = cloudExams;
-        // Keep localStorage in sync with the cloud version
-        localStorage.setItem(examsKey, JSON.stringify(loadedExams));
-      } else {
-        // Fallback to localStorage
-        const savedExams = localStorage.getItem(examsKey);
-        if (savedExams) {
-          try { loadedExams = JSON.parse(savedExams); } catch (e) { loadedExams = []; }
-        }
+      // 1. Read existing local storage
+      const savedExamsStr = localStorage.getItem(examsKey) || (isMuni ? localStorage.getItem('anuragLmsWeeklyExams_muni@geonixa.com') : null);
+      let localExams: WeeklyExamData[] = [];
+      if (savedExamsStr) {
+        try { localExams = JSON.parse(savedExamsStr); } catch (e) { localExams = []; }
+      }
+      if (localExams.length > 0) {
+        setExams(localExams);
       }
 
-      // Only auto-create a default Skill Test 2 if BOTH cloud and localStorage are empty
-      if (isMuni && isMentor && loadedExams.length === 0) {
+      // 2. Fetch from cloud
+      let cloudExams = await getFromCloudflare(examsKey);
+      if ((!cloudExams || (Array.isArray(cloudExams) && cloudExams.length === 0)) && isMuni) {
+        cloudExams = await getFromCloudflare('anuragLmsWeeklyExams_muni@geonixa.com');
+      }
+
+      const isSkillTest2Removed = localStorage.getItem(`${examsKey}_removed_skill_test_2`) === 'true' ||
+                                  localStorage.getItem('anuragLmsWeeklyExams_muni@geonixa.com_removed_skill_test_2') === 'true';
+
+      let finalExams: WeeklyExamData[] = [];
+
+      if (cloudExams && Array.isArray(cloudExams) && cloudExams.length > 0) {
+        // Cloud has exams - update state and sync to local storage
+        finalExams = cloudExams;
+        localStorage.setItem(examsKey, JSON.stringify(finalExams));
+        if (isMuni) {
+          localStorage.setItem('anuragLmsWeeklyExams_muni@geonixa.com', JSON.stringify(finalExams));
+        }
+      } else if (localExams.length > 0) {
+        // Local storage has exams, but cloud was empty/offline - PRESERVE LOCAL and push to cloud!
+        finalExams = localExams;
+        saveToCloudflare(examsKey, finalExams);
+        replaceInCloudflare(examsKey, finalExams);
+        if (isMuni) {
+          saveToCloudflare('anuragLmsWeeklyExams_muni@geonixa.com', finalExams);
+          replaceInCloudflare('anuragLmsWeeklyExams_muni@geonixa.com', finalExams);
+        }
+      } else if (isMuni && !isSkillTest2Removed) {
+        // Permanent default for Muni's portal / A2 batch students:
         const defaultSkillTest2: WeeklyExamData = {
           id: 'skill_test_2',
           title: 'Skill Test 2',
@@ -116,13 +165,18 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           theoryQuestions: SOLIDWORKS_SKILL_TEST_2_MCQS,
           targetBatch: 'A2'
         };
-        loadedExams = [defaultSkillTest2];
-        localStorage.setItem(examsKey, JSON.stringify(loadedExams));
-        await saveToCloudflare(examsKey, loadedExams);
-        await replaceInCloudflare(examsKey, loadedExams);
+        finalExams = [defaultSkillTest2];
+        localStorage.setItem(examsKey, JSON.stringify(finalExams));
+        localStorage.setItem('anuragLmsWeeklyExams_muni@geonixa.com', JSON.stringify(finalExams));
+        saveToCloudflare(examsKey, finalExams);
+        replaceInCloudflare(examsKey, finalExams);
+        if (examsKey !== 'anuragLmsWeeklyExams_muni@geonixa.com') {
+          saveToCloudflare('anuragLmsWeeklyExams_muni@geonixa.com', finalExams);
+          replaceInCloudflare('anuragLmsWeeklyExams_muni@geonixa.com', finalExams);
+        }
       }
 
-      setExams(loadedExams);
+      setExams(finalExams);
 
       // Load Project Batches
       const cloudBatches = await getFromCloudflare(batchesKey);
@@ -135,7 +189,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       
       // Load student submissions & details
       if (!isMentor) {
-        const subKey = `weeklyExamSubmissions_${loggedInEmail}`;
+        const subKey = `weeklyExamSubmissions_${email}`;
         const cloudSubmissions = await getFromCloudflare(subKey);
         if (cloudSubmissions) {
           setSubmissions(cloudSubmissions);
@@ -144,16 +198,24 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           if (savedSubmissions) setSubmissions(JSON.parse(savedSubmissions));
         }
         
-        const studentsKey = getStudentsKey();
+        const studentsKey = getStudentsKey(email);
         const cloudStudents = await getFromCloudflare(studentsKey);
         const localStudents = JSON.parse(localStorage.getItem(studentsKey) || '[]');
-        const allKnownStudents = [...MUNI_STUDENTS, ...localStudents, ...(Array.isArray(cloudStudents) ? cloudStudents : [])];
-        const me = allKnownStudents.find((s: any) => (s?.email || '').toLowerCase().trim() === loggedInEmail.toLowerCase().trim());
+        const cloudMuniStudents = await getFromCloudflare('registeredStudents_muni@geonixa.com');
+        const localMuniStudents = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
+        const allKnownStudents = [
+          ...MUNI_STUDENTS, 
+          ...localStudents, 
+          ...localMuniStudents,
+          ...(Array.isArray(cloudStudents) ? cloudStudents : []),
+          ...(Array.isArray(cloudMuniStudents) ? cloudMuniStudents : [])
+        ];
+        const me = allKnownStudents.find((s: any) => matchesStudentEmail(s?.email, email));
         setStudentDetails(me);
       }
     };
     fetchData();
-  }, [isMentor, loggedInEmail]);
+  }, [isMentor, currentEmail, isMuni]);
 
   const [isDraftLoaded, setIsDraftLoaded] = useState(false);
 
@@ -253,10 +315,22 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     ];
     setExams(updatedExams);
     
-    const examsKey = getMentorKey('anuragLmsWeeklyExams');
+    const examsKey = getMentorKey('anuragLmsWeeklyExams', currentEmail);
+    localStorage.removeItem(`${examsKey}_removed_${examId}`);
+    localStorage.removeItem(`anuragLmsWeeklyExams_muni@geonixa.com_removed_${examId}`);
+    saveToCloudflare(`${examsKey}_removed_${examId}`, null);
+    if (isMuni) saveToCloudflare(`anuragLmsWeeklyExams_muni@geonixa.com_removed_${examId}`, null);
+
     localStorage.setItem(examsKey, JSON.stringify(updatedExams));
+    if (isMuni) {
+      localStorage.setItem('anuragLmsWeeklyExams_muni@geonixa.com', JSON.stringify(updatedExams));
+    }
     await saveToCloudflare(examsKey, updatedExams);
     await replaceInCloudflare(examsKey, updatedExams);
+    if (isMuni && examsKey !== 'anuragLmsWeeklyExams_muni@geonixa.com') {
+      await saveToCloudflare('anuragLmsWeeklyExams_muni@geonixa.com', updatedExams);
+      await replaceInCloudflare('anuragLmsWeeklyExams_muni@geonixa.com', updatedExams);
+    }
     
     setIsAdding(false);
     // Reset
@@ -942,15 +1016,15 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           
           // Determine the student's batch — check all sources
           const rawStudentBatch = (() => {
-            const cleanEmail = (loggedInEmail || '').toLowerCase().trim();
+            const cleanEmail = (currentEmail || loggedInEmail || '').toLowerCase().trim();
             // 1. Static MUNI_STUDENTS (most reliable for known students)
-            const muniMatch = MUNI_STUDENTS.find(s => (s?.email || '').toLowerCase().trim() === cleanEmail);
+            const muniMatch = MUNI_STUDENTS.find(s => matchesStudentEmail(s?.email, cleanEmail));
             if (muniMatch?.batch) return muniMatch.batch;
             // 2. studentDetails loaded from cloud/local (registered students)
             if (studentDetails?.batch) return studentDetails.batch;
             // 3. localStorage registered students
-            const localStudents = JSON.parse(localStorage.getItem(getStudentsKey()) || '[]');
-            const localMatch = localStudents.find((s: any) => (s?.email || '').toLowerCase().trim() === cleanEmail);
+            const localStudents = JSON.parse(localStorage.getItem(getStudentsKey(cleanEmail)) || '[]');
+            const localMatch = localStudents.find((s: any) => matchesStudentEmail(s?.email, cleanEmail));
             if (localMatch?.batch) return localMatch.batch;
             return '';
           })();
@@ -967,7 +1041,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           // Check if targetBatch is a project batch number
           const targetProjectBatch = projectBatches.find(b => b.batchNumber.toLowerCase() === exam.targetBatch.toLowerCase());
           if (targetProjectBatch) {
-            return targetProjectBatch.memberEmails.includes(loggedInEmail);
+            return (targetProjectBatch.memberEmails || []).some((e: string) => matchesStudentEmail(e, currentEmail));
           }
           
           return false;
@@ -1013,15 +1087,27 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                         const newExams = exams.filter(e => e.id !== exam.id);
                         setExams(newExams);
 
-                        const examsKey = getMentorKey('anuragLmsWeeklyExams');
+                        const examsKey = getMentorKey('anuragLmsWeeklyExams', currentEmail);
+                        localStorage.setItem(`${examsKey}_removed_${exam.id}`, 'true');
+                        localStorage.setItem(`anuragLmsWeeklyExams_muni@geonixa.com_removed_${exam.id}`, 'true');
+                        saveToCloudflare(`${examsKey}_removed_${exam.id}`, true);
+                        if (isMuni) saveToCloudflare(`anuragLmsWeeklyExams_muni@geonixa.com_removed_${exam.id}`, true);
+
                         localStorage.setItem(examsKey, JSON.stringify(newExams));
+                        if (isMuni) {
+                          localStorage.setItem('anuragLmsWeeklyExams_muni@geonixa.com', JSON.stringify(newExams));
+                        }
                         const promises: Promise<any>[] = [
                           saveToCloudflare(examsKey, newExams),
                           replaceInCloudflare(examsKey, newExams)
                         ];
+                        if (isMuni && examsKey !== 'anuragLmsWeeklyExams_muni@geonixa.com') {
+                          promises.push(saveToCloudflare('anuragLmsWeeklyExams_muni@geonixa.com', newExams));
+                          promises.push(replaceInCloudflare('anuragLmsWeeklyExams_muni@geonixa.com', newExams));
+                        }
 
                         // Fetch only target students for this specific mentor
-                        const targetStudentsKey = getStudentsKey();
+                        const targetStudentsKey = getStudentsKey(currentEmail);
                         const cloudStudents = await getFromCloudflare(targetStudentsKey);
                         const localStudents = JSON.parse(localStorage.getItem(targetStudentsKey) || '[]');
 

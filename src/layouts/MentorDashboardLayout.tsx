@@ -9,13 +9,15 @@ import { cn } from '../utils/cn';
 const MentorDashboardLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const userEmail = sessionStorage.getItem('loggedInEmail') || '';
+  const userEmail = sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail') || '';
   const isMuniMentor = (userEmail || '').toLowerCase().trim() === 'muni@geonixa.com';
 
   React.useEffect(() => {
     // Route Guard: strict access only for authorized mentors
     const mentorEmails = ['maheshk@geonixa.com', 'jithendravarma.l@gmail.com', 'muni@geonixa.com'];
-    if (!mentorEmails.includes(userEmail)) {
+    if (!userEmail) {
+      navigate('/login');
+    } else if (!mentorEmails.includes(userEmail)) {
       navigate('/login');
     }
   }, [userEmail, navigate]);
@@ -152,6 +154,7 @@ const MentorDashboardLayout: React.FC = () => {
           <button 
             onClick={() => {
               sessionStorage.removeItem('loggedInEmail');
+              localStorage.removeItem('loggedInEmail');
               navigate('/login');
             }}
             className="flex items-center justify-between text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors w-full text-sm font-bold p-2 rounded-lg"
