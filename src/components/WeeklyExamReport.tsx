@@ -356,7 +356,8 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
 
   if (!isMentor) {
     // Student View
-    const displayPatternName = ((pattern === 'skill_test_2' || pattern === 'week1') && isMuniUser()) ? 'Skill Test 2' : pattern;
+    const isSkillTest2 = ((pattern === 'skill_test_2' || pattern === 'week1') && isMuniUser());
+    const displayPatternName = isSkillTest2 ? 'Skill Test 2' : pattern;
     return (
       <div className="w-full max-w-3xl mx-auto space-y-6 pb-12">
         <div className="flex items-center gap-3 text-gray-900 font-bold text-2xl mb-8">
@@ -367,32 +368,43 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         {studentReport ? (
           <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
             <div className="space-y-4 text-lg">
-              <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-                <span className="font-medium text-gray-700">Project</span>
-                <span className="font-bold text-primary">{studentReport.project} / {isCie ? 15 : 5}</span>
-              </div>
-              {!isCie && (
+              {isSkillTest2 ? (
                 <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-                  <span className="font-medium text-gray-700">Portfolio & Document</span>
-                  <span className="font-bold text-primary">{studentReport.portfolio} / 5</span>
+                  <span className="font-medium text-gray-700">Multiple Choice Questions (20 MCQs)</span>
+                  <span className="font-bold text-primary">{studentReport.theory} / 20</span>
                 </div>
+              ) : (
+                <>
+                  <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+                    <span className="font-medium text-gray-700">Project</span>
+                    <span className="font-bold text-primary">{studentReport.project} / {isCie ? 15 : 5}</span>
+                  </div>
+                  {!isCie && (
+                    <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+                      <span className="font-medium text-gray-700">Portfolio & Document</span>
+                      <span className="font-bold text-primary">{studentReport.portfolio} / 5</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+                    <span className="font-medium text-gray-700">Theory Assignment</span>
+                    <span className="font-bold text-primary">{studentReport.theory} / {isCie ? 10 : 5}</span>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+                    <span className="font-medium text-gray-700">{isCie ? 'Viva' : 'Mentor'}</span>
+                    <span className="font-bold text-primary">{studentReport.mentor} / {isCie ? 5 : 3}</span>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+                    <span className="font-medium text-gray-700">{isCie ? '6 weeks Average' : 'Attendance'}</span>
+                    <span className="font-bold text-primary">{studentReport.attendance} / {isCie ? 20 : 2}</span>
+                  </div>
+                </>
               )}
-              <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-                <span className="font-medium text-gray-700">Theory Assignment</span>
-                <span className="font-bold text-primary">{studentReport.theory} / {isCie ? 10 : 5}</span>
-              </div>
-              <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-                <span className="font-medium text-gray-700">{isCie ? 'Viva' : 'Mentor'}</span>
-                <span className="font-bold text-primary">{studentReport.mentor} / {isCie ? 5 : 3}</span>
-              </div>
-              <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-                <span className="font-medium text-gray-700">{isCie ? '6 weeks Average' : 'Attendance'}</span>
-                <span className="font-bold text-primary">{studentReport.attendance} / {isCie ? 20 : 2}</span>
-              </div>
               <div className="flex justify-between items-center pt-4">
                 <span className="font-black text-gray-900 text-xl">Total Score</span>
                 <span className="font-black text-primary text-2xl">
-                  {Number(studentReport.project) + (isCie ? 0 : Number(studentReport.portfolio)) + Number(studentReport.theory) + Number(studentReport.attendance) + Number(studentReport.mentor)} / {isCie ? 50 : 20}
+                  {isSkillTest2 
+                    ? `${Number(studentReport.theory)} / 20`
+                    : `${Number(studentReport.project) + (isCie ? 0 : Number(studentReport.portfolio)) + Number(studentReport.theory) + Number(studentReport.attendance) + Number(studentReport.mentor)} / ${isCie ? 50 : 20}`}
                 </span>
               </div>
             </div>
@@ -450,6 +462,8 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
     });
   }
 
+  const isSkillTest2 = ((pattern === 'skill_test_2' || pattern === 'week1') && isMuniUser());
+
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6 pb-12">
       {onBack && !selectedStudent && (
@@ -462,7 +476,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
       )}
       <div className="flex items-center gap-3 text-gray-900 font-bold text-2xl mb-6">
         <FileText className="text-orange-500" size={28} /> 
-        {((pattern === 'skill_test_2' || pattern === 'week1') && isMuniUser()) ? 'Skill Test 2' : pattern} Evaluation
+        {isSkillTest2 ? 'Skill Test 2' : pattern} Evaluation
       </div>
 
       {!selectedStudent && (
@@ -584,46 +598,48 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
               <h4 className="font-bold text-blue-900 border-b border-blue-200 pb-2">Student Submission Details</h4>
               
               {/* Project line */}
-              <div className="flex items-center flex-wrap gap-4 justify-between border-b border-blue-100/50 pb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-blue-800">Project: </span>
-                  {studentSubmission.projectUrl ? (
-                    <a href={studentSubmission.projectUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-600 underline">URL</a>
-                  ) : (
-                    <span className="text-sm text-gray-500">No URL</span>
-                  )}
-                  <span className="text-sm text-gray-400">|</span>
-                  {studentSubmission.projectPdfName ? (
-                    <>
-                      <span className="text-sm text-blue-600">{studentSubmission.projectPdfName}</span>
-                      {(studentSubmission as any).projectPdfDataUrl && (
-                        <button type="button" onClick={() => handleOpenPdf((studentSubmission as any).projectPdfDataUrl, studentSubmission.projectPdfName)} className="text-sm text-primary hover:underline font-bold ml-2">
-                          View PDF
-                        </button>
-                      )}
-                    </>
-                  ) : (
-                    <span className="text-sm text-gray-500">No PDF</span>
-                  )}
+              {!isSkillTest2 && (
+                <div className="flex items-center flex-wrap gap-4 justify-between border-b border-blue-100/50 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-blue-800">Project: </span>
+                    {studentSubmission.projectUrl ? (
+                      <a href={studentSubmission.projectUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-600 underline">URL</a>
+                    ) : (
+                      <span className="text-sm text-gray-500">No URL</span>
+                    )}
+                    <span className="text-sm text-gray-400">|</span>
+                    {studentSubmission.projectPdfName ? (
+                      <>
+                        <span className="text-sm text-blue-600">{studentSubmission.projectPdfName}</span>
+                        {(studentSubmission as any).projectPdfDataUrl && (
+                          <button type="button" onClick={() => handleOpenPdf((studentSubmission as any).projectPdfDataUrl, studentSubmission.projectPdfName)} className="text-sm text-primary hover:underline font-bold ml-2">
+                            View PDF
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-sm text-gray-500">No PDF</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="number" min="0" max={isCie ? "15" : "5"} placeholder="Marks" 
+                      value={projectEvalInput} 
+                      onChange={e => setProjectEvalInput(e.target.value)} 
+                      className="w-16 px-2 py-1 text-sm border border-blue-200 rounded focus:outline-none focus:border-blue-400" 
+                    />
+                    <button 
+                      onClick={() => setMarks({...marks, project: Number(projectEvalInput)})} 
+                      className="px-3 py-1 text-xs font-bold text-white bg-blue-600 rounded shadow-sm hover:bg-blue-700 transition-colors"
+                    >
+                      Evaluate
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="number" min="0" max={isCie ? "15" : "5"} placeholder="Marks" 
-                    value={projectEvalInput} 
-                    onChange={e => setProjectEvalInput(e.target.value)} 
-                    className="w-16 px-2 py-1 text-sm border border-blue-200 rounded focus:outline-none focus:border-blue-400" 
-                  />
-                  <button 
-                    onClick={() => setMarks({...marks, project: Number(projectEvalInput)})} 
-                    className="px-3 py-1 text-xs font-bold text-white bg-blue-600 rounded shadow-sm hover:bg-blue-700 transition-colors"
-                  >
-                    Evaluate
-                  </button>
-                </div>
-              </div>
+              )}
 
               {/* Portfolio line */}
-              {!isCie && (
+              {!isSkillTest2 && !isCie && (
                 <div className="flex items-center flex-wrap gap-4 justify-between border-b border-blue-100/50 pb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-blue-800">Portfolio PDF: </span>
@@ -657,30 +673,32 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                 </div>
               )}
 
-              <div className="flex items-center flex-wrap gap-4 justify-between border-b border-blue-100/50 pb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-gray-700">Question PDF: </span>
-                  {targetExam?.theoryPdfName && targetExam?.theoryPdfName !== 'theory_assignment.pdf' ? (
-                    <>
-                      <span className="text-sm text-gray-600">{targetExam.theoryPdfName}</span>
-                      {targetExam.theoryPdfDataUrl && (
-                        <button type="button" onClick={() => handleOpenPdf(targetExam.theoryPdfDataUrl, targetExam.theoryPdfName)} className="text-sm text-primary hover:underline font-bold ml-2">
-                          View Question PDF
-                        </button>
-                      )}
-                    </>
-                  ) : (
-                    <span className="text-sm text-gray-500">None</span>
-                  )}
+              {!isSkillTest2 && (
+                <div className="flex items-center flex-wrap gap-4 justify-between border-b border-blue-100/50 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-gray-700">Question PDF: </span>
+                    {targetExam?.theoryPdfName && targetExam?.theoryPdfName !== 'theory_assignment.pdf' ? (
+                      <>
+                        <span className="text-sm text-gray-600">{targetExam.theoryPdfName}</span>
+                        {targetExam.theoryPdfDataUrl && (
+                          <button type="button" onClick={() => handleOpenPdf(targetExam.theoryPdfDataUrl, targetExam.theoryPdfName)} className="text-sm text-primary hover:underline font-bold ml-2">
+                            View Question PDF
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-sm text-gray-500">None</span>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Theory line */}
               <div className="flex flex-col gap-3 border-b border-blue-100/50 pb-4">
                 <div className="flex items-center flex-wrap gap-4 justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-blue-800">Theory Answers PDF: </span>
-                    {studentSubmission.theoryAnswerPdfName ? (
+                    <span className="text-sm font-bold text-blue-800">{isSkillTest2 ? 'MCQ Evaluation: ' : 'Theory Answers PDF: '}</span>
+                    {!isSkillTest2 && (studentSubmission.theoryAnswerPdfName ? (
                       <>
                         <span className="text-sm text-blue-600">{studentSubmission.theoryAnswerPdfName}</span>
                         {studentSubmission.theoryAnswerPdfDataUrl && (
@@ -691,18 +709,25 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                       </>
                     ) : (
                       <span className="text-sm text-gray-500">Not uploaded</span>
-                    )}
+                    ))}
                   </div>
                   
                   <div className="flex items-center gap-2">
                     <input 
-                      type="number" min="0" max={isCie ? "10" : "5"} placeholder="Marks" 
+                      type="number" min="0" max={isSkillTest2 ? "20" : (isCie ? "10" : "5")} placeholder="Marks" 
                       value={theoryEvalInput} 
                       onChange={e => setTheoryEvalInput(e.target.value)} 
                       className="w-16 px-2 py-1 text-sm border border-blue-200 rounded focus:outline-none focus:border-blue-400" 
                     />
                     <button 
-                      onClick={() => setMarks({...marks, theory: Number(theoryEvalInput)})} 
+                      onClick={() => {
+                        const val = Number(theoryEvalInput);
+                        if (isSkillTest2) {
+                          setMarks({ project: 0, portfolio: 0, attendance: 0, mentor: 0, theory: val });
+                        } else {
+                          setMarks({...marks, theory: val});
+                        }
+                      }} 
                       className="px-3 py-1 text-xs font-bold text-white bg-blue-600 rounded shadow-sm hover:bg-blue-700 transition-colors"
                     >
                       Evaluate
@@ -710,7 +735,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                   </div>
                 </div>
                 
-                {(studentSubmission as any).theoryTextAnswer && (
+                {!isSkillTest2 && (studentSubmission as any).theoryTextAnswer && (
                   <div className="mt-2 p-4 bg-gray-50 border border-gray-200 rounded-xl">
                     <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Typed Answer:</h4>
                     <p className="text-sm text-gray-800 whitespace-pre-wrap">{(studentSubmission as any).theoryTextAnswer}</p>
@@ -723,8 +748,8 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                     return acc + (studentSubmission.theoryAnswers[idx] === q.answerIndex ? 1 : 0);
                   }, 0);
                   const total = targetExam.theoryQuestions.length;
-                  const maxMark = isCie ? 10 : 5;
-                  const calculatedMark = Math.round((correctCount / total) * maxMark);
+                  const maxMark = isSkillTest2 ? 20 : (isCie ? 10 : 5);
+                  const calculatedMark = isSkillTest2 ? correctCount : Math.round((correctCount / total) * maxMark);
 
                   return (
                     <div className="bg-white p-3 rounded-lg border border-blue-200 mt-2 flex flex-wrap items-center justify-between gap-2">
@@ -733,13 +758,17 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                         <span className="px-2.5 py-1 bg-green-50 text-green-700 text-sm font-bold rounded-lg border border-green-200">
                           {correctCount} / {total} Correct ({Math.round((correctCount / total) * 100)}%)
                         </span>
-                        <span className="text-xs text-gray-500 font-medium">Scaled: {calculatedMark} / {maxMark}M</span>
+                        <span className="text-xs text-gray-500 font-medium">{isSkillTest2 ? `Score: ${calculatedMark} / 20M` : `Scaled: ${calculatedMark} / ${maxMark}M`}</span>
                       </div>
                       <button
                         type="button"
                         onClick={() => {
                           setTheoryEvalInput(String(calculatedMark));
-                          setMarks(prev => ({ ...prev, theory: calculatedMark }));
+                          if (isSkillTest2) {
+                            setMarks({ project: 0, portfolio: 0, attendance: 0, mentor: 0, theory: calculatedMark });
+                          } else {
+                            setMarks(prev => ({ ...prev, theory: calculatedMark }));
+                          }
                         }}
                         className="px-3 py-1 bg-primary text-white text-xs font-bold rounded-lg shadow-sm hover:bg-orange-600 transition-colors"
                       >
@@ -804,53 +833,71 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
           )}
 
           <div className="space-y-6 max-w-2xl">
-            <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
-              <label className="font-medium text-gray-700">Project (Max {isCie ? 15 : 5})</label>
-              <input 
-                type="number" min="0" max={isCie ? 15 : 5} 
-                value={marks.project} onChange={(e) => setMarks({...marks, project: Number(e.target.value)})}
-                className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-center focus:outline-none focus:border-primary"
-              />
-            </div>
-            {!isCie && (
-              <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
-                <label className="font-medium text-gray-700">Portfolio & Document (Max 5)</label>
+            {isSkillTest2 ? (
+              <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-primary/20">
+                <div>
+                  <label className="font-bold text-gray-800 block text-base">Multiple Choice Questions</label>
+                  <span className="text-xs text-gray-500">20 MCQs (1 Mark each, Max 20 Marks)</span>
+                </div>
                 <input 
-                  type="number" min="0" max="5" 
-                  value={marks.portfolio} onChange={(e) => setMarks({...marks, portfolio: Number(e.target.value)})}
-                  className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-center focus:outline-none focus:border-primary"
+                  type="number" min="0" max={20} 
+                  value={marks.theory} onChange={(e) => setMarks({ project: 0, portfolio: 0, attendance: 0, mentor: 0, theory: Number(e.target.value) })}
+                  className="w-24 px-3 py-2 border-2 border-primary rounded-xl text-center font-bold text-primary text-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
+                  <label className="font-medium text-gray-700">Project (Max {isCie ? 15 : 5})</label>
+                  <input 
+                    type="number" min="0" max={isCie ? 15 : 5} 
+                    value={marks.project} onChange={(e) => setMarks({...marks, project: Number(e.target.value)})}
+                    className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-center focus:outline-none focus:border-primary"
+                  />
+                </div>
+                {!isCie && (
+                  <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
+                    <label className="font-medium text-gray-700">Portfolio & Document (Max 5)</label>
+                    <input 
+                      type="number" min="0" max="5" 
+                      value={marks.portfolio} onChange={(e) => setMarks({...marks, portfolio: Number(e.target.value)})}
+                      className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-center focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                )}
+                <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
+                  <label className="font-medium text-gray-700">Theory Assignment (Max {isCie ? 10 : 5})</label>
+                  <input 
+                    type="number" min="0" max={isCie ? 10 : 5} 
+                    value={marks.theory} onChange={(e) => setMarks({...marks, theory: Number(e.target.value)})}
+                    className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-center focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
+                  <label className="font-medium text-gray-700">{isCie ? 'Viva' : 'Mentor'} (Max {isCie ? 5 : 3})</label>
+                  <input 
+                    type="number" min="0" max={isCie ? 5 : 3} 
+                    value={marks.mentor} onChange={(e) => setMarks({...marks, mentor: Number(e.target.value)})}
+                    className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-center focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
+                  <label className="font-medium text-gray-700">{isCie ? '6 weeks Average' : 'Attendance'} (Max {isCie ? 20 : 2})</label>
+                  <input 
+                    type="number" min="0" max={isCie ? 20 : 2} 
+                    value={marks.attendance} onChange={(e) => setMarks({...marks, attendance: Number(e.target.value)})}
+                    className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-center focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </>
             )}
-            <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
-              <label className="font-medium text-gray-700">Theory Assignment (Max {isCie ? 10 : 5})</label>
-              <input 
-                type="number" min="0" max={isCie ? 10 : 5} 
-                value={marks.theory} onChange={(e) => setMarks({...marks, theory: Number(e.target.value)})}
-                className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-center focus:outline-none focus:border-primary"
-              />
-            </div>
-            <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
-              <label className="font-medium text-gray-700">{isCie ? 'Viva' : 'Mentor'} (Max {isCie ? 5 : 3})</label>
-              <input 
-                type="number" min="0" max={isCie ? 5 : 3} 
-                value={marks.mentor} onChange={(e) => setMarks({...marks, mentor: Number(e.target.value)})}
-                className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-center focus:outline-none focus:border-primary"
-              />
-            </div>
-            <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
-              <label className="font-medium text-gray-700">{isCie ? '6 weeks Average' : 'Attendance'} (Max {isCie ? 20 : 2})</label>
-              <input 
-                type="number" min="0" max={isCie ? 20 : 2} 
-                value={marks.attendance} onChange={(e) => setMarks({...marks, attendance: Number(e.target.value)})}
-                className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-center focus:outline-none focus:border-primary"
-              />
-            </div>
             
             <div className="flex items-center justify-between p-4 border-t-2 border-gray-100">
               <span className="font-bold text-gray-900 text-lg">Total Score</span>
               <span className="font-black text-primary text-2xl">
-                {Number(marks.project) + (isCie ? 0 : Number(marks.portfolio)) + Number(marks.theory) + Number(marks.attendance) + Number(marks.mentor)} / {isCie ? 50 : 20}
+                {isSkillTest2 
+                  ? `${Number(marks.theory)} / 20` 
+                  : `${Number(marks.project) + (isCie ? 0 : Number(marks.portfolio)) + Number(marks.theory) + Number(marks.attendance) + Number(marks.mentor)} / ${isCie ? 50 : 20}`}
               </span>
             </div>
 

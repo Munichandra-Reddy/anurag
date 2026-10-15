@@ -54,8 +54,8 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
   
   // Mentor form state
   const [selectedWeek, setSelectedWeek] = useState(isMuni ? 'skill_test_2' : 'week1');
-  const [projectTitle, setProjectTitle] = useState(isMuni ? 'SolidWorks Part & Assembly Modeling Project' : '');
-  const [portfolioTopic, setPortfolioTopic] = useState(isMuni ? 'SolidWorks Design Portfolio & Documentation' : '');
+  const [projectTitle, setProjectTitle] = useState('');
+  const [portfolioTopic, setPortfolioTopic] = useState('');
   const [assessmentMode, setAssessmentMode] = useState<'pdf' | 'mcq'>('mcq');
   const [theoryPdfName, setTheoryPdfName] = useState('theory_assignment.pdf');
   const [theoryPdfDataUrl, setTheoryPdfDataUrl] = useState('');
@@ -107,8 +107,8 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           const defaultSkillTest2: WeeklyExamData = {
             id: 'skill_test_2',
             title: 'Skill Test 2',
-            projectTitle: 'SolidWorks Part & Assembly Modeling Project',
-            portfolioTopic: 'SolidWorks Design Portfolio & Documentation',
+            projectTitle: '',
+            portfolioTopic: '',
             assessmentMode: 'mcq',
             theoryPdfName: '',
             theoryQuestions: SOLIDWORKS_SKILL_TEST_2_MCQS,
@@ -117,19 +117,23 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           loadedExams = [defaultSkillTest2, ...loadedExams];
           localStorage.setItem(examsKey, JSON.stringify(loadedExams));
           saveToCloudflare(examsKey, loadedExams);
+          replaceInCloudflare(examsKey, loadedExams);
         } else {
           const ex = loadedExams[existingIdx];
           const has20Mcqs = ex.theoryQuestions && ex.theoryQuestions.length === 20 && ex.theoryQuestions[0]?.question?.includes('Fully Defined');
-          if (ex.id === 'week1' || ex.title !== 'Skill Test 2' || !has20Mcqs) {
+          if (ex.id === 'week1' || ex.title !== 'Skill Test 2' || !has20Mcqs || ex.projectTitle || ex.portfolioTopic) {
             loadedExams[existingIdx] = {
               ...ex,
               id: 'skill_test_2',
               title: 'Skill Test 2',
+              projectTitle: '',
+              portfolioTopic: '',
               theoryQuestions: SOLIDWORKS_SKILL_TEST_2_MCQS,
-              assessmentMode: ex.assessmentMode || 'mcq'
+              assessmentMode: 'mcq'
             };
             localStorage.setItem(examsKey, JSON.stringify(loadedExams));
             saveToCloudflare(examsKey, loadedExams);
+            replaceInCloudflare(examsKey, loadedExams);
           }
         }
       }
@@ -243,14 +247,16 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     const newExam: WeeklyExamData = {
       id: examId,
       title: isSkillTest2 ? 'Skill Test 2' : `${selectedWeek.toUpperCase()} Exam`,
-      projectTitle,
-      portfolioTopic,
-      assessmentMode,
-      theoryPdfName: assessmentMode === 'pdf' ? theoryPdfName : '',
-      theoryPdfDataUrl: assessmentMode === 'pdf' ? theoryPdfDataUrl : '',
-      theoryQuestions: assessmentMode === 'mcq' 
-        ? (theoryQuestions.length > 0 ? theoryQuestions.slice(0, questionCount) : (isSkillTest2 ? SOLIDWORKS_SKILL_TEST_2_MCQS : SOLIDWORKS_60_MCQS.slice(0, questionCount))) 
-        : [],
+      projectTitle: isSkillTest2 ? '' : projectTitle,
+      portfolioTopic: isSkillTest2 ? '' : portfolioTopic,
+      assessmentMode: isSkillTest2 ? 'mcq' : assessmentMode,
+      theoryPdfName: (assessmentMode === 'pdf' && !isSkillTest2) ? theoryPdfName : '',
+      theoryPdfDataUrl: (assessmentMode === 'pdf' && !isSkillTest2) ? theoryPdfDataUrl : '',
+      theoryQuestions: isSkillTest2 
+        ? SOLIDWORKS_SKILL_TEST_2_MCQS 
+        : (assessmentMode === 'mcq' 
+            ? (theoryQuestions.length > 0 ? theoryQuestions.slice(0, questionCount) : SOLIDWORKS_60_MCQS.slice(0, questionCount)) 
+            : []),
       targetBatch
     };
 
@@ -267,8 +273,8 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     
     setIsAdding(false);
     // Reset
-    setProjectTitle(isMuni ? 'SolidWorks Part & Assembly Modeling Project' : '');
-    setPortfolioTopic(isMuni ? 'SolidWorks Design Portfolio & Documentation' : '');
+    setProjectTitle('');
+    setPortfolioTopic('');
     setTheoryPdfName('theory_assignment.pdf');
     setTheoryPdfDataUrl('');
     setQuestionCount(isMuni ? 20 : 60);
@@ -281,7 +287,13 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     const exam = exams.find(e => e.id === takingExamId);
     if (!exam) return;
 
-    if (exam.projectTitle && !studentProjectUrl && !studentProjectPdf) {
+    const isSkillTest2Taking = isMuni && (
+      takingExamId === 'skill_test_2' || takingExamId === 'week1' ||
+      takingExamId.startsWith('skill_test_2') || takingExamId.startsWith('week1') ||
+      exam.title.toLowerCase().includes('skill test 2')
+    );
+
+    if (!isSkillTest2Taking && exam.projectTitle && !studentProjectUrl && !studentProjectPdf) {
       alert("Please provide a project URL or PDF");
       return;
     }
@@ -396,8 +408,8 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           <p className="text-gray-500">Complete all sections below and submit your work.</p>
         </div>
 
-        {/* Project Section */}
-        {exam.projectTitle && (
+        {/* Project Section - Hidden for Skill Test 2 */}
+        {!isExamSkillTest2 && exam.projectTitle && (
           <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 space-y-4">
             <h3 className="font-bold text-lg text-gray-900 border-b border-gray-200 pb-2">1. Project Submission</h3>
             <p className="text-gray-700 font-medium">{exam.projectTitle}</p>
@@ -438,8 +450,8 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           </div>
         )}
 
-        {/* Portfolio Section */}
-        {exam.portfolioTopic && (
+        {/* Portfolio Section - Hidden for Skill Test 2 */}
+        {!isExamSkillTest2 && exam.portfolioTopic && (
           <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 space-y-4">
             <h3 className="font-bold text-lg text-gray-900 border-b border-gray-200 pb-2">2. Portfolio & Document</h3>
             <p className="text-gray-700 font-medium">{exam.portfolioTopic}</p>
@@ -469,7 +481,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
         {exam.theoryQuestions && exam.theoryQuestions.length > 0 ? (
           <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 space-y-6">
             <h3 className="font-bold text-lg text-gray-900 border-b border-gray-200 pb-2">
-              {exam.portfolioTopic ? '3' : '2'}. Multiple Choice Questions ({exam.theoryQuestions.length} Questions)
+              {isExamSkillTest2 ? `Multiple Choice Questions (${exam.theoryQuestions.length} Questions)` : `${exam.portfolioTopic ? '3' : '2'}. Multiple Choice Questions (${exam.theoryQuestions.length} Questions)`}
             </h3>
             
             <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2">
@@ -661,17 +673,21 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                   </div>
                 </div>
 
-                <div className="bg-gray-50 p-5 rounded-xl border border-gray-100">
-                  <h4 className="font-bold text-gray-900 mb-3 border-b border-gray-200 pb-2">1. Project</h4>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Project Title / Description</label>
-                  <input 
-                    type="text" value={projectTitle} onChange={(e) => setProjectTitle(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary"
-                  />
-                  <p className="text-xs text-gray-500 mt-2">Students will be prompted to submit a URL and PDFs.</p>
-                </div>
+                {/* 1. Project - Hidden for Skill Test 2 */}
+                {!(selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni)) && (
+                  <div className="bg-gray-50 p-5 rounded-xl border border-gray-100">
+                    <h4 className="font-bold text-gray-900 mb-3 border-b border-gray-200 pb-2">1. Project</h4>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Project Title / Description</label>
+                    <input 
+                      type="text" value={projectTitle} onChange={(e) => setProjectTitle(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary"
+                    />
+                    <p className="text-xs text-gray-500 mt-2">Students will be prompted to submit a URL and PDFs.</p>
+                  </div>
+                )}
 
-                {isAdding === 'weekly' && (
+                {/* 2. Portfolio & Document - Hidden for Skill Test 2 */}
+                {isAdding === 'weekly' && !(selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni)) && (
                   <div className="bg-gray-50 p-5 rounded-xl border border-gray-100">
                     <h4 className="font-bold text-gray-900 mb-3 border-b border-gray-200 pb-2">2. Portfolio & Document</h4>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Portfolio Topic</label>
@@ -684,35 +700,41 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                 )}
 
                 <div className="bg-gray-50 p-5 rounded-xl border border-gray-100 space-y-4">
-                  <h4 className="font-bold text-gray-900 border-b border-gray-200 pb-2">{isAdding === 'weekly' ? '3' : '2'}. Theory / Multiple Choice Assessment</h4>
+                  <h4 className="font-bold text-gray-900 border-b border-gray-200 pb-2">
+                    {(selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni))
+                      ? 'Multiple Choice Questions (20 MCQs)'
+                      : `${isAdding === 'weekly' ? '3' : '2'}. Theory / Multiple Choice Assessment`}
+                  </h4>
                   
-                      {/* Select Type: MCQs vs Theory PDF */}
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setAssessmentMode('mcq')}
-                      className={`px-4 py-2 rounded-xl font-bold text-sm border transition-all ${
-                        assessmentMode === 'mcq'
-                          ? 'bg-primary text-white border-primary shadow-sm'
-                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      Multiple Choice Questions ({questionCount} MCQs)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAssessmentMode('pdf')}
-                      className={`px-4 py-2 rounded-xl font-bold text-sm border transition-all ${
-                        assessmentMode === 'pdf'
-                          ? 'bg-primary text-white border-primary shadow-sm'
-                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      Theory Assignment (Upload Reference PDF)
-                    </button>
-                  </div>
+                  {/* Select Type: MCQs vs Theory PDF (hidden for Skill Test 2 since it is strictly MCQs) */}
+                  {!(selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni)) && (
+                    <div className="flex flex-wrap gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setAssessmentMode('mcq')}
+                        className={`px-4 py-2 rounded-xl font-bold text-sm border transition-all ${
+                          assessmentMode === 'mcq'
+                            ? 'bg-primary text-white border-primary shadow-sm'
+                            : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        Multiple Choice Questions ({questionCount} MCQs)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAssessmentMode('pdf')}
+                        className={`px-4 py-2 rounded-xl font-bold text-sm border transition-all ${
+                          assessmentMode === 'pdf'
+                            ? 'bg-primary text-white border-primary shadow-sm'
+                            : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        Theory Assignment (Upload Reference PDF)
+                      </button>
+                    </div>
+                  )}
 
-                  {assessmentMode === 'pdf' ? (
+                  {assessmentMode === 'pdf' && !(selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni)) ? (
                     <div className="mb-4">
                       <label className="block text-sm font-medium text-gray-700 mb-1">Upload Reference PDF</label>
                       <div className="flex items-center gap-3">
