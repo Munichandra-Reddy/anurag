@@ -3,7 +3,7 @@ import { Plus, X, Upload, Link as LinkIcon, FileText, CheckCircle2, Award, PlayC
 import { WeeklyExamReport } from './WeeklyExamReport';
 import { getFromCloudflare, saveToCloudflare, replaceInCloudflare, getMentorKey, getStudentsKey, getMentorBatches, isMuniUser } from '../utils/cloudflare';
 import { SOLIDWORKS_60_MCQS } from '../data/solidworks60Mcqs';
-import { SOLIDWORKS_SKILL_TEST_2_MCQS } from '../data/solidworksSkillTest2Mcqs';
+import { SOLIDWORKS_SKILL_TEST_2_MCQS, SOLIDWORKS_SKILL_TEST_2_A2_MCQS } from '../data/solidworksSkillTest2Mcqs';
 import { MUNI_STUDENTS } from '../data/students';
 
 interface TheoryQuestion {
@@ -52,6 +52,17 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
   const [filterExam, setFilterExam] = useState('');
   const [filterBatch, setFilterBatch] = useState('All');
   
+  const getQuestionsForTarget = (batch: string, week: string) => {
+    const cleanBatch = (batch || '').toLowerCase().replace(' batch', '').trim();
+    if (isMuni || week === 'skill_test_2' || week === 'week1') {
+      if (cleanBatch === 'a2') {
+        return SOLIDWORKS_SKILL_TEST_2_A2_MCQS;
+      }
+      return SOLIDWORKS_SKILL_TEST_2_MCQS;
+    }
+    return SOLIDWORKS_60_MCQS;
+  };
+
   // Mentor form state
   const [selectedWeek, setSelectedWeek] = useState(isMuni ? 'skill_test_2' : 'week1');
   const [projectTitle, setProjectTitle] = useState('');
@@ -59,9 +70,11 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
   const [assessmentMode, setAssessmentMode] = useState<'pdf' | 'mcq'>('mcq');
   const [theoryPdfName, setTheoryPdfName] = useState('theory_assignment.pdf');
   const [theoryPdfDataUrl, setTheoryPdfDataUrl] = useState('');
+  const [targetBatch, setTargetBatch] = useState(isMuni ? 'A2' : 'All Batches');
   const [questionCount, setQuestionCount] = useState<number>(isMuni ? 20 : 60);
-  const [theoryQuestions, setTheoryQuestions] = useState<TheoryQuestion[]>(isMuni ? SOLIDWORKS_SKILL_TEST_2_MCQS : SOLIDWORKS_60_MCQS);
-  const [targetBatch, setTargetBatch] = useState('All Batches');
+  const [theoryQuestions, setTheoryQuestions] = useState<TheoryQuestion[]>(
+    isMuni ? SOLIDWORKS_SKILL_TEST_2_A2_MCQS : SOLIDWORKS_60_MCQS
+  );
   const [projectBatches, setProjectBatches] = useState<any[]>([]);
 
   // Student form state
@@ -98,43 +111,83 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       }
 
       if (isMuni) {
-        const existingIdx = loadedExams.findIndex(e => 
-          e.id === 'skill_test_2' || e.id === 'week1' || 
-          e.id.startsWith('skill_test_2_') || e.id.startsWith('week1_')
+        let updatedLoadedExams = [...loadedExams];
+        let hasChanged = false;
+
+        // 1. Ensure default A2 exam exists and has SOLIDWORKS_SKILL_TEST_2_A2_MCQS
+        const a2ExamIdx = updatedLoadedExams.findIndex(e => 
+          e.id === 'skill_test_2_A2' || (e.title === 'Skill Test 2' && (e.targetBatch === 'A2' || e.targetBatch === 'A2 Batch'))
         );
 
-        if (existingIdx === -1) {
-          const defaultSkillTest2: WeeklyExamData = {
-            id: 'skill_test_2',
+        if (a2ExamIdx === -1) {
+          const defaultA2SkillTest2: WeeklyExamData = {
+            id: 'skill_test_2_A2',
             title: 'Skill Test 2',
             projectTitle: '',
             portfolioTopic: '',
             assessmentMode: 'mcq',
             theoryPdfName: '',
-            theoryQuestions: SOLIDWORKS_SKILL_TEST_2_MCQS,
-            targetBatch: 'All Batches'
+            theoryQuestions: SOLIDWORKS_SKILL_TEST_2_A2_MCQS,
+            targetBatch: 'A2'
           };
-          loadedExams = [defaultSkillTest2, ...loadedExams];
-          localStorage.setItem(examsKey, JSON.stringify(loadedExams));
-          saveToCloudflare(examsKey, loadedExams);
-          replaceInCloudflare(examsKey, loadedExams);
+          updatedLoadedExams = [defaultA2SkillTest2, ...updatedLoadedExams];
+          hasChanged = true;
         } else {
-          const ex = loadedExams[existingIdx];
-          const has20Mcqs = ex.theoryQuestions && ex.theoryQuestions.length === 20 && ex.theoryQuestions[0]?.question?.includes('Fully Defined');
-          if (ex.id === 'week1' || ex.title !== 'Skill Test 2' || !has20Mcqs || ex.projectTitle || ex.portfolioTopic) {
-            loadedExams[existingIdx] = {
-              ...ex,
-              id: 'skill_test_2',
+          const a2Ex = updatedLoadedExams[a2ExamIdx];
+          const hasA2Mcqs = a2Ex.theoryQuestions && a2Ex.theoryQuestions.length === 20 && 
+            a2Ex.theoryQuestions[0]?.question?.includes('Which mate makes two planar faces');
+          if (!hasA2Mcqs || a2Ex.targetBatch !== 'A2') {
+            updatedLoadedExams[a2ExamIdx] = {
+              ...a2Ex,
+              id: 'skill_test_2_A2',
+              title: 'Skill Test 2',
+              targetBatch: 'A2',
+              theoryQuestions: SOLIDWORKS_SKILL_TEST_2_A2_MCQS,
+              assessmentMode: 'mcq'
+            };
+            hasChanged = true;
+          }
+        }
+
+        // 2. Ensure A1 exam exists for A1 students
+        const a1ExamIdx = updatedLoadedExams.findIndex(e => 
+          e.id === 'skill_test_2_A1' || (e.title === 'Skill Test 2' && (e.targetBatch === 'A1' || e.targetBatch === 'A1 Batch'))
+        );
+
+        if (a1ExamIdx === -1) {
+          // If there is an old generic skill_test_2 with 'All Batches', convert it to A1
+          const genericIdx = updatedLoadedExams.findIndex(e => 
+            (e.id === 'skill_test_2' || e.id === 'week1') && (e.targetBatch === 'All Batches' || !e.targetBatch)
+          );
+          if (genericIdx !== -1) {
+            updatedLoadedExams[genericIdx] = {
+              ...updatedLoadedExams[genericIdx],
+              id: 'skill_test_2_A1',
+              title: 'Skill Test 2',
+              targetBatch: 'A1',
+              theoryQuestions: SOLIDWORKS_SKILL_TEST_2_MCQS
+            };
+          } else {
+            const defaultA1SkillTest2: WeeklyExamData = {
+              id: 'skill_test_2_A1',
               title: 'Skill Test 2',
               projectTitle: '',
               portfolioTopic: '',
+              assessmentMode: 'mcq',
+              theoryPdfName: '',
               theoryQuestions: SOLIDWORKS_SKILL_TEST_2_MCQS,
-              assessmentMode: 'mcq'
+              targetBatch: 'A1'
             };
-            localStorage.setItem(examsKey, JSON.stringify(loadedExams));
-            saveToCloudflare(examsKey, loadedExams);
-            replaceInCloudflare(examsKey, loadedExams);
+            updatedLoadedExams = [...updatedLoadedExams, defaultA1SkillTest2];
           }
+          hasChanged = true;
+        }
+
+        if (hasChanged) {
+          loadedExams = updatedLoadedExams;
+          localStorage.setItem(examsKey, JSON.stringify(loadedExams));
+          saveToCloudflare(examsKey, loadedExams);
+          replaceInCloudflare(examsKey, loadedExams);
         }
       }
 
@@ -240,9 +293,14 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     e.preventDefault();
 
     const isSkillTest2 = selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni);
+    const cleanTargetBatch = targetBatch.replace(/\s*batch/i, '').trim();
     const examId = isSkillTest2 
-      ? (targetBatch === 'All Batches' ? 'skill_test_2' : `skill_test_2_${targetBatch.replace(/\s+/g, '')}`)
-      : (targetBatch === 'All Batches' ? selectedWeek : `${selectedWeek}_${targetBatch.replace(/\s+/g, '')}`);
+      ? (targetBatch === 'All Batches' ? 'skill_test_2' : `skill_test_2_${cleanTargetBatch}`)
+      : (targetBatch === 'All Batches' ? selectedWeek : `${selectedWeek}_${cleanTargetBatch}`);
+
+    const selectedQuestions = (theoryQuestions && theoryQuestions.length > 0)
+      ? theoryQuestions.slice(0, questionCount)
+      : getQuestionsForTarget(targetBatch, selectedWeek);
 
     const newExam: WeeklyExamData = {
       id: examId,
@@ -252,16 +310,12 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       assessmentMode: isSkillTest2 ? 'mcq' : assessmentMode,
       theoryPdfName: (assessmentMode === 'pdf' && !isSkillTest2) ? theoryPdfName : '',
       theoryPdfDataUrl: (assessmentMode === 'pdf' && !isSkillTest2) ? theoryPdfDataUrl : '',
-      theoryQuestions: isSkillTest2 
-        ? SOLIDWORKS_SKILL_TEST_2_MCQS 
-        : (assessmentMode === 'mcq' 
-            ? (theoryQuestions.length > 0 ? theoryQuestions.slice(0, questionCount) : SOLIDWORKS_60_MCQS.slice(0, questionCount)) 
-            : []),
+      theoryQuestions: (isSkillTest2 || assessmentMode === 'mcq') ? selectedQuestions : [],
       targetBatch
     };
 
     const updatedExams = [
-      ...exams.filter(ex => ex.id !== examId && !(isSkillTest2 && (ex.id === 'week1' || ex.id === 'skill_test_2'))), 
+      ...exams.filter(ex => ex.id !== examId && !(isSkillTest2 && (ex.id === 'week1' || ex.id === 'skill_test_2') && ex.targetBatch === targetBatch)), 
       newExam
     ];
     setExams(updatedExams);
@@ -278,8 +332,8 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     setTheoryPdfName('theory_assignment.pdf');
     setTheoryPdfDataUrl('');
     setQuestionCount(isMuni ? 20 : 60);
-    setTheoryQuestions(isMuni ? SOLIDWORKS_SKILL_TEST_2_MCQS : SOLIDWORKS_60_MCQS);
-    setTargetBatch('All Batches');
+    setTargetBatch(isMuni ? 'A2' : 'All Batches');
+    setTheoryQuestions(isMuni ? SOLIDWORKS_SKILL_TEST_2_A2_MCQS : SOLIDWORKS_60_MCQS);
   };
 
   const handleStudentSubmit = async () => {
@@ -330,7 +384,18 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       await saveToCloudflare(`weeklyReportSubmission_${loggedInEmail}_week1`, submission);
 
       // Auto-evaluate 20 MCQs score and pre-save report marks
-      const correctCount = SOLIDWORKS_SKILL_TEST_2_MCQS.reduce((acc, q, idx) => {
+      const examTargetBatchClean = (exam.targetBatch || '').toLowerCase().replace(' batch', '').trim();
+      const questionsToEvaluate = (examTargetBatchClean === 'a2' && isSkillTest2Taking)
+        ? (exam.theoryQuestions && exam.theoryQuestions.length === 20 && exam.theoryQuestions[0]?.question?.includes('Which mate makes two planar faces')
+            ? exam.theoryQuestions
+            : SOLIDWORKS_SKILL_TEST_2_A2_MCQS)
+        : ((exam.theoryQuestions && exam.theoryQuestions.length > 0)
+            ? exam.theoryQuestions
+            : (isSkillTest2Taking 
+                ? (examTargetBatchClean === 'a2' ? SOLIDWORKS_SKILL_TEST_2_A2_MCQS : SOLIDWORKS_SKILL_TEST_2_MCQS)
+                : []));
+
+      const correctCount = questionsToEvaluate.reduce((acc, q, idx) => {
         return acc + (studentTheoryAnswers[idx] === q.answerIndex ? 1 : 0);
       }, 0);
       const evaluatedReport = {
@@ -344,6 +409,8 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       await saveToCloudflare(`weeklyReport_${loggedInEmail}_skill_test_2`, evaluatedReport);
       localStorage.setItem(`weeklyReport_${loggedInEmail}_week1`, JSON.stringify(evaluatedReport));
       await saveToCloudflare(`weeklyReport_${loggedInEmail}_week1`, evaluatedReport);
+      localStorage.setItem(`weeklyReport_${loggedInEmail}_${takingExamId}`, JSON.stringify(evaluatedReport));
+      await saveToCloudflare(`weeklyReport_${loggedInEmail}_${takingExamId}`, evaluatedReport);
     }
 
     // Clear draft on successful submission
@@ -419,9 +486,16 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       exam.title.toLowerCase().includes('skill test 2')
     );
 
-    const effectiveQuestions = (exam.theoryQuestions && exam.theoryQuestions.length > 0)
-      ? exam.theoryQuestions
-      : (isExamSkillTest2 ? SOLIDWORKS_SKILL_TEST_2_MCQS : []);
+    const examTargetBatchClean = (exam.targetBatch || '').toLowerCase().replace(' batch', '').trim();
+    const effectiveQuestions = (examTargetBatchClean === 'a2' && isExamSkillTest2)
+      ? (exam.theoryQuestions && exam.theoryQuestions.length === 20 && exam.theoryQuestions[0]?.question?.includes('Which mate makes two planar faces')
+          ? exam.theoryQuestions
+          : SOLIDWORKS_SKILL_TEST_2_A2_MCQS)
+      : ((exam.theoryQuestions && exam.theoryQuestions.length > 0)
+          ? exam.theoryQuestions
+          : (isExamSkillTest2 
+              ? (examTargetBatchClean === 'a2' ? SOLIDWORKS_SKILL_TEST_2_A2_MCQS : SOLIDWORKS_SKILL_TEST_2_MCQS)
+              : []));
 
     return (
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 space-y-8 relative">
@@ -617,8 +691,9 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
               <button 
                 onClick={() => { 
                   setSelectedWeek(isMuni ? 'skill_test_2' : 'week1'); 
+                  setTargetBatch(isMuni ? 'A2' : 'All Batches');
                   setQuestionCount(isMuni ? 20 : 60);
-                  setTheoryQuestions(isMuni ? SOLIDWORKS_SKILL_TEST_2_MCQS : SOLIDWORKS_60_MCQS);
+                  setTheoryQuestions(isMuni ? SOLIDWORKS_SKILL_TEST_2_A2_MCQS : SOLIDWORKS_60_MCQS);
                   setIsAdding('weekly'); 
                 }}
                 className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-primary text-primary font-bold rounded-xl shadow-sm hover:bg-primary/5 transition-colors"
@@ -654,7 +729,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                         setSelectedWeek(val);
                         if (val === 'skill_test_2' || (val === 'week1' && isMuni)) {
                           setQuestionCount(20);
-                          setTheoryQuestions(SOLIDWORKS_SKILL_TEST_2_MCQS);
+                          setTheoryQuestions(getQuestionsForTarget(targetBatch, val));
                         }
                       }}
                       className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-primary text-sm font-medium"
@@ -690,7 +765,14 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                     <label className="block text-sm font-bold text-gray-700 mb-1">Target Batch</label>
                     <select 
                       value={targetBatch} 
-                      onChange={(e) => setTargetBatch(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setTargetBatch(val);
+                        if (isMuni || selectedWeek === 'skill_test_2' || selectedWeek === 'week1') {
+                          setTheoryQuestions(getQuestionsForTarget(val, selectedWeek));
+                          setQuestionCount(20);
+                        }
+                      }}
                       className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-primary text-sm font-medium"
                     >
                       <option value="All Batches">All Batches</option>
@@ -951,11 +1033,11 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
             }
             return true;
           }
-          if (!exam.targetBatch || exam.targetBatch === 'All Batches') return true;
+          const cleanEmail = (loggedInEmail || '').toLowerCase().trim();
+          const studentIsMuni = isMuniUser();
           
           const rawStudentBatch = (() => {
             if (studentDetails?.batch) return studentDetails.batch;
-            const cleanEmail = (loggedInEmail || '').toLowerCase().trim();
             const muniMatch = MUNI_STUDENTS.find(s => (s?.email || '').toLowerCase().trim() === cleanEmail);
             if (muniMatch?.batch) return muniMatch.batch;
             const localStudents = JSON.parse(localStorage.getItem(getStudentsKey()) || '[]');
@@ -964,8 +1046,41 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
             return '';
           })();
 
-          const targetBatchClean = exam.targetBatch.toLowerCase().replace(' batch', '').trim();
+          const targetBatchClean = (exam.targetBatch || '').toLowerCase().replace(' batch', '').trim();
           const studentBatchClean = rawStudentBatch.toLowerCase().replace(' batch', '').trim();
+          const isMuniBatchExam = ['a1', 'a2', 'b1', 'b2'].includes(targetBatchClean);
+
+          // If exam is targeted to a specific Muni batch (A1, A2, B1, B2):
+          // ONLY Muni mentor students in that exact batch can see it!
+          if (isMuniBatchExam) {
+            if (!studentIsMuni) return false;
+            return studentBatchClean === targetBatchClean;
+          }
+
+          // If student is Muni mentor student, do not show exams targeted to other mentor batches
+          if (studentIsMuni && exam.targetBatch && exam.targetBatch !== 'All Batches' && !isMuniBatchExam) {
+            const targetProjectBatch = projectBatches.find(b => b.batchNumber.toLowerCase() === exam.targetBatch.toLowerCase());
+            if (targetProjectBatch) {
+              return targetProjectBatch.memberEmails.includes(loggedInEmail);
+            }
+            return false;
+          }
+
+          if (!exam.targetBatch || exam.targetBatch === 'All Batches') {
+            // If the student is a Muni student and there is already a specific exam for their batch (e.g. A2),
+            // hide the generic 'All Batches' duplicate.
+            if (studentIsMuni && studentBatchClean) {
+              const hasSpecificExam = exams.some(e => 
+                e.id !== exam.id && 
+                (e.targetBatch?.toLowerCase().replace(' batch', '').trim() === studentBatchClean) &&
+                (e.title === exam.title || 
+                 (e.id.startsWith('skill_test_2') && exam.id.startsWith('skill_test_2')) || 
+                 (e.id.startsWith('week1') && exam.id.startsWith('week1')))
+              );
+              if (hasSpecificExam) return false;
+            }
+            return true;
+          }
 
           if (studentBatchClean) {
             return studentBatchClean === targetBatchClean || 
@@ -1090,7 +1205,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                   </button>
                 </>
               ) : (
-                submissions[exam.id] ? (
+                (submissions[exam.id] || (isExamSkillTest2 && (submissions['skill_test_2'] || submissions['week1']))) ? (
                   <div className="flex items-center justify-center gap-2 px-6 py-2.5 bg-green-50 text-green-700 font-bold rounded-xl border border-green-100 shadow-sm">
                     <CheckCircle2 size={18} /> Submitted
                   </div>
