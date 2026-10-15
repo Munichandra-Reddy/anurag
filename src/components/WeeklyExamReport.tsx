@@ -476,7 +476,6 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
 
   if (!isMentor) {
     // Student View
-    const isSkillTest2 = ((pattern === 'skill_test_2' || pattern === 'week1') && isMuniUser());
     const displayPatternName = isSkillTest2 ? 'Skill Test 2' : pattern;
     return (
       <div className="w-full max-w-3xl mx-auto space-y-6 pb-12">
@@ -581,8 +580,6 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
       }
     });
   }
-
-  const isSkillTest2 = ((pattern === 'skill_test_2' || pattern === 'week1') && isMuniUser());
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6 pb-12">
