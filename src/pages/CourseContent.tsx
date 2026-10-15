@@ -143,7 +143,10 @@ const CourseContent: React.FC = () => {
 
       if (Array.isArray(cloudCourses) && cloudCourses.length > 0) {
         resolvedSessions = cloudCourses;
-        localStorage.setItem(courseKey, JSON.stringify(cloudCourses));
+        try {
+          const lightCourses = cloudCourses.map((c: any) => ({ ...c, pdfDataUrl: '' }));
+          localStorage.setItem(courseKey, JSON.stringify(lightCourses));
+        } catch (e) {}
       } else if (Array.isArray(localCourses) && localCourses.length > 0) {
         resolvedSessions = localCourses;
       } else if (Array.isArray(cloudCourses)) {
@@ -183,7 +186,10 @@ const CourseContent: React.FC = () => {
     setSessionsData(newSessions);
     try {
       const courseKey = await getCourseStorageKey();
-      localStorage.setItem(courseKey, JSON.stringify(newSessions));
+      try {
+        const lightSessions = newSessions.map((c: any) => ({ ...c, pdfDataUrl: '' }));
+        localStorage.setItem(courseKey, JSON.stringify(lightSessions));
+      } catch (e) {}
       
       await replaceInCloudflare(courseKey, newSessions);
       await saveToCloudflare(courseKey, newSessions);

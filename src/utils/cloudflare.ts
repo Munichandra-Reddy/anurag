@@ -131,5 +131,98 @@ export const getMentorBatches = (emailToCheck?: string): string[] => {
   return ['Morning', 'Evening'];
 };
 
+/**
+ * Safely cleans bloated items from localStorage to prevent QuotaExceededError.
+ * Preserves essential session keys like 'loggedInEmail'.
+ */
+export const cleanBloatedLocalStorage = () => {
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key !== 'loggedInEmail') {
+        try {
+          const val = localStorage.getItem(key) || '';
+          // Purge large entries (>20KB), base64 data, or graph exam file payloads
+          if (
+            val.length > 20000 ||
+            val.includes('data:image') ||
+            val.includes('data:application/pdf') ||
+            val.includes('base64') ||
+            key.startsWith('graphExamSub_') ||
+            key === 'graphExamSubmissions_muni' ||
+            key.startsWith('anuragLmsCourses_')
+          ) {
+            keysToRemove.push(key);
+          }
+        } catch (e) {}
+      }
+    }
+    keysToRemove.forEach(k => {
+      try {
+        localStorage.removeItem(k);
+      } catch (e) {}
+    });
+    if (keysToRemove.length > 0) {
+      console.log(`Cleaned ${keysToRemove.length} bulky items from localStorage to restore quota.`);
+    }
+  } catch (err) {
+    console.warn("Storage cleanup notice:", err);
+  }
+};
+
+/**
+ * Safely saves data to sessionStorage and localStorage without crashing if storage quota is exceeded.
+ */
+export const safeSetStorage = (key: string, value: string) => {
+  try {
+    sessionStorage.setItem(key, value);
+  } catch (e) {
+    console.warn(`sessionStorage failed for ${key}:`, e);
+  }
+
+  try {
+    localStorage.setItem(key, value);
+  } catch (err: any) {
+    console.warn(`localStorage quota error for ${key}. Attempting cleanup...`, err);
+    try {
+      cleanBloatedLocalStorage();
+      localStorage.setItem(key, value);
+    } catch (retryErr) {
+      // If still fails, clear all non-essential items
+      try {
+        const toDelete: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k !== 'loggedInEmail' && k !== key) toDelete.push(k);
+        }
+        toDelete.slice(0, 15).forEach(k => {
+          try { localStorage.removeItem(k); } catch (e) {}
+        });
+        localStorage.setItem(key, value);
+      } catch (finalErr) {
+        console.warn(`Could not save ${key} to localStorage, active in sessionStorage.`, finalErr);
+      }
+    }
+  }
+};
+
+/**
+ * Safely gets data from sessionStorage or localStorage.
+ */
+export const safeGetStorage = (key: string): string => {
+  try {
+    const sessionVal = sessionStorage.getItem(key);
+    if (sessionVal) return sessionVal;
+  } catch (e) {}
+
+  try {
+    const localVal = localStorage.getItem(key);
+    if (localVal) return localVal;
+  } catch (e) {}
+
+  return '';
+};
+
 
 

@@ -2,7 +2,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, KeyRound, Mail, ArrowRight, ArrowLeft, Eye, EyeOff } from 'lucide-react';
-import { getFromCloudflare, saveToCloudflare, matchesStudentEmail } from '../utils/cloudflare';
+import { 
+  getFromCloudflare, 
+  saveToCloudflare, 
+  matchesStudentEmail, 
+  safeSetStorage, 
+  safeGetStorage, 
+  cleanBloatedLocalStorage 
+} from '../utils/cloudflare';
 import { AUTHORIZED_STUDENTS, MUNI_STUDENTS } from '../data/students';
 
 type AuthState = 'LOGIN' | 'FORGOT_EMAIL' | 'FORGOT_OTP' | 'FORGOT_NEW_PWD';
@@ -29,7 +36,10 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
 
   React.useEffect(() => {
-    const rawEmail = sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail');
+    // Proactively clean up bloated items from localStorage to prevent QuotaExceededError
+    cleanBloatedLocalStorage();
+
+    const rawEmail = safeGetStorage('loggedInEmail');
     if (rawEmail) {
       const loggedInEmail = rawEmail.toLowerCase().trim();
       const facultyEmails = ['munidhoni@72', 'naveence@anurag.edu.in', 'shekarreddyce@anurag.edu.in', 'hodce@anurag.edu.in'];
@@ -129,8 +139,7 @@ const Login: React.FC = () => {
         setError('Invalid password. Please check your credentials and try again.');
         return;
       }
-      sessionStorage.setItem('loggedInEmail', cleanEmail);
-      localStorage.setItem('loggedInEmail', cleanEmail);
+      safeSetStorage('loggedInEmail', cleanEmail);
       navigate('/faculty-dashboard', { replace: true });
       return;
     }
@@ -162,8 +171,7 @@ const Login: React.FC = () => {
         setError('Invalid password. Please check your password and try again.');
         return;
       }
-      sessionStorage.setItem('loggedInEmail', cleanEmail);
-      localStorage.setItem('loggedInEmail', cleanEmail);
+      safeSetStorage('loggedInEmail', cleanEmail);
       navigate('/mentor-dashboard', { replace: true });
       return;
     }
@@ -198,8 +206,7 @@ const Login: React.FC = () => {
           }
 
           // Authorize student immediately
-          sessionStorage.setItem('loggedInEmail', cleanEmail);
-          localStorage.setItem('loggedInEmail', cleanEmail);
+          safeSetStorage('loggedInEmail', cleanEmail);
 
           // Background sync to Firestore without blocking login
           try {
@@ -221,7 +228,9 @@ const Login: React.FC = () => {
                 batch: muniMatch.batch || 'A2'
               };
               const updatedMuni = [newMuniStudent, ...localMuni];
-              localStorage.setItem('registeredStudents_muni@geonixa.com', JSON.stringify(updatedMuni));
+              try {
+                localStorage.setItem('registeredStudents_muni@geonixa.com', JSON.stringify(updatedMuni));
+              } catch (e) {}
               saveToCloudflare('registeredStudents_muni@geonixa.com', updatedMuni);
             }
           } catch (syncErr) {
@@ -229,21 +238,20 @@ const Login: React.FC = () => {
           }
 
           setIsLoading(false);
-          navigate('/dashboard');
+          navigate('/dashboard', { replace: true });
           return;
         }
 
         if (cleanEmail === 'raju@anurag.com') {
-          if (cleanPassword !== 'raju@526') {
+          if (cleanPassword !== 'raju@526' && cleanPassword.toLowerCase() !== 'raju@526') {
             setError('Invalid password.');
             setIsLoading(false);
             return;
           }
 
-          sessionStorage.setItem('loggedInEmail', cleanEmail);
-          localStorage.setItem('loggedInEmail', cleanEmail);
+          safeSetStorage('loggedInEmail', cleanEmail);
           setIsLoading(false);
-          navigate('/dashboard');
+          navigate('/dashboard', { replace: true });
           return;
         }
 
@@ -282,8 +290,7 @@ const Login: React.FC = () => {
           return;
         }
 
-        sessionStorage.setItem('loggedInEmail', cleanEmail);
-        localStorage.setItem('loggedInEmail', cleanEmail);
+        safeSetStorage('loggedInEmail', cleanEmail);
 
         if (!studentInDb && authorizedStudent) {
           try {
@@ -296,21 +303,24 @@ const Login: React.FC = () => {
               batch: ''
             };
             const updated = [newStudent, ...validDatabaseStudents];
-            localStorage.setItem('registeredStudents', JSON.stringify(updated));
+            try {
+              localStorage.setItem('registeredStudents', JSON.stringify(updated));
+            } catch (e) {}
             saveToCloudflare('registeredStudents', updated);
           } catch (e) {}
         }
 
         setIsLoading(false);
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
         return;
       } catch (err: any) {
         console.error("Login error:", err);
         // Fallback: If credentials are valid, authorize the user
-        sessionStorage.setItem('loggedInEmail', cleanEmail);
-        localStorage.setItem('loggedInEmail', cleanEmail);
+        try {
+          safeSetStorage('loggedInEmail', cleanEmail);
+        } catch (e) {}
         setIsLoading(false);
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
       } finally {
         setIsLoading(false);
       }

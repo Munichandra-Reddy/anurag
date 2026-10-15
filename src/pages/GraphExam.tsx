@@ -398,16 +398,11 @@ const GraphExam: React.FC = () => {
 
       // 2. Safe LocalStorage save (QuotaExceededError safety wrapper)
       try {
-        localStorage.setItem(studentSubKey, JSON.stringify(newSubmission));
-        localStorage.setItem(pdfSubKey, JSON.stringify(newSubmission));
+        const lightSub = { ...newSubmission, fileData: '' };
+        localStorage.setItem(studentSubKey, JSON.stringify(lightSub));
+        localStorage.setItem(pdfSubKey, JSON.stringify(lightSub));
       } catch (localErr) {
-        console.warn("LocalStorage full, saving lightweight submission metadata locally:", localErr);
-        try {
-          const lightSub = { ...newSubmission, fileData: '' };
-          localStorage.setItem(studentSubKey, JSON.stringify(lightSub));
-        } catch (e) {
-          // ignore local quota error
-        }
+        // ignore local quota error
       }
 
       // 3. Cloudfire save across multiple keys to guarantee Muni Mentor access
@@ -421,7 +416,11 @@ const GraphExam: React.FC = () => {
         const updatedDict = { ...localDict, ...(cloudDict || {}), [loggedInEmail]: newSubmission };
         
         try {
-          localStorage.setItem('graphExamSubmissions_muni', JSON.stringify(updatedDict));
+          const lightDict: Record<string, any> = {};
+          Object.keys(updatedDict).forEach(k => {
+            lightDict[k] = { ...updatedDict[k], fileData: '' };
+          });
+          localStorage.setItem('graphExamSubmissions_muni', JSON.stringify(lightDict));
         } catch (e) {}
         
         await replaceInCloudflare('graphExamSubmissions_muni', updatedDict);
