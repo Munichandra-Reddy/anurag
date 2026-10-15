@@ -84,6 +84,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
 
   useEffect(() => {
     const fetchData = async () => {
+      // For students, always read from the mentor's key since exams are published by the mentor
       const examsKey = getMentorKey('anuragLmsWeeklyExams');
       const batchesKey = getMentorKey('anuragLmsProjectBatchData');
 
@@ -96,14 +97,15 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
         // Keep localStorage in sync with the cloud version
         localStorage.setItem(examsKey, JSON.stringify(loadedExams));
       } else {
+        // Fallback to localStorage
         const savedExams = localStorage.getItem(examsKey);
         if (savedExams) {
           try { loadedExams = JSON.parse(savedExams); } catch (e) { loadedExams = []; }
         }
       }
 
-      // Only auto-create a default Skill Test 2 if there is NO exam data saved at all
-      if (isMuni && loadedExams.length === 0) {
+      // Only auto-create a default Skill Test 2 if BOTH cloud and localStorage are empty
+      if (isMuni && isMentor && loadedExams.length === 0) {
         const defaultSkillTest2: WeeklyExamData = {
           id: 'skill_test_2',
           title: 'Skill Test 2',
@@ -222,8 +224,11 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     e.preventDefault();
 
     const isSkillTest2 = selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni);
+    // For Skill Test 2, ALWAYS use 'skill_test_2' as the ID regardless of target batch.
+    // Batch filtering is done via the targetBatch field, not the ID.
+    // This ensures student submissions (saved under 'skill_test_2') always match.
     const examId = isSkillTest2 
-      ? (targetBatch === 'All Batches' ? 'skill_test_2' : `skill_test_2_${targetBatch.replace(/\s+/g, '')}`)
+      ? 'skill_test_2'
       : (targetBatch === 'All Batches' ? selectedWeek : `${selectedWeek}_${targetBatch.replace(/\s+/g, '')}`);
 
     const newExam: WeeklyExamData = {
@@ -935,11 +940,15 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           }
           if (!exam.targetBatch || exam.targetBatch === 'All Batches') return true;
           
+          // Determine the student's batch — check all sources
           const rawStudentBatch = (() => {
-            if (studentDetails?.batch) return studentDetails.batch;
             const cleanEmail = (loggedInEmail || '').toLowerCase().trim();
+            // 1. Static MUNI_STUDENTS (most reliable for known students)
             const muniMatch = MUNI_STUDENTS.find(s => (s?.email || '').toLowerCase().trim() === cleanEmail);
             if (muniMatch?.batch) return muniMatch.batch;
+            // 2. studentDetails loaded from cloud/local (registered students)
+            if (studentDetails?.batch) return studentDetails.batch;
+            // 3. localStorage registered students
             const localStudents = JSON.parse(localStorage.getItem(getStudentsKey()) || '[]');
             const localMatch = localStudents.find((s: any) => (s?.email || '').toLowerCase().trim() === cleanEmail);
             if (localMatch?.batch) return localMatch.batch;
@@ -1072,7 +1081,11 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                   </button>
                 </>
               ) : (
-                submissions[exam.id] ? (
+                // Check submissions using all possible IDs for Skill Test 2
+                (submissions[exam.id] || submissions['skill_test_2'] || submissions['week1']) && 
+                (exam.id === 'skill_test_2' || exam.id.startsWith('skill_test_2') || exam.id === 'week1' 
+                  ? (submissions['skill_test_2'] || submissions['week1'])
+                  : submissions[exam.id]) ? (
                   <div className="flex items-center justify-center gap-2 px-6 py-2.5 bg-green-50 text-green-700 font-bold rounded-xl border border-green-100 shadow-sm">
                     <CheckCircle2 size={18} /> Submitted
                   </div>
