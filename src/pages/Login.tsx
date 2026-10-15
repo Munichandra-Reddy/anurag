@@ -43,11 +43,20 @@ const Login: React.FC = () => {
   }, [navigate]);
 
   const fetchDatabaseStudents = async () => {
-    const cloudStudents = await getFromCloudflare('registeredStudents') || [];
-    const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
+    let cloudStudents: any[] = [];
+    try {
+      const cloud = await getFromCloudflare('registeredStudents');
+      if (Array.isArray(cloud)) cloudStudents = cloud;
+    } catch (e) {}
+
+    let localStudents: any[] = [];
+    try {
+      const local = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
+      if (Array.isArray(local)) localStudents = local;
+    } catch (e) {}
     
     const allStudentsMap = new Map();
-    [...localStudents, ...(cloudStudents as any[])].forEach(s => {
+    [...localStudents, ...cloudStudents].forEach(s => {
       if (s && s.email) allStudentsMap.set(s.email.toLowerCase(), s);
     });
     
@@ -100,29 +109,44 @@ const Login: React.FC = () => {
             return;
           }
 
-          const muniStudents = await getFromCloudflare('registeredStudents_muni@geonixa.com') || [];
-          const localMuni = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
-          const allMuniMap = new Map();
-          [...localMuni, ...muniStudents].forEach(s => {
-            if (s && s.email) allMuniMap.set(s.email.toLowerCase(), s);
-          });
-
-          if (!allMuniMap.has(cleanEmail)) {
-            const newMuniStudent = {
-              id: muniMatch.id || Date.now(),
-              name: muniMatch.name,
-              email: cleanEmail,
-              password: muniMatch.roll,
-              registeredAt: new Date().toISOString(),
-              batch: muniMatch.batch || 'A2'
-            };
-            const updatedMuni = [newMuniStudent, ...Array.from(allMuniMap.values())];
-            localStorage.setItem('registeredStudents_muni@geonixa.com', JSON.stringify(updatedMuni));
-            await saveToCloudflare('registeredStudents_muni@geonixa.com', updatedMuni);
-          }
-
+          // Authorize student immediately
           sessionStorage.setItem('loggedInEmail', cleanEmail);
           localStorage.setItem('loggedInEmail', cleanEmail);
+
+          // Background sync to Firestore without blocking login if connection fails
+          try {
+            const muniStudentsRaw = await getFromCloudflare('registeredStudents_muni@geonixa.com');
+            const muniStudents = Array.isArray(muniStudentsRaw) ? muniStudentsRaw : [];
+            const localMuniRaw = localStorage.getItem('registeredStudents_muni@geonixa.com');
+            let localMuni: any[] = [];
+            if (localMuniRaw) {
+              try {
+                const parsed = JSON.parse(localMuniRaw);
+                if (Array.isArray(parsed)) localMuni = parsed;
+              } catch (e) {}
+            }
+            const allMuniMap = new Map();
+            [...localMuni, ...muniStudents].forEach(s => {
+              if (s && s.email) allMuniMap.set(s.email.toLowerCase(), s);
+            });
+
+            if (!allMuniMap.has(cleanEmail)) {
+              const newMuniStudent = {
+                id: muniMatch.id || Date.now(),
+                name: muniMatch.name,
+                email: cleanEmail,
+                password: muniMatch.roll,
+                registeredAt: new Date().toISOString(),
+                batch: muniMatch.batch || 'A2'
+              };
+              const updatedMuni = [newMuniStudent, ...Array.from(allMuniMap.values())];
+              localStorage.setItem('registeredStudents_muni@geonixa.com', JSON.stringify(updatedMuni));
+              saveToCloudflare('registeredStudents_muni@geonixa.com', updatedMuni);
+            }
+          } catch (syncErr) {
+            console.warn("Background registration sync warning:", syncErr);
+          }
+
           navigate('/dashboard');
           setIsLoading(false);
           return;
@@ -135,29 +159,33 @@ const Login: React.FC = () => {
             return;
           }
 
-          // Register Raju into muni@geonixa.com mentor portal ONLY
-          const muniStudents = await getFromCloudflare('registeredStudents_muni@geonixa.com') || [];
-          const localMuni = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
-          const allMuniMap = new Map();
-          [...localMuni, ...muniStudents].forEach(s => {
-            if (s && s.email) allMuniMap.set(s.email.toLowerCase(), s);
-          });
-
-          if (!allMuniMap.has('raju@anurag.com')) {
-            const newRaju = {
-              id: Date.now(),
-              name: 'Raju',
-              email: 'raju@anurag.com',
-              password: 'raju@526',
-              registeredAt: new Date().toISOString(),
-              batch: 'A1'
-            };
-            const updatedMuni = [newRaju, ...Array.from(allMuniMap.values())];
-            localStorage.setItem('registeredStudents_muni@geonixa.com', JSON.stringify(updatedMuni));
-            await saveToCloudflare('registeredStudents_muni@geonixa.com', updatedMuni);
-          }
-
           sessionStorage.setItem('loggedInEmail', cleanEmail);
+          localStorage.setItem('loggedInEmail', cleanEmail);
+
+          try {
+            const muniStudentsRaw = await getFromCloudflare('registeredStudents_muni@geonixa.com');
+            const muniStudents = Array.isArray(muniStudentsRaw) ? muniStudentsRaw : [];
+            const localMuni = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
+            const allMuniMap = new Map();
+            [...(Array.isArray(localMuni) ? localMuni : []), ...muniStudents].forEach(s => {
+              if (s && s.email) allMuniMap.set(s.email.toLowerCase(), s);
+            });
+
+            if (!allMuniMap.has('raju@anurag.com')) {
+              const newRaju = {
+                id: Date.now(),
+                name: 'Raju',
+                email: 'raju@anurag.com',
+                password: 'raju@526',
+                registeredAt: new Date().toISOString(),
+                batch: 'A1'
+              };
+              const updatedMuni = [newRaju, ...Array.from(allMuniMap.values())];
+              localStorage.setItem('registeredStudents_muni@geonixa.com', JSON.stringify(updatedMuni));
+              saveToCloudflare('registeredStudents_muni@geonixa.com', updatedMuni);
+            }
+          } catch (e) {}
+
           navigate('/dashboard');
           setIsLoading(false);
           return;
@@ -165,7 +193,7 @@ const Login: React.FC = () => {
 
         let validDatabaseStudents = await fetchDatabaseStudents();
         const studentInDb = validDatabaseStudents.find((s: any) => s.email.toLowerCase() === cleanEmail);
-        const authorizedStudent = (AUTHORIZED_STUDENTS as any[]).find(s => s.email === cleanEmail);
+        const authorizedStudent = (AUTHORIZED_STUDENTS as any[]).find(s => matchesStudentEmail(s.email, cleanEmail));
         
         if (!studentInDb && !authorizedStudent) {
           setError('Access Denied: Your email is not authorized for this portal.');
@@ -182,22 +210,26 @@ const Login: React.FC = () => {
           return;
         }
 
+        sessionStorage.setItem('loggedInEmail', cleanEmail);
+        localStorage.setItem('loggedInEmail', cleanEmail);
+
         // Register if first time (only if they aren't in DB yet)
         if (!studentInDb && authorizedStudent) {
-          const newStudent = {
-            id: Date.now(),
-            name: authorizedStudent.name,
-            email: authorizedStudent.email,
-            password: authorizedStudent.password || authorizedStudent.roll,
-            registeredAt: new Date().toISOString(),
-            batch: ''
-          };
-          validDatabaseStudents.push(newStudent);
-          localStorage.setItem('registeredStudents', JSON.stringify(validDatabaseStudents));
-          await saveToCloudflare('registeredStudents', validDatabaseStudents);
+          try {
+            const newStudent = {
+              id: Date.now(),
+              name: authorizedStudent.name,
+              email: authorizedStudent.email,
+              password: authorizedStudent.password || authorizedStudent.roll,
+              registeredAt: new Date().toISOString(),
+              batch: ''
+            };
+            validDatabaseStudents.push(newStudent);
+            localStorage.setItem('registeredStudents', JSON.stringify(validDatabaseStudents));
+            saveToCloudflare('registeredStudents', validDatabaseStudents);
+          } catch (e) {}
         }
 
-        sessionStorage.setItem('loggedInEmail', cleanEmail);
         navigate('/dashboard');
       } catch (err) {
         setError('Failed to connect to server. Please try again.');
