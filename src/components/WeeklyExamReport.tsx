@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, FileText, ArrowLeft, Send, CheckCircle2, Edit, X, Check, HelpCircle, ChevronDown, ChevronUp, Award } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare, getMentorKey, getStudentsKey, isMuniUser } from '../utils/cloudflare';
-import { SOLIDWORKS_SKILL_TEST_2_MCQS, SOLIDWORKS_SKILL_TEST_2_A2_MCQS } from '../data/solidworksSkillTest2Mcqs';
-import { MUNI_STUDENTS } from '../data/students';
+import { SOLIDWORKS_SKILL_TEST_2_MCQS } from '../data/solidworksSkillTest2Mcqs';
 
 interface Student {
   id: number;
@@ -68,37 +67,26 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
       if (exams.length === 0) {
         exams = JSON.parse(localStorage.getItem(examKey) || localStorage.getItem('anuragLmsWeeklyExams') || '[]');
       }
-
-      let exam: any = null;
-      if (!isMentor) {
-        const cleanEmail = (loggedInEmail || '').toLowerCase().trim();
-        const muniMatch = MUNI_STUDENTS.find(s => (s?.email || '').toLowerCase().trim() === cleanEmail);
+      let exam = exams.find((e: any) => e.id === pattern);
+      if (!exam) {
+        if (pattern === 'skill_test_2') {
+          exam = exams.find((e: any) => e.id === 'week1' || e.id.startsWith('skill_test_2') || e.id.startsWith('week1'));
+        } else if (pattern === 'week1') {
+          exam = exams.find((e: any) => e.id === 'skill_test_2' || e.id.startsWith('week1') || e.id.startsWith('skill_test_2'));
+        }
+      }
+      
+      if (!exam && !isMentor) {
         const studentsKey = getStudentsKey();
         const cloudStudents = await getFromCloudflare(studentsKey) || [];
         const localStudents = JSON.parse(localStorage.getItem(studentsKey) || '[]');
-        const localMatch = [...localStudents, ...cloudStudents].find((s: any) => (s?.email || '').toLowerCase().trim() === cleanEmail);
-        const studentBatch = (muniMatch?.batch || localMatch?.batch || '').toLowerCase().replace(' batch', '').trim();
-
-        if (studentBatch) {
-          exam = exams.find((e: any) => {
-            const eBatch = (e.targetBatch || '').toLowerCase().replace(' batch', '').trim();
-            const matchesPattern = e.id === pattern || 
-              (pattern === 'skill_test_2' && (e.id.startsWith('skill_test_2') || e.id.startsWith('week1'))) ||
-              (pattern === 'week1' && (e.id.startsWith('week1') || e.id.startsWith('skill_test_2'))) ||
-              e.id.startsWith(`${pattern}_`);
-            return matchesPattern && (eBatch === studentBatch || eBatch === 'all' || eBatch === 'all batches');
-          });
-        }
-      } else {
-        if (!exam) {
-          exam = exams.find((e: any) => e.id === pattern);
+        const student = [...localStudents, ...cloudStudents].find(s => s?.email === loggedInEmail);
+        
+        if (student && student.batch) {
+          exam = exams.find((e: any) => (e.id.startsWith(`${pattern}_`) || (pattern === 'skill_test_2' && e.id.startsWith('week1_')) || (pattern === 'week1' && e.id.startsWith('skill_test_2_'))) && e.targetBatch === student.batch);
         }
         if (!exam) {
-          if (pattern === 'skill_test_2') {
-            exam = exams.find((e: any) => e.id === 'week1' || e.id.startsWith('skill_test_2') || e.id.startsWith('week1'));
-          } else if (pattern === 'week1') {
-            exam = exams.find((e: any) => e.id === 'skill_test_2' || e.id.startsWith('week1') || e.id.startsWith('skill_test_2'));
-          }
+          exam = exams.find((e: any) => e.id.startsWith(`${pattern}_`) || (pattern === 'skill_test_2' && e.id.startsWith('week1_')) || (pattern === 'week1' && e.id.startsWith('skill_test_2_')));
         }
       }
       
@@ -116,12 +104,8 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         const localStudents = JSON.parse(localStorage.getItem(studentsKey) || '[]');
         
         const allStudentsMap = new Map();
-        [...MUNI_STUDENTS, ...localStudents, ...cloudStudents].forEach(s => {
-          if (s && s.email) {
-            const email = (s.email || '').toLowerCase().trim();
-            const existing = allStudentsMap.get(email);
-            allStudentsMap.set(email, { ...existing, ...s });
-          }
+        [...localStudents, ...cloudStudents].forEach(s => {
+          if (s && s.email) allStudentsMap.set(s.email, s);
         });
         
         setStudents(Array.from(allStudentsMap.values()));
@@ -175,17 +159,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
             subData = JSON.parse(localStorage.getItem(altSubKey) || 'null') || await getFromCloudflare(altSubKey);
           }
           if (subData && subData.theoryAnswers && Array.isArray(subData.theoryAnswers)) {
-            const cleanEmail = (loggedInEmail || '').toLowerCase().trim();
-            const muniMatch = MUNI_STUDENTS.find(s => (s?.email || '').toLowerCase().trim() === cleanEmail);
-            const studentBatchClean = (muniMatch?.batch || '').toLowerCase().replace(' batch', '').trim();
-            const isA2Student = studentBatchClean === 'a2' || (targetExam?.targetBatch?.toLowerCase().includes('a2'));
-            const examBatchClean = (targetExam?.targetBatch || '').toLowerCase().replace(' batch', '').trim();
-            const isMatchingExam = !examBatchClean || examBatchClean === 'all' || examBatchClean === studentBatchClean;
-            const questions = (isMatchingExam && targetExam?.theoryQuestions && targetExam.theoryQuestions.length > 0)
-              ? targetExam.theoryQuestions
-              : (isA2Student ? SOLIDWORKS_SKILL_TEST_2_A2_MCQS : SOLIDWORKS_SKILL_TEST_2_MCQS);
-
-            const correctCount = questions.reduce((acc: number, q: any, idx: number) => {
+            const correctCount = SOLIDWORKS_SKILL_TEST_2_MCQS.reduce((acc, q, idx) => {
               return acc + (subData.theoryAnswers[idx] === q.answerIndex ? 1 : 0);
             }, 0);
             const autoReport = { project: 0, portfolio: 0, theory: correctCount, attendance: 0, mentor: 0 };
@@ -328,15 +302,9 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         setStudentSubmission(finalSubmission);
 
         // Auto-evaluate MCQ marks if submission has theoryAnswers
-        const studentBatchClean = (selectedStudent?.batch || '').toLowerCase().replace(' batch', '').trim();
-        const isA2Student = studentBatchClean === 'a2' || (targetExam?.targetBatch?.toLowerCase().includes('a2'));
-        const examBatchClean = (targetExam?.targetBatch || '').toLowerCase().replace(' batch', '').trim();
-        const isMatchingExam = !examBatchClean || examBatchClean === 'all' || examBatchClean === studentBatchClean;
-        const questions = (isMatchingExam && targetExam?.theoryQuestions && targetExam.theoryQuestions.length > 0)
-          ? targetExam.theoryQuestions
-          : (isSkillTest2 
-              ? (isA2Student ? SOLIDWORKS_SKILL_TEST_2_A2_MCQS : SOLIDWORKS_SKILL_TEST_2_MCQS)
-              : (targetExam?.theoryQuestions || []));
+        const questions = isSkillTest2 
+          ? SOLIDWORKS_SKILL_TEST_2_MCQS 
+          : (targetExam?.theoryQuestions && targetExam.theoryQuestions.length > 0 ? targetExam.theoryQuestions : []);
 
         if (finalSubmission && finalSubmission.theoryAnswers && Array.isArray(finalSubmission.theoryAnswers) && questions.length > 0) {
           const correctCount = questions.reduce((acc: number, q: any, idx: number) => {
@@ -580,10 +548,12 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
     // 2. Batch filter
     let matchesBatch = true;
     if (targetExam && targetExam.targetBatch && targetExam.targetBatch !== 'All Batches') {
-      const examBatch = targetExam.targetBatch.toLowerCase().replace(' batch', '').trim();
-      const studentBatch = (student.batch || '').toLowerCase().replace(' batch', '').trim();
+      // Extract the core batch name to handle 'Morning', 'Evening', or custom names
+      const examBatch = targetExam.targetBatch.trim();
+      const studentBatch = student.batch?.trim() || '';
       
-      matchesBatch = studentBatch === examBatch || studentBatch.includes(examBatch) || examBatch.includes(studentBatch);
+      // We do a direct string match since the mentor assigned the batch name 
+      matchesBatch = studentBatch.includes(examBatch) || examBatch.includes(studentBatch);
       
       // Fallback: If student has no batch, they don't match specific batch targeting
       if (!student.batch || student.batch === 'Unassigned') {
@@ -891,15 +861,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
 
                 {/* MCQ Evaluation Display */}
                 {studentSubmission.theoryAnswers && Array.isArray(studentSubmission.theoryAnswers) && (() => {
-                  const studentBatchClean = (selectedStudent?.batch || '').toLowerCase().replace(' batch', '').trim();
-                  const isA2Student = studentBatchClean === 'a2' || (targetExam?.targetBatch?.toLowerCase().includes('a2'));
-                  const examBatchClean = (targetExam?.targetBatch || '').toLowerCase().replace(' batch', '').trim();
-                  const isMatchingExam = !examBatchClean || examBatchClean === 'all' || examBatchClean === studentBatchClean;
-                  const questions = (isMatchingExam && targetExam?.theoryQuestions && targetExam.theoryQuestions.length > 0)
-                    ? targetExam.theoryQuestions
-                    : (isSkillTest2 
-                        ? (isA2Student ? SOLIDWORKS_SKILL_TEST_2_A2_MCQS : SOLIDWORKS_SKILL_TEST_2_MCQS)
-                        : (targetExam?.theoryQuestions || []));
+                  const questions = isSkillTest2 ? SOLIDWORKS_SKILL_TEST_2_MCQS : (targetExam?.theoryQuestions || []);
                   if (!questions || questions.length === 0) return null;
 
                   const correctCount = questions.reduce((acc: number, q: any, idx: number) => {

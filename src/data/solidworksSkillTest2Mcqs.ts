@@ -206,5 +206,3 @@ export const SOLIDWORKS_SKILL_TEST_2_MCQS: MCQQuestion[] = [
     answerIndex: 1
   }
 ];
-
-export { SOLIDWORKS_SKILL_TEST_2_A2_MCQS } from './solidworksSkillTest2A2Mcqs';
