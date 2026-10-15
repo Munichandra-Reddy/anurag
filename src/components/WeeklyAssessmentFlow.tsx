@@ -61,7 +61,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
   const [theoryPdfDataUrl, setTheoryPdfDataUrl] = useState('');
   const [questionCount, setQuestionCount] = useState<number>(isMuni ? 20 : 60);
   const [theoryQuestions, setTheoryQuestions] = useState<TheoryQuestion[]>(isMuni ? SOLIDWORKS_SKILL_TEST_2_MCQS : SOLIDWORKS_60_MCQS);
-  const [targetBatch, setTargetBatch] = useState('All Batches');
+  const [targetBatch, setTargetBatch] = useState('A2');
   const [projectBatches, setProjectBatches] = useState<any[]>([]);
 
   // Student form state
@@ -112,7 +112,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
             assessmentMode: 'mcq',
             theoryPdfName: '',
             theoryQuestions: SOLIDWORKS_SKILL_TEST_2_MCQS,
-            targetBatch: 'All Batches'
+            targetBatch: 'A2'
           };
           loadedExams = [defaultSkillTest2, ...loadedExams];
           localStorage.setItem(examsKey, JSON.stringify(loadedExams));
@@ -120,8 +120,9 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           replaceInCloudflare(examsKey, loadedExams);
         } else {
           const ex = loadedExams[existingIdx];
-          const has20Mcqs = ex.theoryQuestions && ex.theoryQuestions.length === 20 && ex.theoryQuestions[0]?.question?.includes('Fully Defined');
-          if (ex.id === 'week1' || ex.title !== 'Skill Test 2' || !has20Mcqs || ex.projectTitle || ex.portfolioTopic) {
+          const has20Mcqs = ex.theoryQuestions && ex.theoryQuestions.length === 20 && ex.theoryQuestions[0]?.question?.includes('mate');
+          const isA2Batch = ex.targetBatch === 'A2';
+          if (ex.id === 'week1' || ex.title !== 'Skill Test 2' || !has20Mcqs || ex.projectTitle || ex.portfolioTopic || !isA2Batch) {
             loadedExams[existingIdx] = {
               ...ex,
               id: 'skill_test_2',
@@ -129,7 +130,8 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
               projectTitle: '',
               portfolioTopic: '',
               theoryQuestions: SOLIDWORKS_SKILL_TEST_2_MCQS,
-              assessmentMode: 'mcq'
+              assessmentMode: 'mcq',
+              targetBatch: 'A2'
             };
             localStorage.setItem(examsKey, JSON.stringify(loadedExams));
             saveToCloudflare(examsKey, loadedExams);
@@ -279,7 +281,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     setTheoryPdfDataUrl('');
     setQuestionCount(isMuni ? 20 : 60);
     setTheoryQuestions(isMuni ? SOLIDWORKS_SKILL_TEST_2_MCQS : SOLIDWORKS_60_MCQS);
-    setTargetBatch('All Batches');
+    setTargetBatch('A2');
   };
 
   const handleStudentSubmit = async () => {
