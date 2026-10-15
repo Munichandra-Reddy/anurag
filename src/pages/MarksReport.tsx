@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, ClipboardList, Search } from 'lucide-react';
-import { getFromCloudflare, saveToCloudflare, getStudentsKey } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, getStudentsKey, isMuniUser } from '../utils/cloudflare';
 import { MUNI_STUDENTS } from '../data/students';
 
 interface MarksReportProps {
@@ -21,6 +21,7 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [preAssessments, setPreAssessments] = useState<any[]>([]);
+  const isMuni = isMuniUser();
 
   useEffect(() => {
     const loadData = async () => {
@@ -48,10 +49,10 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
         
         const loadedPreAssessments = cloudPreAssessments && Array.isArray(cloudPreAssessments) ? cloudPreAssessments : [];
         const loggedInEmail = (sessionStorage.getItem('loggedInEmail') || '').toLowerCase();
-        const isMuni = loggedInEmail === 'muni@geonixa.com' || MUNI_STUDENTS.some(s => s.email === loggedInEmail);
+        const userIsMuni = isMuniUser() || loggedInEmail === 'muni@geonixa.com' || MUNI_STUDENTS.some(s => s.email === loggedInEmail);
         const filteredPreAssessments = loadedPreAssessments.filter((pre: any) => {
           const isMuniExam = pre.targetBatch && ['A1', 'A2', 'B1', 'B2'].includes(pre.targetBatch);
-          return isMuni ? (isMuniExam || pre.targetBatch === 'All Batches' || !pre.targetBatch) : !isMuniExam;
+          return userIsMuni ? (isMuniExam || pre.targetBatch === 'All Batches' || !pre.targetBatch) : !isMuniExam;
         });
         setPreAssessments(filteredPreAssessments);
         
@@ -71,18 +72,32 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
           allMarks[student.email] = {};
           
           for (const pattern of examPatterns) {
-            const key = `weeklyReport_${student.email}_${pattern}`;
-            
-            // Try to load from localStorage first (for speed)
-            const localDataStr = localStorage.getItem(key);
             let marksObj = null;
-            
-            if (localDataStr) {
-              marksObj = JSON.parse(localDataStr);
-            } else {
-              // Optionally fetch from cloudflare if not local
-              const cloudData = await getFromCloudflare(key);
-              if (cloudData) marksObj = cloudData;
+
+            if (pattern === 'week1' && userIsMuni) {
+              const skillKey = `weeklyReport_${student.email}_skill_test_2`;
+              const localSkill = localStorage.getItem(skillKey);
+              if (localSkill) {
+                marksObj = JSON.parse(localSkill);
+              } else {
+                const cloudSkill = await getFromCloudflare(skillKey);
+                if (cloudSkill) marksObj = cloudSkill;
+              }
+            }
+
+            if (!marksObj) {
+              const key = `weeklyReport_${student.email}_${pattern}`;
+              
+              // Try to load from localStorage first (for speed)
+              const localDataStr = localStorage.getItem(key);
+              
+              if (localDataStr) {
+                marksObj = JSON.parse(localDataStr);
+              } else {
+                // Optionally fetch from cloudflare if not local
+                const cloudData = await getFromCloudflare(key);
+                if (cloudData) marksObj = cloudData;
+              }
             }
 
             if (marksObj) {
@@ -215,7 +230,7 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
                 </th>
                 {examPatterns.map((pattern, i) => (
                   <th key={i} className="px-4 py-4 text-xs font-bold text-gray-600 text-center whitespace-nowrap min-w-[80px]">
-                    {pattern.toUpperCase()}
+                    {pattern === 'week1' && isMuni ? 'SKILL TEST 2' : pattern.toUpperCase()}
                   </th>
                 ))}
                 {preAssessments.map((pre, i) => (

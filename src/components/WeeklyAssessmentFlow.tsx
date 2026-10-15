@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, X, Upload, Link as LinkIcon, FileText, CheckCircle2, Award, PlayCircle } from 'lucide-react';
 import { WeeklyExamReport } from './WeeklyExamReport';
-import { getFromCloudflare, saveToCloudflare, replaceInCloudflare, getMentorKey, getStudentsKey, getMentorBatches } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, replaceInCloudflare, getMentorKey, getStudentsKey, getMentorBatches, isMuniUser } from '../utils/cloudflare';
 import { SOLIDWORKS_60_MCQS } from '../data/solidworks60Mcqs';
+import { SOLIDWORKS_SKILL_TEST_2_MCQS } from '../data/solidworksSkillTest2Mcqs';
 import { MUNI_STUDENTS } from '../data/students';
 
 interface TheoryQuestion {
@@ -12,8 +13,8 @@ interface TheoryQuestion {
 }
 
 interface WeeklyExamData {
-  id: string; // e.g., 'week1'
-  title: string; // e.g., 'Week 1 Exam'
+  id: string; // e.g., 'week1' or 'skill_test_2'
+  title: string; // e.g., 'Week 1 Exam' or 'Skill Test 2'
   projectTitle: string;
   portfolioTopic: string;
   assessmentMode?: 'pdf' | 'mcq';
@@ -43,6 +44,7 @@ interface Props {
 
 export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) => {
   const availableBatches = getMentorBatches();
+  const isMuni = isMuniUser();
   const [exams, setExams] = useState<WeeklyExamData[]>([]);
   const [isAdding, setIsAdding] = useState<false | 'weekly' | 'cie'>(false);
   
@@ -51,14 +53,14 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
   const [filterBatch, setFilterBatch] = useState('All');
   
   // Mentor form state
-  const [selectedWeek, setSelectedWeek] = useState('week1');
-  const [projectTitle, setProjectTitle] = useState('');
-  const [portfolioTopic, setPortfolioTopic] = useState('');
+  const [selectedWeek, setSelectedWeek] = useState(isMuni ? 'skill_test_2' : 'week1');
+  const [projectTitle, setProjectTitle] = useState(isMuni ? 'SolidWorks Part & Assembly Modeling Project' : '');
+  const [portfolioTopic, setPortfolioTopic] = useState(isMuni ? 'SolidWorks Design Portfolio & Documentation' : '');
   const [assessmentMode, setAssessmentMode] = useState<'pdf' | 'mcq'>('mcq');
   const [theoryPdfName, setTheoryPdfName] = useState('theory_assignment.pdf');
   const [theoryPdfDataUrl, setTheoryPdfDataUrl] = useState('');
-  const [questionCount, setQuestionCount] = useState<number>(60);
-  const [theoryQuestions, setTheoryQuestions] = useState<TheoryQuestion[]>(SOLIDWORKS_60_MCQS);
+  const [questionCount, setQuestionCount] = useState<number>(isMuni ? 20 : 60);
+  const [theoryQuestions, setTheoryQuestions] = useState<TheoryQuestion[]>(isMuni ? SOLIDWORKS_SKILL_TEST_2_MCQS : SOLIDWORKS_60_MCQS);
   const [targetBatch, setTargetBatch] = useState('All Batches');
   const [projectBatches, setProjectBatches] = useState<any[]>([]);
 
@@ -87,12 +89,52 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
 
       // Load created exams
       const cloudExams = await getFromCloudflare(examsKey);
+      let loadedExams: WeeklyExamData[] = [];
       if (cloudExams && Array.isArray(cloudExams)) {
-        setExams(cloudExams);
+        loadedExams = cloudExams;
       } else {
         const savedExams = localStorage.getItem(examsKey);
-        if (savedExams) setExams(JSON.parse(savedExams));
+        if (savedExams) loadedExams = JSON.parse(savedExams);
       }
+
+      if (isMuni) {
+        const existingIdx = loadedExams.findIndex(e => 
+          e.id === 'skill_test_2' || e.id === 'week1' || 
+          e.id.startsWith('skill_test_2_') || e.id.startsWith('week1_')
+        );
+
+        if (existingIdx === -1) {
+          const defaultSkillTest2: WeeklyExamData = {
+            id: 'skill_test_2',
+            title: 'Skill Test 2',
+            projectTitle: 'SolidWorks Part & Assembly Modeling Project',
+            portfolioTopic: 'SolidWorks Design Portfolio & Documentation',
+            assessmentMode: 'mcq',
+            theoryPdfName: '',
+            theoryQuestions: SOLIDWORKS_SKILL_TEST_2_MCQS,
+            targetBatch: 'All Batches'
+          };
+          loadedExams = [defaultSkillTest2, ...loadedExams];
+          localStorage.setItem(examsKey, JSON.stringify(loadedExams));
+          saveToCloudflare(examsKey, loadedExams);
+        } else {
+          const ex = loadedExams[existingIdx];
+          const has20Mcqs = ex.theoryQuestions && ex.theoryQuestions.length === 20 && ex.theoryQuestions[0]?.question?.includes('Fully Defined');
+          if (ex.id === 'week1' || ex.title !== 'Skill Test 2' || !has20Mcqs) {
+            loadedExams[existingIdx] = {
+              ...ex,
+              id: 'skill_test_2',
+              title: 'Skill Test 2',
+              theoryQuestions: SOLIDWORKS_SKILL_TEST_2_MCQS,
+              assessmentMode: ex.assessmentMode || 'mcq'
+            };
+            localStorage.setItem(examsKey, JSON.stringify(loadedExams));
+            saveToCloudflare(examsKey, loadedExams);
+          }
+        }
+      }
+
+      setExams(loadedExams);
 
       // Load Project Batches
       const cloudBatches = await getFromCloudflare(batchesKey);
@@ -193,21 +235,29 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
   const handleAddExam = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const examId = targetBatch === 'All Batches' ? selectedWeek : `${selectedWeek}_${targetBatch.replace(/\s+/g, '')}`;
+    const isSkillTest2 = selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni);
+    const examId = isSkillTest2 
+      ? (targetBatch === 'All Batches' ? 'skill_test_2' : `skill_test_2_${targetBatch.replace(/\s+/g, '')}`)
+      : (targetBatch === 'All Batches' ? selectedWeek : `${selectedWeek}_${targetBatch.replace(/\s+/g, '')}`);
 
     const newExam: WeeklyExamData = {
       id: examId,
-      title: `${selectedWeek.toUpperCase()} Exam`,
+      title: isSkillTest2 ? 'Skill Test 2' : `${selectedWeek.toUpperCase()} Exam`,
       projectTitle,
       portfolioTopic,
       assessmentMode,
       theoryPdfName: assessmentMode === 'pdf' ? theoryPdfName : '',
       theoryPdfDataUrl: assessmentMode === 'pdf' ? theoryPdfDataUrl : '',
-      theoryQuestions: assessmentMode === 'mcq' ? theoryQuestions.slice(0, questionCount) : [],
+      theoryQuestions: assessmentMode === 'mcq' 
+        ? (theoryQuestions.length > 0 ? theoryQuestions.slice(0, questionCount) : (isSkillTest2 ? SOLIDWORKS_SKILL_TEST_2_MCQS : SOLIDWORKS_60_MCQS.slice(0, questionCount))) 
+        : [],
       targetBatch
     };
 
-    const updatedExams = [...exams.filter(ex => ex.id !== examId), newExam];
+    const updatedExams = [
+      ...exams.filter(ex => ex.id !== examId && !(isSkillTest2 && (ex.id === 'week1' || ex.id === 'skill_test_2'))), 
+      newExam
+    ];
     setExams(updatedExams);
     
     const examsKey = getMentorKey('anuragLmsWeeklyExams');
@@ -217,12 +267,12 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     
     setIsAdding(false);
     // Reset
-    setProjectTitle('');
-    setPortfolioTopic('');
+    setProjectTitle(isMuni ? 'SolidWorks Part & Assembly Modeling Project' : '');
+    setPortfolioTopic(isMuni ? 'SolidWorks Design Portfolio & Documentation' : '');
     setTheoryPdfName('theory_assignment.pdf');
     setTheoryPdfDataUrl('');
-    setQuestionCount(60);
-    setTheoryQuestions(SOLIDWORKS_60_MCQS);
+    setQuestionCount(isMuni ? 20 : 60);
+    setTheoryQuestions(isMuni ? SOLIDWORKS_SKILL_TEST_2_MCQS : SOLIDWORKS_60_MCQS);
     setTargetBatch('All Batches');
   };
 
@@ -235,8 +285,6 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       alert("Please provide a project URL or PDF");
       return;
     }
-
-
 
     const submission: WeeklyExamSubmission = {
       projectUrl: studentProjectUrl,
@@ -252,6 +300,8 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     };
 
     const newSubmissions = { ...submissions, [takingExamId]: submission };
+    if (takingExamId === 'skill_test_2') newSubmissions['week1'] = submission;
+    if (takingExamId === 'week1') newSubmissions['skill_test_2'] = submission;
     setSubmissions(newSubmissions);
     localStorage.setItem(`weeklyExamSubmissions_${loggedInEmail}`, JSON.stringify(newSubmissions));
     await saveToCloudflare(`weeklyExamSubmissions_${loggedInEmail}`, newSubmissions);
@@ -259,6 +309,10 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     // Also save a raw version for the mentor to read in Exam Reports
     localStorage.setItem(`weeklyReportSubmission_${loggedInEmail}_${takingExamId}`, JSON.stringify(submission));
     await saveToCloudflare(`weeklyReportSubmission_${loggedInEmail}_${takingExamId}`, submission);
+    if (takingExamId === 'skill_test_2') {
+      localStorage.setItem(`weeklyReportSubmission_${loggedInEmail}_week1`, JSON.stringify(submission));
+      await saveToCloudflare(`weeklyReportSubmission_${loggedInEmail}_week1`, submission);
+    }
 
     // Clear draft on successful submission
     const draftKey = `examDraft_${loggedInEmail}_${takingExamId}`;
@@ -334,7 +388,11 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
         </button>
         
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">{exam.title}</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            {(isMuni && (exam.id === 'week1' || exam.id === 'skill_test_2' || exam.id.startsWith('week1_') || exam.id.startsWith('skill_test_2_') || exam.title.toLowerCase().includes('week1') || exam.title.toLowerCase().includes('week 1')))
+              ? 'Skill Test 2'
+              : exam.title}
+          </h2>
           <p className="text-gray-500">Complete all sections below and submit your work.</p>
         </div>
 
@@ -499,7 +557,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
             onClick={handleStudentSubmit}
             className="flex items-center gap-2 px-8 py-3 bg-primary text-white font-bold rounded-xl shadow-sm hover:bg-orange-600 transition-colors"
           >
-            <CheckCircle2 size={20} /> Submit Weekly Exam
+            <CheckCircle2 size={20} /> Submit {isMuni && (takingExamId === 'skill_test_2' || takingExamId === 'week1') ? 'Skill Test 2' : 'Weekly Exam'}
           </button>
         </div>
       </div>
@@ -514,10 +572,15 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           {!isAdding ? (
             <div className="flex flex-wrap gap-4">
               <button 
-                onClick={() => { setSelectedWeek('week1'); setIsAdding('weekly'); }}
+                onClick={() => { 
+                  setSelectedWeek(isMuni ? 'skill_test_2' : 'week1'); 
+                  setQuestionCount(isMuni ? 20 : 60);
+                  setTheoryQuestions(isMuni ? SOLIDWORKS_SKILL_TEST_2_MCQS : SOLIDWORKS_60_MCQS);
+                  setIsAdding('weekly'); 
+                }}
                 className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-primary text-primary font-bold rounded-xl shadow-sm hover:bg-primary/5 transition-colors"
               >
-                <Plus size={20} /> Add Weekly Exam Paper
+                <Plus size={20} /> {isMuni ? 'Add Skill Test 2 Exam Paper' : 'Add Weekly Exam Paper'}
               </button>
               <button 
                 onClick={() => { setSelectedWeek('CIE1'); setIsAdding('cie'); }}
@@ -535,7 +598,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                 <X size={18} />
               </button>
               
-              <h3 className="text-xl font-bold text-gray-900 mb-6">Configure {isAdding === 'cie' ? 'CIE' : 'Weekly'} Exam</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-6">Configure {isAdding === 'cie' ? 'CIE' : (isMuni ? 'Skill Test 2' : 'Weekly')} Exam</h3>
               
               <form onSubmit={handleAddExam} className="space-y-6">
                 <div className="flex flex-col md:flex-row gap-4">
@@ -543,7 +606,14 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                     <label className="block text-sm font-bold text-gray-700 mb-1">Select Exam</label>
                     <select 
                       value={selectedWeek} 
-                      onChange={(e) => setSelectedWeek(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedWeek(val);
+                        if (val === 'skill_test_2' || (val === 'week1' && isMuni)) {
+                          setQuestionCount(20);
+                          setTheoryQuestions(SOLIDWORKS_SKILL_TEST_2_MCQS);
+                        }
+                      }}
                       className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-primary text-sm font-medium"
                     >
                       {isAdding === 'cie' ? (
@@ -553,10 +623,22 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                         </>
                       ) : (
                         <>
-                          {[...Array(12)].map((_, i) => (
-                            <option key={i} value={`week${i + 1}`}>WEEK{i + 1}</option>
-                          ))}
-                          <option value="SEM">SEM</option>
+                          {isMuni ? (
+                            <>
+                              <option value="skill_test_2">Skill Test 2</option>
+                              {[...Array(11)].map((_, i) => (
+                                <option key={i + 2} value={`week${i + 2}`}>WEEK{i + 2}</option>
+                              ))}
+                              <option value="SEM">SEM</option>
+                            </>
+                          ) : (
+                            <>
+                              {[...Array(12)].map((_, i) => (
+                                <option key={i} value={`week${i + 1}`}>WEEK{i + 1}</option>
+                              ))}
+                              <option value="SEM">SEM</option>
+                            </>
+                          )}
                         </>
                       )}
                     </select>
@@ -604,7 +686,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                 <div className="bg-gray-50 p-5 rounded-xl border border-gray-100 space-y-4">
                   <h4 className="font-bold text-gray-900 border-b border-gray-200 pb-2">{isAdding === 'weekly' ? '3' : '2'}. Theory / Multiple Choice Assessment</h4>
                   
-                  {/* Select Type: 60 MCQs vs Theory PDF */}
+                      {/* Select Type: MCQs vs Theory PDF */}
                   <div className="flex flex-wrap gap-3">
                     <button
                       type="button"
@@ -615,7 +697,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                           : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
                       }`}
                     >
-                      Multiple Choice Questions (60 MCQs)
+                      Multiple Choice Questions ({questionCount} MCQs)
                     </button>
                     <button
                       type="button"
@@ -665,19 +747,33 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                             onChange={(e) => {
                               const count = Number(e.target.value);
                               setQuestionCount(count);
+                              const baseSource = (isMuni || selectedWeek === 'skill_test_2') ? SOLIDWORKS_SKILL_TEST_2_MCQS : SOLIDWORKS_60_MCQS;
                               if (theoryQuestions.length < count) {
                                 setTheoryQuestions(prev => [
                                   ...prev, 
-                                  ...Array.from({ length: count - prev.length }, (_, i) => ({ question: `Question ${prev.length + i + 1}`, options: ['', '', '', ''], answerIndex: 0 }))
+                                  ...Array.from({ length: count - prev.length }, (_, i) => 
+                                    baseSource[prev.length + i] || { question: `Question ${prev.length + i + 1}`, options: ['', '', '', ''], answerIndex: 0 }
+                                  )
                                 ]);
                               }
                             }}
                             className="ml-2 border border-gray-300 rounded px-2 py-1 bg-gray-50 font-semibold"
                           >
-                            <option value={60}>60 MCQs (Standard)</option>
-                            <option value={40}>40 MCQs</option>
-                            <option value={20}>20 MCQs</option>
-                            <option value={10}>10 MCQs</option>
+                            {isMuni ? (
+                              <>
+                                <option value={20}>20 MCQs (Standard for Skill Test 2)</option>
+                                <option value={60}>60 MCQs</option>
+                                <option value={40}>40 MCQs</option>
+                                <option value={10}>10 MCQs</option>
+                              </>
+                            ) : (
+                              <>
+                                <option value={60}>60 MCQs (Standard)</option>
+                                <option value={40}>40 MCQs</option>
+                                <option value={20}>20 MCQs</option>
+                                <option value={10}>10 MCQs</option>
+                              </>
+                            )}
                           </select>
                         </div>
                         <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded font-bold">
@@ -820,15 +916,24 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           }
           
           return false;
-        }).map((exam) => (
-          <div key={exam.id} className="bg-white border-l-4 border-l-orange-500 border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-3 mb-1">
-                <h3 className="font-bold text-xl text-gray-900">{exam.title}</h3>
-                {isMentor && exam.targetBatch && exam.targetBatch !== 'All Batches' && (
-                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded">{exam.targetBatch}</span>
-                )}
-              </div>
+        }).map((exam) => {
+          const isExamSkillTest2 = isMuni && (
+            exam.id === 'week1' || exam.id === 'skill_test_2' || 
+            exam.id.startsWith('week1_') || exam.id.startsWith('skill_test_2_') || 
+            exam.title.toLowerCase().includes('week1') || exam.title.toLowerCase().includes('week 1') ||
+            exam.title.toLowerCase().includes('skill test 2')
+          );
+          const displayTitle = isExamSkillTest2 ? 'Skill Test 2' : exam.title;
+
+          return (
+            <div key={exam.id} className="bg-white border-l-4 border-l-orange-500 border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-3 mb-1">
+                  <h3 className="font-bold text-xl text-gray-900">{displayTitle}</h3>
+                  {isMentor && exam.targetBatch && exam.targetBatch !== 'All Batches' && (
+                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded">{exam.targetBatch}</span>
+                  )}
+                </div>
               {exam.theoryPdfName && exam.theoryPdfName !== 'theory_assignment.pdf' && (
                 <div className="flex items-center gap-2 mt-2 bg-gray-50 p-2 rounded-lg border border-gray-100 w-max">
                   <FileText size={16} className="text-primary" />
@@ -936,7 +1041,8 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
               )}
             </div>
           </div>
-        ))}
+        );
+      })}
       </div>
     </div>
   );

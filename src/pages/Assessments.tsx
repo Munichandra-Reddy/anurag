@@ -536,7 +536,7 @@ const Assessments: React.FC = () => {
       </div>
     );
   }
-  if (pattern && pattern.startsWith('week') && pattern !== 'weekly Exam Pattern') {
+  if (pattern && pattern !== 'weekly Exam Pattern' && (pattern.startsWith('week') || pattern === 'skill_test_2' || pattern.toLowerCase().includes('skill') || pattern.startsWith('CIE') || pattern === 'SEM')) {
     return <WeeklyExamReport pattern={pattern} isMentor={isMentor} loggedInEmail={loggedInEmail} />;
   }
 

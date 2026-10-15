@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, FileText, ArrowLeft, Send, CheckCircle2, Edit, X } from 'lucide-react';
-import { getFromCloudflare, saveToCloudflare, getMentorKey, getStudentsKey } from '../utils/cloudflare';
+import { getFromCloudflare, saveToCloudflare, getMentorKey, getStudentsKey, isMuniUser } from '../utils/cloudflare';
 
 interface Student {
   id: number;
@@ -61,6 +61,13 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         exams = JSON.parse(localStorage.getItem(examKey) || localStorage.getItem('anuragLmsWeeklyExams') || '[]');
       }
       let exam = exams.find((e: any) => e.id === pattern);
+      if (!exam) {
+        if (pattern === 'skill_test_2') {
+          exam = exams.find((e: any) => e.id === 'week1' || e.id.startsWith('skill_test_2') || e.id.startsWith('week1'));
+        } else if (pattern === 'week1') {
+          exam = exams.find((e: any) => e.id === 'skill_test_2' || e.id.startsWith('week1') || e.id.startsWith('skill_test_2'));
+        }
+      }
       
       if (!exam && !isMentor) {
         const studentsKey = getStudentsKey();
@@ -69,10 +76,10 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         const student = [...localStudents, ...cloudStudents].find(s => s?.email === loggedInEmail);
         
         if (student && student.batch) {
-          exam = exams.find((e: any) => e.id.startsWith(`${pattern}_`) && e.targetBatch === student.batch);
+          exam = exams.find((e: any) => (e.id.startsWith(`${pattern}_`) || (pattern === 'skill_test_2' && e.id.startsWith('week1_')) || (pattern === 'week1' && e.id.startsWith('skill_test_2_'))) && e.targetBatch === student.batch);
         }
         if (!exam) {
-          exam = exams.find((e: any) => e.id.startsWith(`${pattern}_`));
+          exam = exams.find((e: any) => e.id.startsWith(`${pattern}_`) || (pattern === 'skill_test_2' && e.id.startsWith('week1_')) || (pattern === 'week1' && e.id.startsWith('skill_test_2_')));
         }
       }
       
@@ -108,10 +115,20 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         let cloudReport = await getFromCloudflare(reportKey);
         let localReport = JSON.parse(localStorage.getItem(reportKey) || 'null');
         
+        // If not found by exact pattern, check aliases (skill_test_2 <-> week1)
+        if (!cloudReport && !localReport) {
+          const altPattern = pattern === 'skill_test_2' ? 'week1' : (pattern === 'week1' ? 'skill_test_2' : null);
+          if (altPattern) {
+            const altKey = `weeklyReport_${loggedInEmail}_${altPattern}`;
+            localReport = JSON.parse(localStorage.getItem(altKey) || 'null');
+            cloudReport = await getFromCloudflare(altKey);
+          }
+        }
+
         // If not found by exact pattern (e.g. week1), try looking for a batch-specific report (e.g. week1_Morning)
         if (!cloudReport && !localReport) {
           const allKeys = Object.keys(localStorage);
-          const matchedKey = allKeys.find(k => k.startsWith(`weeklyReport_${loggedInEmail}_${pattern}_`));
+          const matchedKey = allKeys.find(k => k.startsWith(`weeklyReport_${loggedInEmail}_${pattern}_`) || (pattern === 'skill_test_2' && k.startsWith(`weeklyReport_${loggedInEmail}_week1_`)));
           if (matchedKey) {
             localReport = JSON.parse(localStorage.getItem(matchedKey) || 'null');
             cloudReport = await getFromCloudflare(matchedKey);
@@ -138,21 +155,31 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
       const loadReport = async () => {
         const key = `weeklyReport_${selectedStudent.email}_${pattern}`;
         const draftKey = `weeklyReportDraft_${selectedStudent.email}_${pattern}`;
+        const altPattern = pattern === 'skill_test_2' ? 'week1' : (pattern === 'week1' ? 'skill_test_2' : null);
         
-        const localReport = JSON.parse(localStorage.getItem(key) || 'null');
-        const draftReport = JSON.parse(localStorage.getItem(draftKey) || 'null');
+        let localReport = JSON.parse(localStorage.getItem(key) || 'null');
+        let draftReport = JSON.parse(localStorage.getItem(draftKey) || 'null');
         
+        if (!draftReport && altPattern) {
+          draftReport = JSON.parse(localStorage.getItem(`weeklyReportDraft_${selectedStudent.email}_${altPattern}`) || 'null');
+        }
+
         let loadedMarks = { project: 0, portfolio: 0, theory: 0, attendance: 0, mentor: 0 };
         
         if (draftReport) {
           loadedMarks = draftReport;
         } else {
-           const cloudReport = await getFromCloudflare(key);
-           if (cloudReport) {
-             loadedMarks = cloudReport as any;
-           } else if (localReport) {
-             loadedMarks = localReport;
-           }
+          let cloudReport = await getFromCloudflare(key);
+          if (!cloudReport && !localReport && altPattern) {
+            const altKey = `weeklyReport_${selectedStudent.email}_${altPattern}`;
+            localReport = JSON.parse(localStorage.getItem(altKey) || 'null');
+            cloudReport = await getFromCloudflare(altKey);
+          }
+          if (cloudReport) {
+            loadedMarks = cloudReport as any;
+          } else if (localReport) {
+            loadedMarks = localReport;
+          }
         }
         
         if (pattern.startsWith('CIE')) {
@@ -165,10 +192,16 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
           
           const fetchPromises = targetWeeks.map(async (week) => {
             const weekKey = `weeklyReport_${selectedStudent.email}_${week}`;
-            const weekLocal = JSON.parse(localStorage.getItem(weekKey) || 'null');
+            let weekLocal = JSON.parse(localStorage.getItem(weekKey) || 'null');
+            if (!weekLocal && week === 'week1') {
+              weekLocal = JSON.parse(localStorage.getItem(`weeklyReport_${selectedStudent.email}_skill_test_2`) || 'null');
+            }
             if (weekLocal) return weekLocal;
             
-            const cloudReport = await getFromCloudflare(weekKey);
+            let cloudReport = await getFromCloudflare(weekKey);
+            if (!cloudReport && week === 'week1') {
+              cloudReport = await getFromCloudflare(`weeklyReport_${selectedStudent.email}_skill_test_2`);
+            }
             return cloudReport;
           });
           
@@ -187,9 +220,15 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         
         setMarks(loadedMarks);
 
-        const submissionKey = `weeklyReportSubmission_${selectedStudent.email}_${pattern}`;
-        const localSubmissionData = JSON.parse(localStorage.getItem(submissionKey) || 'null');
-        const cloudSubmissionData = await getFromCloudflare(submissionKey);
+        let submissionKey = `weeklyReportSubmission_${selectedStudent.email}_${pattern}`;
+        let localSubmissionData = JSON.parse(localStorage.getItem(submissionKey) || 'null');
+        let cloudSubmissionData = await getFromCloudflare(submissionKey);
+
+        if (!localSubmissionData && !cloudSubmissionData && altPattern) {
+          const altSubKey = `weeklyReportSubmission_${selectedStudent.email}_${altPattern}`;
+          localSubmissionData = JSON.parse(localStorage.getItem(altSubKey) || 'null');
+          cloudSubmissionData = await getFromCloudflare(altSubKey);
+        }
         setStudentSubmission(cloudSubmissionData || localSubmissionData);
         
         // reset inline inputs based on marks loaded
@@ -213,18 +252,34 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
       const loadStatuses = async () => {
         const newStatuses: Record<string, { isCompleted: boolean, hasSubmitted: boolean }> = {};
         
+        const altPattern = pattern === 'skill_test_2' ? 'week1' : (pattern === 'week1' ? 'skill_test_2' : null);
         const promises = students.map(async (student) => {
           let isCompleted = localStorage.getItem(`weeklyReport_${student.email}_${pattern}`) !== null;
           let hasSubmitted = localStorage.getItem(`weeklyReportSubmission_${student.email}_${pattern}`) !== null;
 
+          if (!isCompleted && altPattern) {
+            isCompleted = localStorage.getItem(`weeklyReport_${student.email}_${altPattern}`) !== null;
+          }
+          if (!hasSubmitted && altPattern) {
+            hasSubmitted = localStorage.getItem(`weeklyReportSubmission_${student.email}_${altPattern}`) !== null;
+          }
+
           if (!isCompleted) {
             const cloudReport = await getFromCloudflare(`weeklyReport_${student.email}_${pattern}`);
             if (cloudReport) isCompleted = true;
+            else if (altPattern) {
+              const altCloud = await getFromCloudflare(`weeklyReport_${student.email}_${altPattern}`);
+              if (altCloud) isCompleted = true;
+            }
           }
 
           if (!hasSubmitted) {
             const cloudSub = await getFromCloudflare(`weeklyReportSubmission_${student.email}_${pattern}`);
             if (cloudSub) hasSubmitted = true;
+            else if (altPattern) {
+              const altCloud = await getFromCloudflare(`weeklyReportSubmission_${student.email}_${altPattern}`);
+              if (altCloud) hasSubmitted = true;
+            }
           }
           newStatuses[student.email] = { isCompleted, hasSubmitted };
         });
@@ -281,9 +336,17 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
     
     // Save locally
     localStorage.setItem(key, JSON.stringify(marks));
-    
-    // Save to Cloudflare
     await saveToCloudflare(key, marks);
+
+    if (pattern === 'skill_test_2') {
+      const altKey = `weeklyReport_${selectedStudent.email}_week1`;
+      localStorage.setItem(altKey, JSON.stringify(marks));
+      await saveToCloudflare(altKey, marks);
+    } else if (pattern === 'week1') {
+      const altKey = `weeklyReport_${selectedStudent.email}_skill_test_2`;
+      localStorage.setItem(altKey, JSON.stringify(marks));
+      await saveToCloudflare(altKey, marks);
+    }
     
     setIsSent(true);
     setTimeout(() => {
@@ -293,11 +356,12 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
 
   if (!isMentor) {
     // Student View
+    const displayPatternName = ((pattern === 'skill_test_2' || pattern === 'week1') && isMuniUser()) ? 'Skill Test 2' : pattern;
     return (
       <div className="w-full max-w-3xl mx-auto space-y-6 pb-12">
         <div className="flex items-center gap-3 text-gray-900 font-bold text-2xl mb-8">
           <FileText className="text-orange-500" size={28} /> 
-          {pattern} Report
+          {displayPatternName} Report
         </div>
         
         {studentReport ? (
@@ -398,7 +462,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
       )}
       <div className="flex items-center gap-3 text-gray-900 font-bold text-2xl mb-6">
         <FileText className="text-orange-500" size={28} /> 
-        {pattern} Evaluation
+        {((pattern === 'skill_test_2' || pattern === 'week1') && isMuniUser()) ? 'Skill Test 2' : pattern} Evaluation
       </div>
 
       {!selectedStudent && (
@@ -652,6 +716,38 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                     <p className="text-sm text-gray-800 whitespace-pre-wrap">{(studentSubmission as any).theoryTextAnswer}</p>
                   </div>
                 )}
+
+                {/* MCQ Evaluation Display */}
+                {studentSubmission.theoryAnswers && Array.isArray(studentSubmission.theoryAnswers) && targetExam?.theoryQuestions && targetExam.theoryQuestions.length > 0 && (() => {
+                  const correctCount = targetExam.theoryQuestions.reduce((acc: number, q: any, idx: number) => {
+                    return acc + (studentSubmission.theoryAnswers[idx] === q.answerIndex ? 1 : 0);
+                  }, 0);
+                  const total = targetExam.theoryQuestions.length;
+                  const maxMark = isCie ? 10 : 5;
+                  const calculatedMark = Math.round((correctCount / total) * maxMark);
+
+                  return (
+                    <div className="bg-white p-3 rounded-lg border border-blue-200 mt-2 flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-gray-800">MCQ Objective Score:</span>
+                        <span className="px-2.5 py-1 bg-green-50 text-green-700 text-sm font-bold rounded-lg border border-green-200">
+                          {correctCount} / {total} Correct ({Math.round((correctCount / total) * 100)}%)
+                        </span>
+                        <span className="text-xs text-gray-500 font-medium">Scaled: {calculatedMark} / {maxMark}M</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTheoryEvalInput(String(calculatedMark));
+                          setMarks(prev => ({ ...prev, theory: calculatedMark }));
+                        }}
+                        className="px-3 py-1 bg-primary text-white text-xs font-bold rounded-lg shadow-sm hover:bg-orange-600 transition-colors"
+                      >
+                        Auto-Fill {calculatedMark}M
+                      </button>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Attendance line */}
