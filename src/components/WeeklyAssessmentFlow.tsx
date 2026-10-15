@@ -87,57 +87,37 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       const examsKey = getMentorKey('anuragLmsWeeklyExams');
       const batchesKey = getMentorKey('anuragLmsProjectBatchData');
 
-      // Load created exams
+      // Load created exams — trust whatever is saved in Cloudflare/localStorage.
+      // NEVER auto-overwrite on page load; only the mentor's Remove button should delete an exam.
       const cloudExams = await getFromCloudflare(examsKey);
       let loadedExams: WeeklyExamData[] = [];
       if (cloudExams && Array.isArray(cloudExams)) {
         loadedExams = cloudExams;
+        // Keep localStorage in sync with the cloud version
+        localStorage.setItem(examsKey, JSON.stringify(loadedExams));
       } else {
         const savedExams = localStorage.getItem(examsKey);
-        if (savedExams) loadedExams = JSON.parse(savedExams);
+        if (savedExams) {
+          try { loadedExams = JSON.parse(savedExams); } catch (e) { loadedExams = []; }
+        }
       }
 
-      if (isMuni) {
-        const existingIdx = loadedExams.findIndex(e => 
-          e.id === 'skill_test_2' || e.id === 'week1' || 
-          e.id.startsWith('skill_test_2_') || e.id.startsWith('week1_')
-        );
-
-        if (existingIdx === -1) {
-          const defaultSkillTest2: WeeklyExamData = {
-            id: 'skill_test_2',
-            title: 'Skill Test 2',
-            projectTitle: '',
-            portfolioTopic: '',
-            assessmentMode: 'mcq',
-            theoryPdfName: '',
-            theoryQuestions: SOLIDWORKS_SKILL_TEST_2_MCQS,
-            targetBatch: 'A2'
-          };
-          loadedExams = [defaultSkillTest2, ...loadedExams];
-          localStorage.setItem(examsKey, JSON.stringify(loadedExams));
-          saveToCloudflare(examsKey, loadedExams);
-          replaceInCloudflare(examsKey, loadedExams);
-        } else {
-          const ex = loadedExams[existingIdx];
-          const has20Mcqs = ex.theoryQuestions && ex.theoryQuestions.length === 20 && ex.theoryQuestions[0]?.question?.includes('mate');
-          const isA2Batch = ex.targetBatch === 'A2';
-          if (ex.id === 'week1' || ex.title !== 'Skill Test 2' || !has20Mcqs || ex.projectTitle || ex.portfolioTopic || !isA2Batch) {
-            loadedExams[existingIdx] = {
-              ...ex,
-              id: 'skill_test_2',
-              title: 'Skill Test 2',
-              projectTitle: '',
-              portfolioTopic: '',
-              theoryQuestions: SOLIDWORKS_SKILL_TEST_2_MCQS,
-              assessmentMode: 'mcq',
-              targetBatch: 'A2'
-            };
-            localStorage.setItem(examsKey, JSON.stringify(loadedExams));
-            saveToCloudflare(examsKey, loadedExams);
-            replaceInCloudflare(examsKey, loadedExams);
-          }
-        }
+      // Only auto-create a default Skill Test 2 if there is NO exam data saved at all
+      if (isMuni && loadedExams.length === 0) {
+        const defaultSkillTest2: WeeklyExamData = {
+          id: 'skill_test_2',
+          title: 'Skill Test 2',
+          projectTitle: '',
+          portfolioTopic: '',
+          assessmentMode: 'mcq',
+          theoryPdfName: '',
+          theoryQuestions: SOLIDWORKS_SKILL_TEST_2_MCQS,
+          targetBatch: 'A2'
+        };
+        loadedExams = [defaultSkillTest2];
+        localStorage.setItem(examsKey, JSON.stringify(loadedExams));
+        await saveToCloudflare(examsKey, loadedExams);
+        await replaceInCloudflare(examsKey, loadedExams);
       }
 
       setExams(loadedExams);
