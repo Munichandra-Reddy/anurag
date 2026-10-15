@@ -83,9 +83,14 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
       
       if (!exam && !isMentor) {
         const studentsKey = getStudentsKey(currentEmail);
-        const cloudStudents = await getFromCloudflare(studentsKey) || [];
-        const localStudents = JSON.parse(localStorage.getItem(studentsKey) || '[]');
-        const student = [...localStudents, ...cloudStudents].find(s => matchesStudentEmail(s?.email, currentEmail));
+        const cloudStudents = await getFromCloudflare(studentsKey);
+        const safeArray = (a: any) => Array.isArray(a) ? a : [];
+        let localStudents: any[] = [];
+        try {
+          const parsed = JSON.parse(localStorage.getItem(studentsKey) || '[]');
+          if (Array.isArray(parsed)) localStudents = parsed;
+        } catch (e) {}
+        const student = [...localStudents, ...safeArray(cloudStudents)].find(s => matchesStudentEmail(s?.email, currentEmail));
         
         if (student && student.batch) {
           exam = exams.find((e: any) => (e.id.startsWith(`${pattern}_`) || (pattern === 'skill_test_2' && e.id.startsWith('week1_')) || (pattern === 'week1' && e.id.startsWith('skill_test_2_'))) && e.targetBatch === student.batch);

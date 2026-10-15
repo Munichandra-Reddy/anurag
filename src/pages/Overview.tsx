@@ -74,11 +74,28 @@ const Overview: React.FC = () => {
         getFromCloudflare('registeredStudents'),
         getFromCloudflare('registeredStudents_muni@geonixa.com')
       ]);
-      const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
-      const localMuniStudents = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
+      const safeArray = (arr: any) => Array.isArray(arr) ? arr : [];
+      let localStudents: any[] = [];
+      try {
+        const parsed = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
+        if (Array.isArray(parsed)) localStudents = parsed;
+      } catch (e) {}
+
+      let localMuniStudents: any[] = [];
+      try {
+        const parsed = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
+        if (Array.isArray(parsed)) localMuniStudents = parsed;
+      } catch (e) {}
 
       const allStudentsMap = new Map();
-      [...MUNI_STUDENTS, ...AUTHORIZED_STUDENTS, ...localStudents, ...localMuniStudents, ...(cloudStudents || []), ...(muniStudents || [])].forEach(s => {
+      [
+        ...safeArray(MUNI_STUDENTS), 
+        ...safeArray(AUTHORIZED_STUDENTS), 
+        ...localStudents, 
+        ...localMuniStudents, 
+        ...safeArray(cloudStudents), 
+        ...safeArray(muniStudents)
+      ].forEach(s => {
         if (s && s.email) allStudentsMap.set((s.email || '').toLowerCase().trim(), s);
       });
 

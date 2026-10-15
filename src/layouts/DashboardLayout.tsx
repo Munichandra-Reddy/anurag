@@ -32,9 +32,27 @@ const DashboardLayout: React.FC = () => {
         getFromCloudflare('registeredStudents_muni@geonixa.com')
       ]);
 
-      const localStudents = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
-      const localMuniStudents = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
-      const allStudentsList = [...MUNI_STUDENTS, ...AUTHORIZED_STUDENTS, ...localStudents, ...localMuniStudents, ...(cloudStudents || []), ...(cloudMuniStudents || [])];
+      const safeArray = (arr: any) => Array.isArray(arr) ? arr : [];
+      let localStudents: any[] = [];
+      try {
+        const parsed = JSON.parse(localStorage.getItem('registeredStudents') || '[]');
+        if (Array.isArray(parsed)) localStudents = parsed;
+      } catch (e) {}
+
+      let localMuniStudents: any[] = [];
+      try {
+        const parsed = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
+        if (Array.isArray(parsed)) localMuniStudents = parsed;
+      } catch (e) {}
+
+      const allStudentsList = [
+        ...safeArray(MUNI_STUDENTS), 
+        ...safeArray(AUTHORIZED_STUDENTS), 
+        ...localStudents, 
+        ...localMuniStudents, 
+        ...safeArray(cloudStudents), 
+        ...safeArray(cloudMuniStudents)
+      ];
       const currentStudent = allStudentsList.find(s => matchesStudentEmail(s?.email, userEmail));
       const resolvedName = currentStudent?.name || userEmail.split('@')[0];
 
