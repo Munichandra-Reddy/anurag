@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Search, FileText, ArrowLeft, Send, CheckCircle2, Edit, X } from 'lucide-react';
+import { Search, FileText, ArrowLeft, Send, CheckCircle2, Edit, X, Check, HelpCircle, ChevronDown, ChevronUp, Award } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare, getMentorKey, getStudentsKey, isMuniUser } from '../utils/cloudflare';
+import { SOLIDWORKS_SKILL_TEST_2_MCQS } from '../data/solidworksSkillTest2Mcqs';
 
 interface Student {
   id: number;
@@ -26,10 +27,16 @@ interface WeeklyExamReportProps {
 
 export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isMentor, loggedInEmail, onBack }) => {
   const isCie = pattern.startsWith('CIE');
+  const isSkillTest2 = pattern === 'skill_test_2' || 
+    pattern.startsWith('skill_test_2') || 
+    pattern.toLowerCase().includes('skill') || 
+    ((pattern === 'week1' || pattern.startsWith('week1')) && isMuniUser());
+
   const [students, setStudents] = useState<Student[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [isSent, setIsSent] = useState(false);
+  const [showQuestionsReview, setShowQuestionsReview] = useState(false);
   
   const [marks, setMarks] = useState<Marks>({
     project: 0,
@@ -134,6 +141,37 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
             cloudReport = await getFromCloudflare(matchedKey);
           }
         }
+
+        // Fallback for Skill Test 2: If student submitted their exam, auto-evaluate score directly
+        if (!cloudReport && !localReport && isSkillTest2) {
+          let subKey = `weeklyReportSubmission_${loggedInEmail}_skill_test_2`;
+          let subData = JSON.parse(localStorage.getItem(subKey) || 'null') || await getFromCloudflare(subKey);
+          if (!subData) {
+            const subMap = JSON.parse(localStorage.getItem(`weeklyExamSubmissions_${loggedInEmail}`) || '{}');
+            subData = subMap['skill_test_2'] || subMap['week1'];
+            if (!subData) {
+              const matchedEntry = Object.entries(subMap).find(([k]) => k.startsWith('skill_test_2') || k.startsWith('week1') || k.includes('skill'));
+              if (matchedEntry) subData = matchedEntry[1];
+            }
+          }
+          if (!subData) {
+            const altSubKey = `weeklyReportSubmission_${loggedInEmail}_week1`;
+            subData = JSON.parse(localStorage.getItem(altSubKey) || 'null') || await getFromCloudflare(altSubKey);
+          }
+          if (subData && subData.theoryAnswers && Array.isArray(subData.theoryAnswers)) {
+            const correctCount = SOLIDWORKS_SKILL_TEST_2_MCQS.reduce((acc, q, idx) => {
+              return acc + (subData.theoryAnswers[idx] === q.answerIndex ? 1 : 0);
+            }, 0);
+            const autoReport = { project: 0, portfolio: 0, theory: correctCount, attendance: 0, mentor: 0 };
+            localReport = autoReport;
+            localStorage.setItem(reportKey, JSON.stringify(autoReport));
+            saveToCloudflare(reportKey, autoReport);
+            localStorage.setItem(`weeklyReport_${loggedInEmail}_skill_test_2`, JSON.stringify(autoReport));
+            saveToCloudflare(`weeklyReport_${loggedInEmail}_skill_test_2`, autoReport);
+            localStorage.setItem(`weeklyReport_${loggedInEmail}_week1`, JSON.stringify(autoReport));
+            saveToCloudflare(`weeklyReport_${loggedInEmail}_week1`, autoReport);
+          }
+        }
         
         if (cloudReport) {
           setStudentReport(cloudReport as any);
@@ -217,9 +255,8 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
           const average = Math.round(sum / count);
           loadedMarks.attendance = average;
         }
-        
-        setMarks(loadedMarks);
 
+        // Find student submission across all possible keys
         let submissionKey = `weeklyReportSubmission_${selectedStudent.email}_${pattern}`;
         let localSubmissionData = JSON.parse(localStorage.getItem(submissionKey) || 'null');
         let cloudSubmissionData = await getFromCloudflare(submissionKey);
@@ -229,7 +266,11 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
             `weeklyReportSubmission_${selectedStudent.email}_skill_test_2`,
             `weeklyReportSubmission_${selectedStudent.email}_week1`,
             `weeklyReportSubmission_${selectedStudent.email}_${pattern}_${selectedStudent.batch || ''}`,
-            `weeklyReportSubmission_${selectedStudent.email}_skill_test_2_${selectedStudent.batch || ''}`
+            `weeklyReportSubmission_${selectedStudent.email}_skill_test_2_${selectedStudent.batch || ''}`,
+            `weeklyReportSubmission_${selectedStudent.email}_skill_test_2_A1`,
+            `weeklyReportSubmission_${selectedStudent.email}_skill_test_2_A2`,
+            `weeklyReportSubmission_${selectedStudent.email}_skill_test_2_B1`,
+            `weeklyReportSubmission_${selectedStudent.email}_skill_test_2_B2`
           ];
           for (const pKey of possibleKeys) {
             const loc = JSON.parse(localStorage.getItem(pKey) || 'null');
@@ -249,17 +290,68 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
           const fullMap = { ...(localMap || {}), ...(cloudMap || {}) };
           if (fullMap[pattern] || fullMap['skill_test_2'] || fullMap['week1']) {
             cloudSubmissionData = fullMap[pattern] || fullMap['skill_test_2'] || fullMap['week1'];
+          } else {
+            const matchedEntry = Object.entries(fullMap).find(([k]) => k.startsWith('skill_test_2') || k.startsWith('week1') || k.includes('skill'));
+            if (matchedEntry) {
+              cloudSubmissionData = matchedEntry[1];
+            }
           }
         }
-        setStudentSubmission(cloudSubmissionData || localSubmissionData);
-        
-        // reset inline inputs based on marks loaded
-        setProjectEvalInput('');
-        setPortfolioEvalInput('');
-        setTheoryEvalInput('');
+
+        const finalSubmission = cloudSubmissionData || localSubmissionData;
+        setStudentSubmission(finalSubmission);
+
+        // Auto-evaluate MCQ marks if submission has theoryAnswers
+        const questions = isSkillTest2 
+          ? SOLIDWORKS_SKILL_TEST_2_MCQS 
+          : (targetExam?.theoryQuestions && targetExam.theoryQuestions.length > 0 ? targetExam.theoryQuestions : []);
+
+        if (finalSubmission && finalSubmission.theoryAnswers && Array.isArray(finalSubmission.theoryAnswers) && questions.length > 0) {
+          const correctCount = questions.reduce((acc: number, q: any, idx: number) => {
+            return acc + (finalSubmission.theoryAnswers[idx] === q.answerIndex ? 1 : 0);
+          }, 0);
+          const total = questions.length;
+          const maxMark = isSkillTest2 ? 20 : (isCie ? 10 : 5);
+          const autoScore = isSkillTest2 ? correctCount : Math.round((correctCount / total) * maxMark);
+
+          // If no existing report theory mark exists or if it was 0, auto-populate the evaluated mark
+          if (!loadedMarks.theory || loadedMarks.theory === 0) {
+            loadedMarks.theory = autoScore;
+            if (isSkillTest2) {
+              loadedMarks.project = 0;
+              loadedMarks.portfolio = 0;
+              loadedMarks.attendance = 0;
+              loadedMarks.mentor = 0;
+            }
+          }
+
+          // Automatically save and publish the report to localStorage and Cloudflare immediately!
+          const reportKey = `weeklyReport_${selectedStudent.email}_${pattern}`;
+          localStorage.setItem(reportKey, JSON.stringify(loadedMarks));
+          await saveToCloudflare(reportKey, loadedMarks);
+          if (isSkillTest2) {
+            const skillKey = `weeklyReport_${selectedStudent.email}_skill_test_2`;
+            localStorage.setItem(skillKey, JSON.stringify(loadedMarks));
+            await saveToCloudflare(skillKey, loadedMarks);
+            const week1Key = `weeklyReport_${selectedStudent.email}_week1`;
+            localStorage.setItem(week1Key, JSON.stringify(loadedMarks));
+            await saveToCloudflare(week1Key, loadedMarks);
+          }
+
+          // Mark status as Completed in mentor's status list
+          setSubmissionStatuses(prev => ({
+            ...prev,
+            [selectedStudent.email]: { isCompleted: true, hasSubmitted: true }
+          }));
+        }
+
+        setMarks(loadedMarks);
+        setTheoryEvalInput(loadedMarks.theory ? String(loadedMarks.theory) : '');
+        setProjectEvalInput(loadedMarks.project ? String(loadedMarks.project) : '');
+        setPortfolioEvalInput(loadedMarks.portfolio ? String(loadedMarks.portfolio) : '');
         setAttendanceEvalInput(pattern.startsWith('CIE') ? String(loadedMarks.attendance) : '');
-        setMentorEvalInput('');
-        
+        setMentorEvalInput(loadedMarks.mentor ? String(loadedMarks.mentor) : '');
+
         setIsLoaded(true);
       };
       loadReport();
@@ -721,11 +813,11 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                 </div>
               )}
 
-              {/* Theory line */}
+              {/* Theory / MCQ line */}
               <div className="flex flex-col gap-3 border-b border-blue-100/50 pb-4">
                 <div className="flex items-center flex-wrap gap-4 justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-blue-800">{isSkillTest2 ? 'MCQ Evaluation: ' : 'Theory Answers PDF: '}</span>
+                    <span className="text-sm font-bold text-blue-800">{isSkillTest2 ? 'Skill Test 2 (20 MCQs): ' : 'Theory Answers PDF: '}</span>
                     {!isSkillTest2 && (studentSubmission.theoryAnswerPdfName ? (
                       <>
                         <span className="text-sm text-blue-600">{studentSubmission.theoryAnswerPdfName}</span>
@@ -771,85 +863,156 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                 )}
 
                 {/* MCQ Evaluation Display */}
-                {studentSubmission.theoryAnswers && Array.isArray(studentSubmission.theoryAnswers) && targetExam?.theoryQuestions && targetExam.theoryQuestions.length > 0 && (() => {
-                  const correctCount = targetExam.theoryQuestions.reduce((acc: number, q: any, idx: number) => {
+                {studentSubmission.theoryAnswers && Array.isArray(studentSubmission.theoryAnswers) && (() => {
+                  const questions = isSkillTest2 ? SOLIDWORKS_SKILL_TEST_2_MCQS : (targetExam?.theoryQuestions || []);
+                  if (!questions || questions.length === 0) return null;
+
+                  const correctCount = questions.reduce((acc: number, q: any, idx: number) => {
                     return acc + (studentSubmission.theoryAnswers[idx] === q.answerIndex ? 1 : 0);
                   }, 0);
-                  const total = targetExam.theoryQuestions.length;
+                  const total = questions.length;
                   const maxMark = isSkillTest2 ? 20 : (isCie ? 10 : 5);
                   const calculatedMark = isSkillTest2 ? correctCount : Math.round((correctCount / total) * maxMark);
 
                   return (
-                    <div className="bg-white p-3 rounded-lg border border-blue-200 mt-2 flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-gray-800">MCQ Objective Score:</span>
-                        <span className="px-2.5 py-1 bg-green-50 text-green-700 text-sm font-bold rounded-lg border border-green-200">
-                          {correctCount} / {total} Correct ({Math.round((correctCount / total) * 100)}%)
-                        </span>
-                        <span className="text-xs text-gray-500 font-medium">{isSkillTest2 ? `Score: ${calculatedMark} / 20M` : `Scaled: ${calculatedMark} / ${maxMark}M`}</span>
+                    <div className="space-y-3 mt-2">
+                      <div className="bg-white p-4 rounded-xl border-2 border-green-200 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+                        <div className="flex items-center flex-wrap gap-2">
+                          <span className="text-sm font-bold text-gray-900">MCQ Objective Score:</span>
+                          <span className="px-3 py-1 bg-green-50 text-green-700 text-sm font-black rounded-lg border border-green-200">
+                            {correctCount} / {total} Correct ({Math.round((correctCount / total) * 100)}%)
+                          </span>
+                          <span className="text-xs font-bold text-green-800 bg-green-100/60 px-2.5 py-1 rounded-md">
+                            Score: {calculatedMark} / {maxMark} Marks
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setShowQuestionsReview(!showQuestionsReview)}
+                            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-lg transition-colors flex items-center gap-1"
+                          >
+                            {showQuestionsReview ? 'Hide Answers' : 'Show Answers'}
+                            {showQuestionsReview ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTheoryEvalInput(String(calculatedMark));
+                              if (isSkillTest2) {
+                                setMarks({ project: 0, portfolio: 0, attendance: 0, mentor: 0, theory: calculatedMark });
+                              } else {
+                                setMarks(prev => ({ ...prev, theory: calculatedMark }));
+                              }
+                            }}
+                            className="px-3 py-1.5 bg-primary text-white text-xs font-bold rounded-lg shadow-sm hover:bg-orange-600 transition-colors"
+                          >
+                            Set {calculatedMark}M
+                          </button>
+                        </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setTheoryEvalInput(String(calculatedMark));
-                          if (isSkillTest2) {
-                            setMarks({ project: 0, portfolio: 0, attendance: 0, mentor: 0, theory: calculatedMark });
-                          } else {
-                            setMarks(prev => ({ ...prev, theory: calculatedMark }));
-                          }
-                        }}
-                        className="px-3 py-1 bg-primary text-white text-xs font-bold rounded-lg shadow-sm hover:bg-orange-600 transition-colors"
-                      >
-                        Auto-Fill {calculatedMark}M
-                      </button>
+
+                      {showQuestionsReview && (
+                        <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-4 max-h-[450px] overflow-y-auto divide-y divide-gray-100">
+                          <h5 className="font-bold text-xs uppercase tracking-wider text-gray-500 pb-2">Student Answers Breakdown ({total} Questions)</h5>
+                          {questions.map((q: any, idx: number) => {
+                            const studentAnsIdx = studentSubmission.theoryAnswers[idx];
+                            const isCorrect = studentAnsIdx === q.answerIndex;
+                            return (
+                              <div key={idx} className="pt-3 first:pt-0 space-y-2">
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className="text-sm font-bold text-gray-900">
+                                    {idx + 1}. {(q.question || `Question ${idx + 1}`).replace(/^\d+[\.\)]\s*/, '')}
+                                  </p>
+                                  {studentAnsIdx !== undefined ? (
+                                    isCorrect ? (
+                                      <span className="shrink-0 px-2 py-0.5 bg-green-50 text-green-700 text-xs font-bold rounded border border-green-200 flex items-center gap-1">
+                                        <Check size={12} /> Correct
+                                      </span>
+                                    ) : (
+                                      <span className="shrink-0 px-2 py-0.5 bg-red-50 text-red-700 text-xs font-bold rounded border border-red-200 flex items-center gap-1">
+                                        <X size={12} /> Wrong
+                                      </span>
+                                    )
+                                  ) : (
+                                    <span className="shrink-0 px-2 py-0.5 bg-gray-100 text-gray-500 text-xs font-bold rounded">
+                                      Skipped
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                  {q.options.map((opt: string, optIdx: number) => {
+                                    const isChosen = studentAnsIdx === optIdx;
+                                    const isRight = optIdx === q.answerIndex;
+                                    let bg = 'bg-gray-50 border-gray-200 text-gray-700';
+                                    if (isRight) bg = 'bg-green-50 border-green-300 text-green-900 font-bold';
+                                    if (isChosen && !isRight) bg = 'bg-red-50 border-red-300 text-red-900 font-bold line-through';
+
+                                    return (
+                                      <div key={optIdx} className={`p-2 rounded-lg border flex items-center justify-between ${bg}`}>
+                                        <span><strong>{String.fromCharCode(65 + optIdx)}.</strong> {opt}</span>
+                                        {isChosen && <span className="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 bg-white/80 rounded border">Student</span>}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
               </div>
 
               {/* Attendance line */}
-              <div className="flex items-center flex-wrap gap-4 justify-between border-b border-blue-100/50 pb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-blue-800">{isCie ? '6 weeks Average' : 'Attendance'}: </span>
-                  <span className="text-sm text-gray-500">Max {isCie ? 20 : 2} marks</span>
+              {!isSkillTest2 && (
+                <div className="flex items-center flex-wrap gap-4 justify-between border-b border-blue-100/50 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-blue-800">{isCie ? '6 weeks Average' : 'Attendance'}: </span>
+                    <span className="text-sm text-gray-500">Max {isCie ? 20 : 2} marks</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="number" min="0" max={isCie ? "20" : "2"} placeholder="Marks" 
+                      value={attendanceEvalInput} 
+                      onChange={e => setAttendanceEvalInput(e.target.value)} 
+                      className="w-16 px-2 py-1 text-sm border border-blue-200 rounded focus:outline-none focus:border-blue-400" 
+                    />
+                    <button 
+                      onClick={() => setMarks({...marks, attendance: Number(attendanceEvalInput)})} 
+                      className="px-3 py-1 text-xs font-bold text-white bg-blue-600 rounded shadow-sm hover:bg-blue-700 transition-colors"
+                    >
+                      Evaluate
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="number" min="0" max={isCie ? "20" : "2"} placeholder="Marks" 
-                    value={attendanceEvalInput} 
-                    onChange={e => setAttendanceEvalInput(e.target.value)} 
-                    className="w-16 px-2 py-1 text-sm border border-blue-200 rounded focus:outline-none focus:border-blue-400" 
-                  />
-                  <button 
-                    onClick={() => setMarks({...marks, attendance: Number(attendanceEvalInput)})} 
-                    className="px-3 py-1 text-xs font-bold text-white bg-blue-600 rounded shadow-sm hover:bg-blue-700 transition-colors"
-                  >
-                    Evaluate
-                  </button>
-                </div>
-              </div>
+              )}
 
               {/* Mentor line */}
-              <div className="flex items-center flex-wrap gap-4 justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-blue-800">{isCie ? 'Viva' : 'Mentor Evaluation'}: </span>
-                  <span className="text-sm text-gray-500">Max {isCie ? 5 : 3} marks</span>
+              {!isSkillTest2 && (
+                <div className="flex items-center flex-wrap gap-4 justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-blue-800">{isCie ? 'Viva' : 'Mentor Evaluation'}: </span>
+                    <span className="text-sm text-gray-500">Max {isCie ? 5 : 3} marks</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="number" min="0" max={isCie ? "5" : "3"} placeholder="Marks" 
+                      value={mentorEvalInput} 
+                      onChange={e => setMentorEvalInput(e.target.value)} 
+                      className="w-16 px-2 py-1 text-sm border border-blue-200 rounded focus:outline-none focus:border-blue-400" 
+                    />
+                    <button 
+                      onClick={() => setMarks({...marks, mentor: Number(mentorEvalInput)})} 
+                      className="px-3 py-1 text-xs font-bold text-white bg-blue-600 rounded shadow-sm hover:bg-blue-700 transition-colors"
+                    >
+                      Evaluate
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="number" min="0" max={isCie ? "5" : "3"} placeholder="Marks" 
-                    value={mentorEvalInput} 
-                    onChange={e => setMentorEvalInput(e.target.value)} 
-                    className="w-16 px-2 py-1 text-sm border border-blue-200 rounded focus:outline-none focus:border-blue-400" 
-                  />
-                  <button 
-                    onClick={() => setMarks({...marks, mentor: Number(mentorEvalInput)})} 
-                    className="px-3 py-1 text-xs font-bold text-white bg-blue-600 rounded shadow-sm hover:bg-blue-700 transition-colors"
-                  >
-                    Evaluate
-                  </button>
-                </div>
-              </div>
+              )}
               <div className="text-xs text-gray-500 pt-2 border-t border-blue-100/50 mt-2">
                 Submitted at: {new Date(studentSubmission.submittedAt).toLocaleString()}
               </div>

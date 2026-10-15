@@ -73,7 +73,7 @@ export const getFromCloudflare = async (key: string): Promise<any> => {
 import { MUNI_STUDENTS } from '../data/students';
 
 export const isMuniUser = (): boolean => {
-  const userEmail = (sessionStorage.getItem('loggedInEmail') || '').toLowerCase().trim();
+  const userEmail = (sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail') || '').toLowerCase().trim();
   if (!userEmail) return false;
   if (userEmail === 'muni@geonixa.com' || userEmail === 'raju@anurag.com') return true;
   if (MUNI_STUDENTS.some(s => (s.email || '').toLowerCase().trim() === userEmail)) return true;

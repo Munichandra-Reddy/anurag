@@ -328,6 +328,22 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       await saveToCloudflare(`weeklyReportSubmission_${loggedInEmail}_skill_test_2`, submission);
       localStorage.setItem(`weeklyReportSubmission_${loggedInEmail}_week1`, JSON.stringify(submission));
       await saveToCloudflare(`weeklyReportSubmission_${loggedInEmail}_week1`, submission);
+
+      // Auto-evaluate 20 MCQs score and pre-save report marks
+      const correctCount = SOLIDWORKS_SKILL_TEST_2_MCQS.reduce((acc, q, idx) => {
+        return acc + (studentTheoryAnswers[idx] === q.answerIndex ? 1 : 0);
+      }, 0);
+      const evaluatedReport = {
+        project: 0,
+        portfolio: 0,
+        theory: correctCount,
+        attendance: 0,
+        mentor: 0
+      };
+      localStorage.setItem(`weeklyReport_${loggedInEmail}_skill_test_2`, JSON.stringify(evaluatedReport));
+      await saveToCloudflare(`weeklyReport_${loggedInEmail}_skill_test_2`, evaluatedReport);
+      localStorage.setItem(`weeklyReport_${loggedInEmail}_week1`, JSON.stringify(evaluatedReport));
+      await saveToCloudflare(`weeklyReport_${loggedInEmail}_week1`, evaluatedReport);
     }
 
     // Clear draft on successful submission
@@ -335,7 +351,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     localStorage.removeItem(draftKey);
     await saveToCloudflare(draftKey, null);
 
-    alert(isSkillTest2Taking ? "Skill Test 2 submitted successfully! Your mentor will evaluate your answers." : "Exam submitted successfully!");
+    alert(isSkillTest2Taking ? "Skill Test 2 submitted successfully! Your answers have been evaluated." : "Exam submitted successfully!");
 
     setTakingExamId(null);
     setStudentProjectUrl('');
