@@ -10,11 +10,11 @@ const MentorDashboardLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const userEmail = (sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail') || '').toLowerCase().trim();
-  const isMuniMentor = userEmail === 'muni@geonixa.com' || userEmail === 'munichandrar572@gmail.com';
+  const isMuniMentor = userEmail === 'muni@geonixa.com' || userEmail === 'munichandrar572@gmail.com' || userEmail === 'mahesh@anurag.edu.in' || userEmail === 'maheshk@geonixa.com';
 
   React.useEffect(() => {
     // Route Guard: strict access only for authorized mentors
-    const mentorEmails = ['maheshk@geonixa.com', 'jithendravarma.l@gmail.com', 'muni@geonixa.com', 'munichandrar572@gmail.com'];
+    const mentorEmails = ['mahesh@anurag.edu.in', 'maheshk@geonixa.com', 'jithendravarma.l@gmail.com', 'muni@geonixa.com', 'munichandrar572@gmail.com'];
     if (!userEmail) {
       navigate('/login');
     } else if (!mentorEmails.includes(userEmail)) {

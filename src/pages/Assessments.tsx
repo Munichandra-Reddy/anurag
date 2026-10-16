@@ -46,7 +46,7 @@ const Assessments: React.FC = () => {
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   
-  const loggedInEmail = sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail') || (isMentor ? 'muni@geonixa.com' : 'student@anurag.edu.in');
+  const loggedInEmail = sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail') || (isMentor ? 'mahesh@anurag.edu.in' : 'student@anurag.edu.in');
   const assessmentsKey = `anuragLmsAssessments_${loggedInEmail}`;
 
   const [preExams, setPreExams] = useState<any[]>([]);
@@ -73,7 +73,7 @@ const Assessments: React.FC = () => {
     const normalizedEmail = (loggedInEmail || '').toLowerCase().trim();
     const cloudMuniStudents = await getFromCloudflare('registeredStudents_muni@geonixa.com') || [];
     const localMuniStudents = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
-    const isMuniUser = normalizedEmail === 'muni@geonixa.com' 
+    const isMuniUser = normalizedEmail === 'muni@geonixa.com' || normalizedEmail === 'mahesh@anurag.edu.in' || normalizedEmail === 'maheshk@geonixa.com' 
       || MUNI_STUDENTS.some(s => (s.email || '').toLowerCase().trim() === normalizedEmail)
       || [...cloudMuniStudents, ...localMuniStudents].some((s: any) => (s?.email || '').toLowerCase().trim() === normalizedEmail);
     const baseExams = (examsData && Array.isArray(examsData))

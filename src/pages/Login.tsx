@@ -15,8 +15,8 @@ import { AUTHORIZED_STUDENTS, MUNI_STUDENTS } from '../data/students';
 type AuthState = 'LOGIN' | 'FORGOT_EMAIL' | 'FORGOT_OTP' | 'FORGOT_NEW_PWD';
 
 const Login: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('mahesh@anurag.edu.in');
+  const [password, setPassword] = useState('anurag@123');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -46,6 +46,7 @@ const Login: React.FC = () => {
       if (facultyEmails.includes(loggedInEmail)) {
         navigate('/faculty-dashboard', { replace: true });
       } else if (
+        loggedInEmail === 'mahesh@anurag.edu.in' ||
         loggedInEmail === 'maheshk@geonixa.com' || 
         loggedInEmail === 'jithendravarma.l@gmail.com' ||
         loggedInEmail === 'muni@geonixa.com' ||
@@ -147,20 +148,24 @@ const Login: React.FC = () => {
     // 2. Check Mentor Accounts
     const mentorAccounts = [
       { 
+        email: 'mahesh@anurag.edu.in', 
+        passes: ['anurag@123', 'Anurag@123', 'ANURAG@123', 'GEO@9001', 'geo@9001', 'Muni@526', 'muni@526'] 
+      },
+      { 
         email: 'muni@geonixa.com', 
-        passes: ['Muni@526', 'muni@526', 'Muni@72', 'muni@72', 'GEO@9001', 'geo@9001', 'geonixa', 'Geonixa', 'Muni@123', 'muni@123', 'Muni', 'muni'] 
+        passes: ['anurag@123', 'Anurag@123', 'Muni@526', 'muni@526', 'Muni@72', 'muni@72', 'GEO@9001', 'geo@9001', 'geonixa', 'Geonixa', 'Muni@123', 'muni@123', 'Muni', 'muni'] 
       },
       { 
         email: 'munichandrar572@gmail.com', 
-        passes: ['Muni@526', 'muni@526', 'Muni@72', 'muni@72', 'GEO@9001', 'geo@9001', 'geonixa', 'Geonixa'] 
+        passes: ['anurag@123', 'Anurag@123', 'Muni@526', 'muni@526', 'Muni@72', 'muni@72', 'GEO@9001', 'geo@9001', 'geonixa', 'Geonixa'] 
       },
       { 
         email: 'maheshk@geonixa.com', 
-        passes: ['GEO@9001', 'geo@9001', 'Muni@526', 'muni@526'] 
+        passes: ['anurag@123', 'Anurag@123', 'GEO@9001', 'geo@9001', 'Muni@526', 'muni@526'] 
       },
       { 
         email: 'jithendravarma.l@gmail.com', 
-        passes: ['Varma@9293', 'varma@9293'] 
+        passes: ['Varma@9293', 'varma@9293', 'anurag@123'] 
       }
     ];
 
@@ -548,7 +553,7 @@ const Login: React.FC = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     onInput={(e: any) => setEmail(e.target.value)}
                     autoComplete="username"
-                    placeholder="student@anurag.edu.in"
+                    placeholder="mahesh@anurag.edu.in"
                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors disabled:opacity-50"
                     required
                     disabled={isLoading}
