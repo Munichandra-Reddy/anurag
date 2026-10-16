@@ -101,13 +101,7 @@ export const matchesStudentEmail = (email1?: string | null, email2?: string | nu
 export const isMuniUser = (emailToCheck?: string): boolean => {
   const userEmail = (emailToCheck || sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail') || '').toLowerCase().trim();
   if (!userEmail) return false;
-  if (
-    userEmail === 'muni@geonixa.com' || 
-    userEmail === 'munichandrar572@gmail.com' || 
-    userEmail === 'mahesh@anurag.edu.in' ||
-    userEmail === 'maheshk@geonixa.com' ||
-    userEmail === 'raju@anurag.com'
-  ) return true;
+  if (userEmail === 'muni@geonixa.com' || userEmail === 'munichandrar572@gmail.com' || userEmail === 'raju@anurag.com') return true;
   if (MUNI_STUDENTS.some(s => matchesStudentEmail(s.email, userEmail))) return true;
 
   const localMuniStudents = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');

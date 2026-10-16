@@ -22,7 +22,7 @@ const DEFAULT_CONDUCTED_EXAMS: ConductedExam[] = [
 
 const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
   const loggedInEmail = (sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail') || '').toLowerCase().trim();
-  const userIsMuni = isMuniUser(loggedInEmail) || loggedInEmail === 'muni@geonixa.com' || loggedInEmail === 'mahesh@anurag.edu.in';
+  const userIsMuni = isMuniUser(loggedInEmail) || loggedInEmail === 'muni@geonixa.com';
   const CACHE_KEY = `anuragLms_marksReport_cache_${userIsMuni ? 'muni' : 'default'}`;
 
   // Instant synchronous initialization from local cache to open IMMEDIATELY with 0ms delay!

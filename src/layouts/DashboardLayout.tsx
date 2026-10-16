@@ -83,7 +83,7 @@ const DashboardLayout: React.FC = () => {
 
   React.useEffect(() => {
     // Route Guard: strict access only for logged in users
-    const mentorEmails = ['mahesh@anurag.edu.in', 'maheshk@geonixa.com', 'jithendravarma.l@gmail.com', 'muni@geonixa.com', 'munichandrar572@gmail.com'];
+    const mentorEmails = ['maheshk@geonixa.com', 'jithendravarma.l@gmail.com', 'muni@geonixa.com'];
     if (!userEmail) {
       navigate('/login');
     } else if (mentorEmails.includes(userEmail)) {
