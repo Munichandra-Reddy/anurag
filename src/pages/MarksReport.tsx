@@ -87,9 +87,14 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
     try {
       // 1. Faculty View: Read saved snapshot
       if (isFacultyView) {
-        const snapshot = await getFromCloudflare('facultySnapshotMarks');
+        const snapshot = await getFromCloudflare('facultySnapshotMarks')
+          || await getFromCloudflare('facultySnapshotMarks_muni')
+          || JSON.parse(localStorage.getItem('facultySnapshotMarks') || 'null')
+          || JSON.parse(localStorage.getItem('facultySnapshotMarks_muni') || 'null');
+
         if (snapshot) {
           setStudents(snapshot.students || []);
+          setMarksData(snapshot.marksData || {});
           const snapExams = (snapshot.conductedExams || DEFAULT_CONDUCTED_EXAMS).map((e: ConductedExam) => {
             if (e.id === 'graph_exam') return { ...e, maxMarks: 20 };
             if (e.id === 'pre_assessment') return { ...e, maxMarks: 30 };
@@ -417,7 +422,10 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
       const snapshotData = { marksData, students, conductedExams };
       const currentDataString = JSON.stringify(snapshotData);
 
+      localStorage.setItem('facultySnapshotMarks', JSON.stringify(snapshotData));
+      localStorage.setItem('facultySnapshotMarks_muni', JSON.stringify(snapshotData));
       await saveToCloudflare('facultySnapshotMarks', snapshotData);
+      await saveToCloudflare('facultySnapshotMarks_muni', snapshotData);
 
       localStorage.setItem('facultySnapshotHash_Marks', currentDataString);
       await saveToCloudflare('facultySnapshotHash_Marks', currentDataString);
@@ -484,16 +492,14 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
           </button>
 
           {/* Refresh Button */}
-          {!isFacultyView && (
-            <button
-              onClick={() => loadData(true)}
-              disabled={isRefreshing}
-              className="p-2 text-gray-600 hover:text-primary bg-white hover:bg-gray-50 border border-gray-200 rounded-xl transition-all shadow-sm"
-              title="Refresh marks data"
-            >
-              <RefreshCw size={18} className={isRefreshing ? 'animate-spin text-primary' : ''} />
-            </button>
-          )}
+          <button
+            onClick={() => loadData(true)}
+            disabled={isRefreshing}
+            className="p-2 text-gray-600 hover:text-primary bg-white hover:bg-gray-50 border border-gray-200 rounded-xl transition-all shadow-sm"
+            title="Refresh marks data"
+          >
+            <RefreshCw size={18} className={isRefreshing ? 'animate-spin text-primary' : ''} />
+          </button>
         </div>
       </div>
 
