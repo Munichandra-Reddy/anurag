@@ -49,7 +49,8 @@ const Login: React.FC = () => {
         loggedInEmail === 'maheshk@geonixa.com' || 
         loggedInEmail === 'jithendravarma.l@gmail.com' ||
         loggedInEmail === 'muni@geonixa.com' ||
-        loggedInEmail === 'munichandrar572@gmail.com'
+        loggedInEmail === 'munichandrar572@gmail.com' ||
+        loggedInEmail === 'arun@anurag.edu.in'
       ) {
         navigate('/mentor-dashboard', { replace: true });
       } else {
@@ -146,6 +147,10 @@ const Login: React.FC = () => {
 
     // 2. Check Mentor Accounts
     const mentorAccounts = [
+      {
+        email: 'arun@anurag.edu.in',
+        passes: ['arun@123', 'Arun@123', 'arun', 'Arun']
+      },
       { 
         email: 'muni@geonixa.com', 
         passes: ['Muni@526', 'muni@526', 'Muni@72', 'muni@72', 'GEO@9001', 'geo@9001', 'geonixa', 'Geonixa', 'Muni@123', 'muni@123', 'Muni', 'muni'] 
@@ -333,9 +338,9 @@ const Login: React.FC = () => {
     e.preventDefault();
     const cleanEmail = resetEmail.trim().toLowerCase();
     
-    const mentorEmails = ['muni@geonixa.com', 'munichandrar572@gmail.com', 'maheshk@geonixa.com', 'jithendravarma.l@gmail.com'];
+    const mentorEmails = ['muni@geonixa.com', 'munichandrar572@gmail.com', 'maheshk@geonixa.com', 'jithendravarma.l@gmail.com', 'arun@anurag.edu.in'];
     if (mentorEmails.includes(cleanEmail)) {
-      setError('Mentor accounts are managed by the administrator. Please sign in with your mentor password (e.g. Muni@526) or contact administration.');
+      setError('Mentor accounts are managed by the administrator. Please sign in with your mentor password (e.g. arun@123) or contact administration.');
       return;
     }
 
