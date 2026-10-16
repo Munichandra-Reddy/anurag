@@ -490,7 +490,7 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
 
   if (isFacultyView && !isSubmitted) {
     return (
-      <div className="w-full h-64 flex flex-col items-center justify-center space-y-4 bg-white rounded-2xl border border-gray-200 shadow-sm mt-8">
+      <div className="w-full h-64 flex flex-col items-center justify-center space-y-4 bg-white rounded-xl border border-gray-200 shadow-sm mt-8">
         <ClipboardList size={48} className="text-gray-300" />
         <h2 className="text-xl font-bold text-gray-900">Report Pending</h2>
         <p className="text-gray-500">The mentor has not yet submitted the Marks Report.</p>
@@ -509,49 +509,49 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="bg-orange-50 text-orange-700 px-3.5 py-2 rounded-xl border border-orange-100 flex items-center gap-2 text-sm font-bold">
-            <ClipboardList size={18} />
-            Students: {students.length}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="bg-white text-gray-700 px-3.5 py-2 rounded-lg border border-gray-200 flex items-center gap-2 text-sm font-medium shadow-xs">
+            <ClipboardList size={16} className="text-gray-500" />
+            <span>Students: <strong className="text-gray-900 font-semibold">{students.length}</strong></span>
           </div>
 
-          <div className="bg-blue-50 text-blue-700 px-3.5 py-2 rounded-xl border border-blue-100 flex items-center gap-2 text-sm font-bold">
-            <Award size={18} />
-            Exams: {conductedExams.length}
+          <div className="bg-white text-gray-700 px-3.5 py-2 rounded-lg border border-gray-200 flex items-center gap-2 text-sm font-medium shadow-xs">
+            <Award size={16} className="text-gray-500" />
+            <span>Exams: <strong className="text-gray-900 font-semibold">{conductedExams.length}</strong></span>
           </div>
 
           {/* Download Excel Button */}
           <button
             onClick={handleExportToExcel}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm shadow-sm transition-all hover:shadow"
+            className="flex items-center gap-2 px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 rounded-lg font-medium text-sm shadow-xs transition-colors cursor-pointer"
             title="Download formatted Excel sheet"
           >
-            <Download size={18} />
-            Download Excel Sheet
+            <Download size={16} className="text-green-700" />
+            <span>Download Excel Sheet</span>
           </button>
 
           {/* Refresh Button */}
           <button
             onClick={() => loadData(true)}
             disabled={isRefreshing}
-            className="p-2 text-gray-600 hover:text-primary bg-white hover:bg-gray-50 border border-gray-200 rounded-xl transition-all shadow-sm"
+            className="p-2 text-gray-600 hover:text-primary bg-white hover:bg-gray-50 border border-gray-200 rounded-lg transition-colors shadow-xs cursor-pointer"
             title="Refresh marks data"
           >
-            <RefreshCw size={18} className={isRefreshing ? 'animate-spin text-primary' : ''} />
+            <RefreshCw size={16} className={isRefreshing ? 'animate-spin text-primary' : ''} />
           </button>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="relative w-full sm:w-80">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
           <input
             type="text"
             placeholder="Search by name, roll no, or email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors text-sm font-medium"
+            className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors text-sm font-medium"
           />
         </div>
 
@@ -560,9 +560,9 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
           <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
             <button
               onClick={() => setSelectedBatch('ALL')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 selectedBatch === 'ALL'
-                  ? 'bg-primary text-white shadow-sm'
+                  ? 'bg-primary text-white shadow-xs'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
@@ -574,9 +574,9 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
                 <button
                   key={b}
                   onClick={() => setSelectedBatch(b)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                     selectedBatch === b
-                      ? 'bg-primary text-white shadow-sm'
+                      ? 'bg-primary text-white shadow-xs'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
@@ -589,35 +589,35 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
       </div>
 
       {/* Structured Marks Table */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="px-4 py-3.5 text-xs font-black text-gray-500 uppercase tracking-wider w-12 text-center border-r border-gray-200">
+                <th className="px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider w-12 text-center border-r border-gray-200">
                   #
                 </th>
-                <th className="px-4 py-3.5 text-xs font-black text-gray-700 uppercase tracking-wider whitespace-nowrap border-r border-gray-200">
+                <th className="px-4 py-3.5 text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap border-r border-gray-200">
                   Roll No
                 </th>
-                <th className="px-4 py-3.5 text-xs font-black text-gray-700 uppercase tracking-wider whitespace-nowrap border-r border-gray-200 sticky left-0 bg-gray-50 z-10 shadow-[1px_0_0_0_#e5e7eb]">
+                <th className="px-4 py-3.5 text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap border-r border-gray-200 sticky left-0 bg-gray-50 z-10 shadow-[1px_0_0_0_#e5e7eb]">
                   Student Name
                 </th>
-                <th className="px-4 py-3.5 text-xs font-black text-gray-700 uppercase tracking-wider whitespace-nowrap border-r border-gray-200">
+                <th className="px-4 py-3.5 text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap border-r border-gray-200">
                   Email
                 </th>
-                <th className="px-3 py-3.5 text-xs font-black text-gray-700 uppercase tracking-wider text-center whitespace-nowrap border-r border-gray-200">
+                <th className="px-3 py-3.5 text-xs font-semibold text-gray-700 uppercase tracking-wider text-center whitespace-nowrap border-r border-gray-200">
                   Batch
                 </th>
                 {conductedExams.map((exam, i) => (
                   <th
                     key={exam.id || i}
-                    className="px-6 py-3.5 text-xs font-black text-orange-950 uppercase tracking-wider text-center whitespace-nowrap border-r border-gray-200 bg-orange-50/40"
+                    className="px-6 py-3.5 text-xs font-semibold text-gray-700 uppercase tracking-wider text-center whitespace-nowrap border-r border-gray-200 bg-gray-50"
                   >
                     <div className="flex flex-col items-center">
                       <span>{exam.title.toUpperCase()}</span>
                       {exam.maxMarks && (
-                        <span className="text-[10px] text-orange-600 font-semibold normal-case">
+                        <span className="text-[10px] text-gray-500 font-normal normal-case">
                           Max: {exam.maxMarks}
                         </span>
                       )}
@@ -632,21 +632,21 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
                 const studentMarks = marksData[sEmail] || {};
 
                 return (
-                  <tr key={student.id || sEmail || idx} className="hover:bg-orange-50/30 transition-colors">
+                  <tr key={student.id || sEmail || idx} className="hover:bg-gray-50/80 transition-colors">
                     <td className="px-4 py-3 text-center text-xs text-gray-400 font-mono border-r border-gray-100">
                       {idx + 1}
                     </td>
-                    <td className="px-4 py-3 text-xs font-mono font-bold text-gray-700 whitespace-nowrap border-r border-gray-100">
+                    <td className="px-4 py-3 text-xs font-mono font-medium text-gray-700 whitespace-nowrap border-r border-gray-100">
                       {student.roll || '-'}
                     </td>
-                    <td className="px-4 py-3 text-sm font-bold text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10 border-r border-gray-100 shadow-[1px_0_0_0_#f3f4f6]">
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10 border-r border-gray-100 shadow-[1px_0_0_0_#f3f4f6]">
                       {student.name}
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap border-r border-gray-100">
                       {student.email}
                     </td>
                     <td className="px-3 py-3 text-center whitespace-nowrap border-r border-gray-100">
-                      <span className="px-2 py-0.5 text-xs font-bold rounded-md bg-gray-100 text-gray-700 border border-gray-200">
+                      <span className="px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-700 border border-gray-200">
                         {student.batch || 'A1'}
                       </span>
                     </td>
@@ -661,7 +661,7 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
                           className="px-6 py-3 text-center whitespace-nowrap border-r border-gray-100 last:border-r-0"
                         >
                           {hasMark ? (
-                            <span className="inline-flex items-center justify-center min-w-[36px] px-2.5 py-1 text-sm font-bold rounded-lg bg-orange-50 text-orange-700 border border-orange-200/60 shadow-sm">
+                            <span className="text-sm font-semibold text-gray-900">
                               {val}
                             </span>
                           ) : (
@@ -699,10 +699,10 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
           <button
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className={`px-6 py-2.5 rounded-xl font-bold text-sm text-white transition-all shadow-sm flex items-center gap-2 cursor-pointer ${
+            className={`px-5 py-2.5 rounded-lg font-medium text-sm text-white transition-colors shadow-xs flex items-center gap-2 cursor-pointer ${
               isSubmitted
-                ? 'bg-emerald-600 hover:bg-emerald-700 hover:shadow'
-                : 'bg-primary hover:bg-orange-600 hover:shadow animate-pulse'
+                ? 'bg-green-700 hover:bg-green-800'
+                : 'bg-primary hover:bg-orange-600'
             }`}
             title={
               isSubmitted
@@ -712,17 +712,17 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
           >
             {isSubmitting ? (
               <>
-                <Loader2 size={18} className="animate-spin" />
+                <Loader2 size={16} className="animate-spin" />
                 <span>Submitting to Faculty...</span>
               </>
             ) : isSubmitted ? (
               <>
-                <CheckCircle2 size={18} />
+                <CheckCircle2 size={16} />
                 <span>Submitted to Faculty</span>
               </>
             ) : (
               <>
-                <Upload size={18} />
+                <Upload size={16} />
                 <span>Submit to Faculty</span>
               </>
             )}

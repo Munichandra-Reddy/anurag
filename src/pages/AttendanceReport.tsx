@@ -87,7 +87,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ isFacultyView = fal
 
   if (isFacultyView && !isSubmitted) {
     return (
-      <div className="w-full h-64 flex flex-col items-center justify-center space-y-4 bg-white rounded-2xl border border-gray-200 shadow-sm mt-8">
+      <div className="w-full h-64 flex flex-col items-center justify-center space-y-4 bg-white rounded-xl border border-gray-200 shadow-sm mt-8">
         <ClipboardList size={48} className="text-gray-300" />
         <h2 className="text-xl font-bold text-gray-900">Report Pending</h2>
         <p className="text-gray-500">The mentor has not yet submitted the Attendance Report.</p>
@@ -120,26 +120,26 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ isFacultyView = fal
           <h1 className="text-2xl font-bold text-gray-900">Attendance Report</h1>
           <p className="text-gray-500 mt-1">Detailed view of student attendance across all scheduled sessions.</p>
         </div>
-        <div className="bg-orange-50 text-orange-700 px-4 py-2 rounded-lg border border-orange-100 flex items-center gap-2 text-sm font-medium">
-          <ClipboardList size={18} />
-          Total Students: {students.length}
+        <div className="bg-white text-gray-700 px-3.5 py-2 rounded-lg border border-gray-200 flex items-center gap-2 text-sm font-medium shadow-xs">
+          <ClipboardList size={16} className="text-gray-500" />
+          <span>Total Students: <strong className="text-gray-900 font-semibold">{students.length}</strong></span>
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center">
+      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center">
         <div className="relative w-full md:w-96">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
           <input
             type="text"
             placeholder="Search students by name or email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors text-sm"
+            className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors text-sm"
           />
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -233,9 +233,9 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ isFacultyView = fal
           <button 
             onClick={handleSubmit}
             disabled={isSubmitted || isSubmitting}
-            className={`px-6 py-3 rounded-xl font-bold text-white transition-all shadow-sm ${isSubmitted ? 'bg-green-500 cursor-not-allowed' : 'bg-primary hover:bg-orange-600 hover:shadow'}`}
+            className={`px-5 py-2.5 rounded-lg font-medium text-sm text-white transition-colors shadow-xs ${isSubmitted ? 'bg-green-700 cursor-not-allowed' : 'bg-primary hover:bg-orange-600'}`}
           >
-            {isSubmitting ? <Loader2 size={20} className="animate-spin mx-auto" /> : isSubmitted ? 'Submitted to Faculty' : 'Submit to Faculty'}
+            {isSubmitting ? <Loader2 size={16} className="animate-spin mx-auto" /> : isSubmitted ? 'Submitted to Faculty' : 'Submit to Faculty'}
           </button>
         </div>
       )}
