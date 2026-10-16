@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Search, FileText, ArrowLeft, Send, CheckCircle2, Edit, X, Check, HelpCircle, ChevronDown, ChevronUp, Award } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare, getMentorKey, getStudentsKey, isMuniUser, matchesStudentEmail } from '../utils/cloudflare';
-import { SOLIDWORKS_SKILL_TEST_2_MCQS } from '../data/solidworksSkillTest2Mcqs';
+import { 
+  SOLIDWORKS_SKILL_TEST_2_MCQS,
+  SOLIDWORKS_SKILL_TEST_2_SET1_MCQS,
+  SOLIDWORKS_SKILL_TEST_2_SET2_MCQS,
+  getSkillTest2McqsForBatch
+} from '../data/solidworksSkillTest2Mcqs';
 
 interface Student {
   id: number;
@@ -16,6 +21,8 @@ interface Marks {
   theory: number;
   attendance: number;
   mentor: number;
+  isMentorSubmitted?: boolean;
+  submittedAt?: string;
 }
 
 interface WeeklyExamReportProps {
@@ -104,8 +111,8 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         exam = {
           id: 'skill_test_2',
           title: 'Skill Test 2',
-          theoryQuestions: SOLIDWORKS_SKILL_TEST_2_MCQS,
-          targetBatch: 'A2'
+          theoryQuestions: SOLIDWORKS_SKILL_TEST_2_SET1_MCQS,
+          targetBatch: 'B1'
         };
       }
       
@@ -113,6 +120,47 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
     };
     loadExam();
   }, [pattern, isMentor, currentEmail]);
+
+  // Helper to get the correct questions for a student based on batch and submission
+  const getQuestionsForStudent = (student: Student | null, submission: any) => {
+    if (submission && submission.theoryQuestions && Array.isArray(submission.theoryQuestions) && submission.theoryQuestions.length > 0) {
+      return submission.theoryQuestions;
+    }
+    if (!isSkillTest2) {
+      return (targetExam?.theoryQuestions && targetExam.theoryQuestions.length > 0) ? targetExam.theoryQuestions : [];
+    }
+
+    const studentBatch = (student?.batch || '').replace(/batch/gi, '').trim().toUpperCase();
+    const isBatch1 = studentBatch.includes('B1') || studentBatch.includes('A1');
+    const isBatch2 = studentBatch.includes('B2') || studentBatch.includes('A2');
+
+    if (submission && submission.theoryAnswers && Array.isArray(submission.theoryAnswers) && submission.theoryAnswers.length > 0) {
+      const score1 = SOLIDWORKS_SKILL_TEST_2_SET1_MCQS.reduce((acc: number, q: any, idx: number) => {
+        return acc + (submission.theoryAnswers[idx] === q.answerIndex ? 1 : 0);
+      }, 0);
+      const score2 = SOLIDWORKS_SKILL_TEST_2_SET2_MCQS.reduce((acc: number, q: any, idx: number) => {
+        return acc + (submission.theoryAnswers[idx] === q.answerIndex ? 1 : 0);
+      }, 0);
+
+      // If student is Batch 1 (A1 or B1):
+      if (isBatch1) {
+        return (score2 > score1 && score1 <= 6) ? SOLIDWORKS_SKILL_TEST_2_SET2_MCQS : SOLIDWORKS_SKILL_TEST_2_SET1_MCQS;
+      }
+
+      // If student is Batch 2 (A2 or B2):
+      if (isBatch2) {
+        if (studentBatch.includes('A2') && score1 > score2) {
+          return SOLIDWORKS_SKILL_TEST_2_SET1_MCQS;
+        }
+        return SOLIDWORKS_SKILL_TEST_2_SET2_MCQS;
+      }
+
+      return score1 >= score2 ? SOLIDWORKS_SKILL_TEST_2_SET1_MCQS : SOLIDWORKS_SKILL_TEST_2_SET2_MCQS;
+    }
+
+    if (isBatch2) return SOLIDWORKS_SKILL_TEST_2_SET2_MCQS;
+    return SOLIDWORKS_SKILL_TEST_2_SET1_MCQS;
+  };
 
   // Load students for mentor
   useEffect(() => {
@@ -162,41 +210,18 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
           }
         }
 
-        // Fallback for Skill Test 2: If student submitted their exam, auto-evaluate score directly
-        if (!cloudReport && !localReport && isSkillTest2) {
-          let subKey = `weeklyReportSubmission_${studentEmail}_skill_test_2`;
-          let subData = JSON.parse(localStorage.getItem(subKey) || 'null') || await getFromCloudflare(subKey);
-          if (!subData) {
-            const subMap = JSON.parse(localStorage.getItem(`weeklyExamSubmissions_${studentEmail}`) || '{}');
-            subData = subMap['skill_test_2'] || subMap['week1'];
-            if (!subData) {
-              const matchedEntry = Object.entries(subMap).find(([k]) => k.startsWith('skill_test_2') || k.startsWith('week1') || k.includes('skill'));
-              if (matchedEntry) subData = matchedEntry[1];
+        const finalReport = cloudReport || localReport;
+        if (finalReport) {
+          // For Skill Test 2, only show report to student if mentor has submitted it
+          if (isSkillTest2) {
+            if (finalReport.isMentorSubmitted === true) {
+              setStudentReport(finalReport as any);
+            } else {
+              setStudentReport(null);
             }
+          } else {
+            setStudentReport(finalReport as any);
           }
-          if (!subData) {
-            const altSubKey = `weeklyReportSubmission_${studentEmail}_week1`;
-            subData = JSON.parse(localStorage.getItem(altSubKey) || 'null') || await getFromCloudflare(altSubKey);
-          }
-          if (subData && subData.theoryAnswers && Array.isArray(subData.theoryAnswers)) {
-            const correctCount = SOLIDWORKS_SKILL_TEST_2_MCQS.reduce((acc, q, idx) => {
-              return acc + (subData.theoryAnswers[idx] === q.answerIndex ? 1 : 0);
-            }, 0);
-            const autoReport = { project: 0, portfolio: 0, theory: correctCount, attendance: 0, mentor: 0 };
-            localReport = autoReport;
-            localStorage.setItem(reportKey, JSON.stringify(autoReport));
-            saveToCloudflare(reportKey, autoReport);
-            localStorage.setItem(`weeklyReport_${studentEmail}_skill_test_2`, JSON.stringify(autoReport));
-            saveToCloudflare(`weeklyReport_${studentEmail}_skill_test_2`, autoReport);
-            localStorage.setItem(`weeklyReport_${studentEmail}_week1`, JSON.stringify(autoReport));
-            saveToCloudflare(`weeklyReport_${studentEmail}_week1`, autoReport);
-          }
-        }
-        
-        if (cloudReport) {
-          setStudentReport(cloudReport as any);
-        } else if (localReport) {
-          setStudentReport(localReport);
         } else {
           setStudentReport(null);
         }
@@ -321,10 +346,8 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         const finalSubmission = cloudSubmissionData || localSubmissionData;
         setStudentSubmission(finalSubmission);
 
-        // Auto-evaluate MCQ marks if submission has theoryAnswers
-        const questions = isSkillTest2 
-          ? SOLIDWORKS_SKILL_TEST_2_MCQS 
-          : (targetExam?.theoryQuestions && targetExam.theoryQuestions.length > 0 ? targetExam.theoryQuestions : []);
+        // Auto-evaluate MCQ marks if submission has theoryAnswers using the correct batch questions
+        const questions = getQuestionsForStudent(selectedStudent, finalSubmission);
 
         if (finalSubmission && finalSubmission.theoryAnswers && Array.isArray(finalSubmission.theoryAnswers) && questions.length > 0) {
           const correctCount = questions.reduce((acc: number, q: any, idx: number) => {
@@ -334,35 +357,18 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
           const maxMark = isSkillTest2 ? 20 : (isCie ? 10 : 5);
           const autoScore = isSkillTest2 ? correctCount : Math.round((correctCount / total) * maxMark);
 
-          // If no existing report theory mark exists or if it was 0, auto-populate the evaluated mark
-          if (!loadedMarks.theory || loadedMarks.theory === 0) {
-            loadedMarks.theory = autoScore;
-            if (isSkillTest2) {
-              loadedMarks.project = 0;
-              loadedMarks.portfolio = 0;
-              loadedMarks.attendance = 0;
-              loadedMarks.mentor = 0;
-            }
-          }
-
-          // Automatically save and publish the report to localStorage and Cloudflare immediately!
-          const reportKey = `weeklyReport_${selectedStudent.email}_${pattern}`;
-          localStorage.setItem(reportKey, JSON.stringify(loadedMarks));
-          await saveToCloudflare(reportKey, loadedMarks);
+          // For Skill Test 2: If report has not yet been submitted by mentor or was stuck on 6 from the old bug, update to the true autoScore
           if (isSkillTest2) {
-            const skillKey = `weeklyReport_${selectedStudent.email}_skill_test_2`;
-            localStorage.setItem(skillKey, JSON.stringify(loadedMarks));
-            await saveToCloudflare(skillKey, loadedMarks);
-            const week1Key = `weeklyReport_${selectedStudent.email}_week1`;
-            localStorage.setItem(week1Key, JSON.stringify(loadedMarks));
-            await saveToCloudflare(week1Key, loadedMarks);
+            if (!loadedMarks.isMentorSubmitted || (loadedMarks.theory === 6 && autoScore !== 6) || !loadedMarks.theory) {
+              loadedMarks.theory = autoScore;
+            }
+            loadedMarks.project = 0;
+            loadedMarks.portfolio = 0;
+            loadedMarks.attendance = 0;
+            loadedMarks.mentor = 0;
+          } else if (!loadedMarks.theory || loadedMarks.theory === 0) {
+            loadedMarks.theory = autoScore;
           }
-
-          // Mark status as Completed in mentor's status list
-          setSubmissionStatuses(prev => ({
-            ...prev,
-            [selectedStudent.email]: { isCompleted: true, hasSubmitted: true }
-          }));
         }
 
         setMarks(loadedMarks);
@@ -388,22 +394,45 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         
         const altPattern = pattern === 'skill_test_2' ? 'week1' : (pattern === 'week1' ? 'skill_test_2' : null);
         const promises = students.map(async (student) => {
-          let isCompleted = localStorage.getItem(`weeklyReport_${student.email}_${pattern}`) !== null;
-          let hasSubmitted = localStorage.getItem(`weeklyReportSubmission_${student.email}_${pattern}`) !== null;
+          let report: any = null;
+          try {
+            report = JSON.parse(localStorage.getItem(`weeklyReport_${student.email}_${pattern}`) || 'null');
+            if (!report && altPattern) {
+              report = JSON.parse(localStorage.getItem(`weeklyReport_${student.email}_${altPattern}`) || 'null');
+            }
+            if (!report && isSkillTest2 && student.batch) {
+              report = JSON.parse(localStorage.getItem(`weeklyReport_${student.email}_skill_test_2_${student.batch}`) || 'null');
+            }
+          } catch (e) {}
 
-          if (!isCompleted && altPattern) {
-            isCompleted = localStorage.getItem(`weeklyReport_${student.email}_${altPattern}`) !== null;
+          if (!report) {
+            report = await getFromCloudflare(`weeklyReport_${student.email}_${pattern}`);
+            if (!report && altPattern) {
+              report = await getFromCloudflare(`weeklyReport_${student.email}_${altPattern}`);
+            }
+            if (!report && isSkillTest2 && student.batch) {
+              report = await getFromCloudflare(`weeklyReport_${student.email}_skill_test_2_${student.batch}`);
+            }
           }
+
+          let hasSubmitted = localStorage.getItem(`weeklyReportSubmission_${student.email}_${pattern}`) !== null;
           if (!hasSubmitted && altPattern) {
             hasSubmitted = localStorage.getItem(`weeklyReportSubmission_${student.email}_${altPattern}`) !== null;
           }
-
-          if (!isCompleted) {
-            const cloudReport = await getFromCloudflare(`weeklyReport_${student.email}_${pattern}`);
-            if (cloudReport) isCompleted = true;
-            else if (altPattern) {
-              const altCloud = await getFromCloudflare(`weeklyReport_${student.email}_${altPattern}`);
-              if (altCloud) isCompleted = true;
+          if (!hasSubmitted && isSkillTest2) {
+            const possibleSubKeys = [
+              `weeklyReportSubmission_${student.email}_skill_test_2`,
+              `weeklyReportSubmission_${student.email}_week1`,
+              `weeklyReportSubmission_${student.email}_skill_test_2_B1`,
+              `weeklyReportSubmission_${student.email}_skill_test_2_B2`,
+              `weeklyReportSubmission_${student.email}_skill_test_2_A1`,
+              `weeklyReportSubmission_${student.email}_skill_test_2_A2`
+            ];
+            for (const pKey of possibleSubKeys) {
+              if (localStorage.getItem(pKey) !== null) {
+                hasSubmitted = true;
+                break;
+              }
             }
           }
 
@@ -414,6 +443,11 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
               const altCloud = await getFromCloudflare(`weeklyReportSubmission_${student.email}_${altPattern}`);
               if (altCloud) hasSubmitted = true;
             }
+            if (!hasSubmitted && isSkillTest2) {
+              const cloudSubSkill = await getFromCloudflare(`weeklyReportSubmission_${student.email}_skill_test_2`)
+                || await getFromCloudflare(`weeklyReportSubmission_${student.email}_week1`);
+              if (cloudSubSkill) hasSubmitted = true;
+            }
             if (!hasSubmitted) {
               const subMap = JSON.parse(localStorage.getItem(`weeklyExamSubmissions_${student.email}`) || '{}');
               if (subMap[pattern] || (altPattern && subMap[altPattern]) || subMap['skill_test_2'] || subMap['week1']) {
@@ -421,6 +455,17 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
               }
             }
           }
+
+          // For Skill Test 2, isCompleted is ONLY true if the mentor explicitly clicked "Send Report to Student"!
+          let isCompleted = false;
+          if (report) {
+            if (isSkillTest2) {
+              isCompleted = report.isMentorSubmitted === true;
+            } else {
+              isCompleted = true;
+            }
+          }
+
           newStatuses[student.email] = { isCompleted, hasSubmitted };
         });
 
@@ -473,21 +518,40 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
     if (!selectedStudent) return;
     
     const key = `weeklyReport_${selectedStudent.email}_${pattern}`;
+    const reportData: Marks = {
+      ...marks,
+      isMentorSubmitted: true,
+      submittedAt: new Date().toISOString()
+    };
     
     // Save locally
-    localStorage.setItem(key, JSON.stringify(marks));
-    await saveToCloudflare(key, marks);
+    localStorage.setItem(key, JSON.stringify(reportData));
+    await saveToCloudflare(key, reportData);
 
-    if (pattern === 'skill_test_2') {
+    if (pattern === 'skill_test_2' || isSkillTest2) {
       const altKey = `weeklyReport_${selectedStudent.email}_week1`;
-      localStorage.setItem(altKey, JSON.stringify(marks));
-      await saveToCloudflare(altKey, marks);
+      localStorage.setItem(altKey, JSON.stringify(reportData));
+      await saveToCloudflare(altKey, reportData);
+      const skillKey = `weeklyReport_${selectedStudent.email}_skill_test_2`;
+      localStorage.setItem(skillKey, JSON.stringify(reportData));
+      await saveToCloudflare(skillKey, reportData);
+      if (selectedStudent.batch) {
+        const batchKey = `weeklyReport_${selectedStudent.email}_skill_test_2_${selectedStudent.batch}`;
+        localStorage.setItem(batchKey, JSON.stringify(reportData));
+        await saveToCloudflare(batchKey, reportData);
+      }
     } else if (pattern === 'week1') {
       const altKey = `weeklyReport_${selectedStudent.email}_skill_test_2`;
-      localStorage.setItem(altKey, JSON.stringify(marks));
-      await saveToCloudflare(altKey, marks);
+      localStorage.setItem(altKey, JSON.stringify(reportData));
+      await saveToCloudflare(altKey, reportData);
     }
     
+    // Update local statuses so dashboard updates immediately to Completed
+    setSubmissionStatuses(prev => ({
+      ...prev,
+      [selectedStudent.email]: { isCompleted: true, hasSubmitted: true }
+    }));
+
     setIsSent(true);
     setTimeout(() => {
       setSelectedStudent(null);
@@ -881,7 +945,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
 
                 {/* MCQ Evaluation Display */}
                 {studentSubmission.theoryAnswers && Array.isArray(studentSubmission.theoryAnswers) && (() => {
-                  const questions = isSkillTest2 ? SOLIDWORKS_SKILL_TEST_2_MCQS : (targetExam?.theoryQuestions || []);
+                  const questions = getQuestionsForStudent(selectedStudent, studentSubmission);
                   if (!questions || questions.length === 0) return null;
 
                   const correctCount = questions.reduce((acc: number, q: any, idx: number) => {

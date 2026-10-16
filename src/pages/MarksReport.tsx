@@ -100,7 +100,7 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
               }
             }
 
-            if (marksObj) {
+            if (marksObj && (!(pattern === 'week1' && userIsMuni) || marksObj.isMentorSubmitted === true)) {
               const isCie = pattern.startsWith('CIE') || pattern.startsWith('SEM');
               const total = Number(marksObj.project || 0) + 
                             (isCie ? 0 : Number(marksObj.portfolio || 0)) + 
