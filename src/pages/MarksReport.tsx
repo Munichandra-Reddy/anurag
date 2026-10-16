@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Loader2, ClipboardList, Search, Download, RefreshCw, Award } from 'lucide-react';
+import { Loader2, ClipboardList, Search, Download, RefreshCw, Award, CheckCircle2, Upload } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare, getStudentsKey, isMuniUser, getMentorKey } from '../utils/cloudflare';
 import { MUNI_STUDENTS } from '../data/students';
 
@@ -119,14 +119,17 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
         cloudGraphMarks,
         cloudPreMarks,
         cloudExams,
-        cloudHash
+        cloudSnap1,
+        cloudSnap2
       ] = await Promise.all([
         getFromCloudflare(studentsKey),
         getFromCloudflare('graphExamMarks_muni'),
         getFromCloudflare('preAssessmentManualMarks_muni'),
-        getFromCloudflare(examsKey) || (userIsMuni ? getFromCloudflare('anuragLmsWeeklyExams_muni@geonixa.com') : null),
-        getFromCloudflare('facultySnapshotHash_Marks')
+        getFromCloudflare(examsKey) || (userIsMuni ? getFromCloudflare('anuragLmsWeeklyExams_muni@geonixa.com') : Promise.resolve(null)),
+        getFromCloudflare('facultySnapshotMarks'),
+        getFromCloudflare('facultySnapshotMarks_muni')
       ]);
+      const cloudSnapshot = cloudSnap1 || cloudSnap2;
 
       const localStudents = JSON.parse(localStorage.getItem(studentsKey) || '[]');
       const localGraphMarks = JSON.parse(localStorage.getItem('graphExamMarks_muni') || '{}');
@@ -322,10 +325,44 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
         }));
       } catch (e) {}
 
-      // Check if current live data matches the last submitted snapshot
-      const currentDataString = JSON.stringify({ marksData: allMarks, students: registeredStudents, conductedExams: examList });
-      const lastSubmittedHash = cloudHash || localStorage.getItem('facultySnapshotHash_Marks');
-      setIsSubmitted(lastSubmittedHash === currentDataString);
+      // Check if current live data has new or updated marks compared to faculty snapshot
+      const localSnap = JSON.parse(localStorage.getItem('facultySnapshotMarks') || localStorage.getItem('facultySnapshotMarks_muni') || 'null');
+      const facultySnapshot = cloudSnapshot || localSnap;
+
+      let hasNewOrUpdatedMarks = false;
+      if (!facultySnapshot || !facultySnapshot.marksData) {
+        hasNewOrUpdatedMarks = true;
+      } else {
+        const snapMarks = facultySnapshot.marksData || {};
+        for (const student of registeredStudents) {
+          const sEmail = (student.email || '').toLowerCase().trim();
+          const liveStudentMarks = allMarks[sEmail] || {};
+          const snapStudentMarks = snapMarks[sEmail] || {};
+
+          for (const exam of examList) {
+            const liveVal = String(liveStudentMarks[exam.id] ?? liveStudentMarks[exam.title] ?? '-').trim();
+            const snapVal = String(snapStudentMarks[exam.id] ?? snapStudentMarks[exam.title] ?? '-').trim();
+            if (liveVal !== snapVal) {
+              hasNewOrUpdatedMarks = true;
+              break;
+            }
+          }
+          if (hasNewOrUpdatedMarks) break;
+        }
+
+        // Also check if any exams are newly added compared to the snapshot
+        if (!hasNewOrUpdatedMarks) {
+          const snapExamIds = new Set((facultySnapshot.conductedExams || []).map((e: any) => e.id));
+          for (const exam of examList) {
+            if (!snapExamIds.has(exam.id)) {
+              hasNewOrUpdatedMarks = true;
+              break;
+            }
+          }
+        }
+      }
+
+      setIsSubmitted(!hasNewOrUpdatedMarks);
 
     } catch (error) {
       console.error("Failed to load marks report data:", error);
@@ -424,14 +461,16 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
 
       localStorage.setItem('facultySnapshotMarks', JSON.stringify(snapshotData));
       localStorage.setItem('facultySnapshotMarks_muni', JSON.stringify(snapshotData));
-      await saveToCloudflare('facultySnapshotMarks', snapshotData);
-      await saveToCloudflare('facultySnapshotMarks_muni', snapshotData);
-
       localStorage.setItem('facultySnapshotHash_Marks', currentDataString);
-      await saveToCloudflare('facultySnapshotHash_Marks', currentDataString);
+
+      await Promise.all([
+        saveToCloudflare('facultySnapshotMarks', snapshotData),
+        saveToCloudflare('facultySnapshotMarks_muni', snapshotData),
+        saveToCloudflare('facultySnapshotHash_Marks', currentDataString)
+      ]);
 
       setIsSubmitted(true);
-      alert('Marks updates successfully submitted to Faculty!');
+      alert('Marks successfully submitted to Faculty!');
     } catch (e) {
       console.error("Failed to submit to faculty:", e);
       alert("Submission encountered an issue. Please try again.");
@@ -659,19 +698,33 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
 
           <button
             onClick={handleSubmit}
-            disabled={isSubmitted || isSubmitting}
-            className={`px-6 py-2.5 rounded-xl font-bold text-sm text-white transition-all shadow-sm ${
+            disabled={isSubmitting}
+            className={`px-6 py-2.5 rounded-xl font-bold text-sm text-white transition-all shadow-sm flex items-center gap-2 cursor-pointer ${
               isSubmitted
-                ? 'bg-green-600 cursor-not-allowed opacity-90'
-                : 'bg-primary hover:bg-orange-600 hover:shadow'
+                ? 'bg-emerald-600 hover:bg-emerald-700 hover:shadow'
+                : 'bg-primary hover:bg-orange-600 hover:shadow animate-pulse'
             }`}
+            title={
+              isSubmitted
+                ? 'All marks are up to date with Faculty. Click anytime to re-sync or force update.'
+                : 'New marks detected! Click to submit updated marks to Faculty.'
+            }
           >
             {isSubmitting ? (
-              <Loader2 size={18} className="animate-spin mx-auto" />
+              <>
+                <Loader2 size={18} className="animate-spin" />
+                <span>Submitting to Faculty...</span>
+              </>
             ) : isSubmitted ? (
-              'Submitted to Faculty'
+              <>
+                <CheckCircle2 size={18} />
+                <span>Submitted to Faculty</span>
+              </>
             ) : (
-              'Submit to Faculty'
+              <>
+                <Upload size={18} />
+                <span>Submit to Faculty</span>
+              </>
             )}
           </button>
         </div>
