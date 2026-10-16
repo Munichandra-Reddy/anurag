@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Search, FileText, ArrowLeft, Send, CheckCircle2, Edit, X, Check, HelpCircle, ChevronDown, ChevronUp, Award } from 'lucide-react';
+import { Search, FileText, ArrowLeft, Send, CheckCircle2, Edit, X, Check, HelpCircle, ChevronDown, ChevronUp, Award, RotateCcw } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare, getMentorKey, getStudentsKey, isMuniUser, matchesStudentEmail } from '../utils/cloudflare';
+import { resetStudentSubmissionForExam } from './WeeklyAssessmentFlow';
 import { 
   SOLIDWORKS_SKILL_TEST_2_MCQS,
   SOLIDWORKS_SKILL_TEST_2_SET1_MCQS,
@@ -580,6 +581,31 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
     }, 2000);
   };
 
+  const handleGrantStudentReExam = async () => {
+    if (!selectedStudent) return;
+    const confirmMsg = `Grant Re-Exam for ${selectedStudent.name} (${selectedStudent.email}) on "${isSkillTest2 ? 'Skill Test 2' : pattern}"?\n\nThis will reset their existing submission and allow them to take the exam again immediately.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      const sEmail = (selectedStudent.email || '').toLowerCase().trim();
+      const sBatch = selectedStudent.batch || '';
+      
+      await resetStudentSubmissionForExam(sEmail, pattern, sBatch);
+
+      setSubmissionStatuses(prev => ({
+        ...prev,
+        [selectedStudent.email]: { isCompleted: false, hasSubmitted: false },
+        [sEmail]: { isCompleted: false, hasSubmitted: false }
+      }));
+
+      alert(`Re-Exam granted successfully for ${selectedStudent.name}! They can now retake this exam.`);
+      setSelectedStudent(null);
+    } catch (e) {
+      console.error("Failed to grant re-exam in report:", e);
+      alert("Failed to grant re-exam. Please try again.");
+    }
+  };
+
   if (!isMentor) {
     // Student View
     const displayPatternName = isSkillTest2 ? 'Skill Test 2' : pattern;
@@ -765,31 +791,53 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                         <div className="flex items-center gap-1.5 text-sm font-bold text-gray-500 bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200">
                           Not Submitted
                         </div>
-                      ) : isCompleted ? (
+                      ) : (
                         <>
-                          <div className="flex items-center gap-1.5 text-sm font-bold text-green-600 bg-green-50 px-3 py-1.5 rounded-lg border border-green-200">
-                            <CheckCircle2 size={16} /> Completed
-                          </div>
+                          {isCompleted ? (
+                            <>
+                              <div className="flex items-center gap-1.5 text-sm font-bold text-green-600 bg-green-50 px-3 py-1.5 rounded-lg border border-green-200">
+                                <CheckCircle2 size={16} /> Completed
+                              </div>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedStudent(student);
+                                }}
+                                className="flex items-center gap-1.5 text-sm font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-4 py-1.5 rounded-lg transition-colors cursor-pointer"
+                              >
+                                <Edit size={16} /> Edit
+                              </button>
+                            </>
+                          ) : (
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedStudent(student);
+                              }}
+                              className="flex items-center gap-1.5 text-sm font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 px-6 py-1.5 rounded-lg transition-all cursor-pointer border border-orange-200"
+                            >
+                              Pending
+                            </button>
+                          )}
                           <button 
-                            onClick={(e) => {
+                            type="button"
+                            onClick={async (e) => {
                               e.stopPropagation();
-                              setSelectedStudent(student);
+                              if (window.confirm(`Grant Re-Exam for ${student.name} on "${isSkillTest2 ? 'Skill Test 2' : pattern}"?`)) {
+                                await resetStudentSubmissionForExam((student.email || '').toLowerCase().trim(), pattern, student.batch || '');
+                                setSubmissionStatuses(prev => ({
+                                  ...prev,
+                                  [student.email]: { isCompleted: false, hasSubmitted: false }
+                                }));
+                                alert(`Re-Exam granted for ${student.name}!`);
+                              }
                             }}
-                            className="flex items-center gap-1.5 text-sm font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-4 py-1.5 rounded-lg transition-colors cursor-pointer"
+                            className="flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                            title="Grant Re-Exam for this student"
                           >
-                            <Edit size={16} /> Edit
+                            <RotateCcw size={13} /> Re-Exam
                           </button>
                         </>
-                      ) : (
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedStudent(student);
-                          }}
-                          className="flex items-center gap-1.5 text-sm font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 px-6 py-1.5 rounded-lg transition-all cursor-pointer border border-orange-200"
-                        >
-                          Pending
-                        </button>
                       )}
                     </div>
                   </div>
@@ -1198,14 +1246,23 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
             <div className="flex justify-end gap-3 pt-4">
               <button 
                 onClick={() => setSelectedStudent(null)}
-                className="px-6 py-3 rounded-xl font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
+                className="px-6 py-3 rounded-xl font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors cursor-pointer"
               >
                 Hide / Save Draft
               </button>
               <button 
+                type="button"
+                onClick={handleGrantStudentReExam}
+                className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 transition-colors cursor-pointer"
+                title="Reset this student's submission and allow them to retake the exam"
+              >
+                <RotateCcw size={18} />
+                Grant Re-Exam
+              </button>
+              <button 
                 onClick={handleSendReport}
                 disabled={isSent}
-                className={`flex items-center gap-2 px-8 py-3 rounded-xl font-bold text-white shadow-sm transition-colors ${isSent ? 'bg-green-500' : 'bg-primary hover:bg-orange-600'}`}
+                className={`flex items-center gap-2 px-8 py-3 rounded-xl font-bold text-white shadow-sm transition-colors cursor-pointer ${isSent ? 'bg-green-500' : 'bg-primary hover:bg-orange-600'}`}
               >
                 {isSent ? (
                   <><CheckCircle2 size={20} /> Sent Successfully!</>

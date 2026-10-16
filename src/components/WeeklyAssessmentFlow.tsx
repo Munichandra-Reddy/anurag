@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, X, Upload, Link as LinkIcon, FileText, CheckCircle2, Award, PlayCircle } from 'lucide-react';
+import { Plus, X, Upload, Link as LinkIcon, FileText, CheckCircle2, Award, PlayCircle, RotateCcw, Users, User, Search, AlertCircle, Check, Loader2 } from 'lucide-react';
 import { WeeklyExamReport } from './WeeklyExamReport';
 import { getFromCloudflare, saveToCloudflare, replaceInCloudflare, getMentorKey, getStudentsKey, getMentorBatches, isMuniUser, matchesStudentEmail } from '../utils/cloudflare';
 import { SOLIDWORKS_60_MCQS } from '../data/solidworks60Mcqs';
@@ -161,6 +161,99 @@ const ensureSkillTest2 = (examList: WeeklyExamData[], emailToCheck: string): Wee
   return [...Array.from(batchSkillMap.values()), ...nonSkillExams];
 };
 
+export const resetStudentSubmissionForExam = async (sEmail: string, examId: string, batch?: string) => {
+  const cleanEmail = sEmail.toLowerCase().trim();
+  const cleanB = (batch || '').replace(/batch/gi, '').trim().toUpperCase();
+  const isSkillTest2 = examId === 'skill_test_2' || examId.startsWith('skill_test_2') || examId === 'week1';
+
+  const subKey = `weeklyExamSubmissions_${cleanEmail}`;
+  let localSub: any = {};
+  try {
+    localSub = JSON.parse(localStorage.getItem(subKey) || '{}');
+  } catch (e) {}
+  let cloudSub: any = {};
+  try {
+    cloudSub = await getFromCloudflare(subKey) || {};
+  } catch (e) {}
+  const mergedSub = { ...(localSub || {}), ...(cloudSub || {}) };
+
+  delete mergedSub[examId];
+  if (isSkillTest2) {
+    delete mergedSub['skill_test_2'];
+    delete mergedSub['week1'];
+    delete mergedSub['skill_test_2_B1'];
+    delete mergedSub['skill_test_2_B2'];
+    delete mergedSub['skill_test_2_A1'];
+    delete mergedSub['skill_test_2_A2'];
+    if (cleanB) delete mergedSub[`skill_test_2_${cleanB}`];
+  }
+
+  try {
+    localStorage.setItem(subKey, JSON.stringify(mergedSub));
+  } catch (e) {}
+
+  const keysToDelete = [
+    `weeklyReportSubmission_${cleanEmail}_${examId}`,
+    `weeklyReport_${cleanEmail}_${examId}`,
+    `weeklyReportDraft_${cleanEmail}_${examId}`,
+    `examDraft_${cleanEmail}_${examId}`
+  ];
+
+  if (isSkillTest2) {
+    keysToDelete.push(
+      `weeklyReportSubmission_${cleanEmail}_skill_test_2`,
+      `weeklyReportSubmission_${cleanEmail}_week1`,
+      `weeklyReportSubmission_${cleanEmail}_skill_test_2_B1`,
+      `weeklyReportSubmission_${cleanEmail}_skill_test_2_B2`,
+      `weeklyReportSubmission_${cleanEmail}_skill_test_2_A1`,
+      `weeklyReportSubmission_${cleanEmail}_skill_test_2_A2`,
+      `weeklyReport_${cleanEmail}_skill_test_2`,
+      `weeklyReport_${cleanEmail}_week1`,
+      `weeklyReport_${cleanEmail}_skill_test_2_B1`,
+      `weeklyReport_${cleanEmail}_skill_test_2_B2`,
+      `weeklyReport_${cleanEmail}_skill_test_2_A1`,
+      `weeklyReport_${cleanEmail}_skill_test_2_A2`,
+      `examDraft_${cleanEmail}_skill_test_2`,
+      `examDraft_${cleanEmail}_week1`
+    );
+    if (cleanB) {
+      keysToDelete.push(
+        `weeklyReportSubmission_${cleanEmail}_skill_test_2_${cleanB}`,
+        `weeklyReport_${cleanEmail}_skill_test_2_${cleanB}`
+      );
+    }
+  }
+
+  keysToDelete.forEach(k => {
+    try { localStorage.removeItem(k); } catch (e) {}
+  });
+
+  const now = new Date().toISOString();
+  const reExamKey = `reExamGranted_${cleanEmail}_${examId}`;
+  try {
+    localStorage.setItem(reExamKey, now);
+    if (isSkillTest2) {
+      localStorage.setItem(`reExamGranted_${cleanEmail}_skill_test_2`, now);
+    }
+  } catch (e) {}
+
+  const cloudPromises: Promise<any>[] = [
+    saveToCloudflare(subKey, mergedSub),
+    replaceInCloudflare(subKey, mergedSub),
+    saveToCloudflare(reExamKey, { granted: true, timestamp: now })
+  ];
+
+  if (isSkillTest2) {
+    cloudPromises.push(saveToCloudflare(`reExamGranted_${cleanEmail}_skill_test_2`, { granted: true, timestamp: now }));
+  }
+
+  keysToDelete.forEach(k => {
+    cloudPromises.push(saveToCloudflare(k, null));
+  });
+
+  await Promise.all(cloudPromises);
+};
+
 export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) => {
   const currentEmail = loggedInEmail || sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail') || (isMentor ? 'muni@geonixa.com' : '');
   const availableBatches = getMentorBatches(currentEmail);
@@ -225,6 +318,118 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
   const [evaluatingExamId, setEvaluatingExamId] = useState<string | null>(null);
 
   const [studentDetails, setStudentDetails] = useState<any>(null);
+
+  // Re-Exam Modal States
+  const [reExamModalExam, setReExamModalExam] = useState<WeeklyExamData | null>(null);
+  const [reExamTab, setReExamTab] = useState<'batch' | 'student'>('batch');
+  const [reExamSelectedBatch, setReExamSelectedBatch] = useState<string>('All Batches');
+  const [reExamSearch, setReExamSearch] = useState<string>('');
+  const [isProcessingReExam, setIsProcessingReExam] = useState<boolean>(false);
+  const [reExamSuccessMsg, setReExamSuccessMsg] = useState<string>('');
+
+  const getAllStudents = () => {
+    const studentsKey = getStudentsKey(currentEmail);
+    const localStudents = JSON.parse(localStorage.getItem(studentsKey) || '[]');
+    const localMuniStudents = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
+    
+    const map = new Map<string, any>();
+    if (isMuni) {
+      MUNI_STUDENTS.forEach(s => {
+        if (s?.email) map.set(s.email.toLowerCase().trim(), { ...s, email: s.email.toLowerCase().trim() });
+      });
+    }
+    [...localStudents, ...localMuniStudents].forEach((s: any) => {
+      if (s?.email) {
+        const clean = s.email.toLowerCase().trim();
+        const existing = map.get(clean) || {};
+        map.set(clean, { ...existing, ...s, email: clean });
+      }
+    });
+    return Array.from(map.values());
+  };
+
+  const getStudentsForBatch = (bName: string) => {
+    const all = getAllStudents();
+    if (!bName || bName === 'All' || bName === 'All Batches') return all;
+    const cleanTarget = bName.toLowerCase().replace(/batch/gi, '').trim();
+    return all.filter(s => {
+      const studentBatch = (s.batch || '').toLowerCase().replace(/batch/gi, '').trim();
+      return studentBatch === cleanTarget ||
+             (cleanTarget === 'a1' && studentBatch === 'morning') ||
+             (cleanTarget === 'a2' && studentBatch === 'evening');
+    });
+  };
+
+  const handleOpenReExamModal = (exam: WeeklyExamData) => {
+    setReExamModalExam(exam);
+    setReExamTab('batch');
+    setReExamSelectedBatch(exam.targetBatch || 'All Batches');
+    setReExamSearch('');
+    setReExamSuccessMsg('');
+  };
+
+  const handleGrantSingleStudentReExam = async (student: any, exam: WeeklyExamData) => {
+    if (!student || !student.email || !exam) return;
+    const confirmMsg = `Grant Re-Exam for ${student.name} (${student.roll || student.email}) on "${exam.title}"?\n\nThis will reset their submission and allow them to take the exam again immediately.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    setIsProcessingReExam(true);
+    setReExamSuccessMsg('');
+    try {
+      const sEmail = student.email.toLowerCase().trim();
+      const studentBatch = student.batch || exam.targetBatch || '';
+      
+      await resetStudentSubmissionForExam(sEmail, exam.id, studentBatch);
+
+      setReExamSuccessMsg(`Re-Exam granted successfully for ${student.name}! They can now retake this exam.`);
+    } catch (e) {
+      console.error("Failed to grant re-exam:", e);
+      alert("Failed to grant re-exam. Please try again.");
+    } finally {
+      setIsProcessingReExam(false);
+    }
+  };
+
+  const handleConductBatchReExam = async (batchName: string, exam: WeeklyExamData) => {
+    if (!exam || !batchName) return;
+    const targetStudents = getStudentsForBatch(batchName);
+    if (targetStudents.length === 0) {
+      alert(`No students found in Batch ${batchName}.`);
+      return;
+    }
+
+    const confirmMsg = `Are you sure you want to conduct Re-Exam for all ${targetStudents.length} students in Batch "${batchName}" on "${exam.title}"?\n\nAll existing submissions for this batch will be reset, and students will be able to take the exam again immediately.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    setIsProcessingReExam(true);
+    setReExamSuccessMsg('');
+    try {
+      const now = new Date().toISOString();
+      const cleanB = batchName.replace(/batch/gi, '').trim().toUpperCase();
+      
+      const batchReExamKey = `reExamBatch_${exam.id}_${cleanB}`;
+      localStorage.setItem(batchReExamKey, now);
+      await saveToCloudflare(batchReExamKey, { granted: true, batch: cleanB, examId: exam.id, timestamp: now });
+      if (exam.id.startsWith('skill_test_2') || exam.id === 'week1') {
+        localStorage.setItem(`reExamBatch_skill_test_2_${cleanB}`, now);
+        await saveToCloudflare(`reExamBatch_skill_test_2_${cleanB}`, { granted: true, batch: cleanB, timestamp: now });
+      }
+
+      // Reset each student in this batch
+      for (const student of targetStudents) {
+        if (!student?.email) continue;
+        const sEmail = student.email.toLowerCase().trim();
+        await resetStudentSubmissionForExam(sEmail, exam.id, student.batch || cleanB);
+      }
+
+      setReExamSuccessMsg(`Re-Exam successfully enabled for all ${targetStudents.length} students in Batch ${batchName}!`);
+    } catch (e) {
+      console.error("Batch re-exam error:", e);
+      alert("Encountered an issue while granting batch re-exam. Please try again.");
+    } finally {
+      setIsProcessingReExam(false);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -529,10 +734,16 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
         }
       }
 
-      // Clear draft on successful submission
+      // Clear draft & re-exam flags on successful submission
       const draftKey = `examDraft_${effectiveEmail}_${takingExamId}`;
       localStorage.removeItem(draftKey);
-      await saveToCloudflare(draftKey, null);
+      localStorage.removeItem(`reExamGranted_${effectiveEmail}_${takingExamId}`);
+      localStorage.removeItem(`reExamGranted_${effectiveEmail}_skill_test_2`);
+      await Promise.all([
+        saveToCloudflare(draftKey, null),
+        saveToCloudflare(`reExamGranted_${effectiveEmail}_${takingExamId}`, null),
+        saveToCloudflare(`reExamGranted_${effectiveEmail}_skill_test_2`, null)
+      ]);
 
       alert(isSkillTest2Taking ? "Skill Test 2 submitted successfully! Your answers have been submitted to your mentor for evaluation." : "Exam submitted successfully!");
 
@@ -1275,6 +1486,14 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                     Evaluate Submissions
                   </button>
                   <button 
+                    onClick={() => handleOpenReExamModal(exam)}
+                    className="px-4 py-2 text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-xl font-bold text-sm transition-colors text-center flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+                    title="Conduct Re-Exam (Batch-wise or Student-wise)"
+                  >
+                    <RotateCcw size={16} />
+                    Re-Exam
+                  </button>
+                  <button 
                     onClick={async () => {
                       if (window.confirm("Are you sure you want to remove this exam? This will permanently delete this exam paper for this mentor dashboard and its assigned students.")) {
                         const newExams = exams.filter(e => e.id !== exam.id);
@@ -1366,28 +1585,309 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                   </button>
                 </>
               ) : (
-                // Check submissions using all possible IDs for Skill Test 2
-                (submissions[exam.id] || submissions['skill_test_2'] || submissions['week1']) && 
-                (exam.id === 'skill_test_2' || exam.id.startsWith('skill_test_2') || exam.id === 'week1' 
-                  ? (submissions['skill_test_2'] || submissions['week1'])
-                  : submissions[exam.id]) ? (
-                  <div className="flex items-center justify-center gap-2 px-6 py-2.5 bg-green-50 text-green-700 font-bold rounded-xl border border-green-100 shadow-sm">
-                    <CheckCircle2 size={18} /> Submitted
-                  </div>
-                ) : (
-                  <button 
-                    onClick={() => setTakingExamId(exam.id)}
-                    className="flex items-center justify-center gap-2 px-6 py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-orange-600 transition-colors shadow-sm"
-                  >
-                    <PlayCircle size={18} /> Start Exam
-                  </button>
-                )
+                (() => {
+                  const studentEmailClean = (currentEmail || loggedInEmail || '').toLowerCase().trim();
+                  const studentBatchClean = (studentDetails?.batch || '').toLowerCase().replace(/batch/gi, '').trim().toUpperCase();
+                  
+                  const isReExamGranted = Boolean(
+                    localStorage.getItem(`reExamGranted_${studentEmailClean}_${exam.id}`) ||
+                    (isExamSkillTest2 && localStorage.getItem(`reExamGranted_${studentEmailClean}_skill_test_2`)) ||
+                    (studentBatchClean && (
+                      localStorage.getItem(`reExamBatch_${exam.id}_${studentBatchClean}`) ||
+                      (isExamSkillTest2 && localStorage.getItem(`reExamBatch_skill_test_2_${studentBatchClean}`))
+                    ))
+                  );
+
+                  const hasSubmitted = !isReExamGranted && (
+                    (submissions[exam.id] || submissions['skill_test_2'] || submissions['week1']) && 
+                    (exam.id === 'skill_test_2' || exam.id.startsWith('skill_test_2') || exam.id === 'week1' 
+                      ? (submissions['skill_test_2'] || submissions['week1'])
+                      : submissions[exam.id])
+                  );
+
+                  if (hasSubmitted) {
+                    return (
+                      <div className="flex items-center justify-center gap-2 px-6 py-2.5 bg-green-50 text-green-700 font-bold rounded-xl border border-green-100 shadow-sm">
+                        <CheckCircle2 size={18} /> Submitted
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <button 
+                      onClick={() => {
+                        const draftKey = `examDraft_${studentEmailClean}_${exam.id}`;
+                        localStorage.removeItem(draftKey);
+                        setTakingExamId(exam.id);
+                      }}
+                      className={`flex items-center justify-center gap-2 px-6 py-2.5 text-white font-bold rounded-xl transition-colors shadow-sm ${
+                        isReExamGranted
+                          ? 'bg-amber-600 hover:bg-amber-700 animate-pulse'
+                          : 'bg-primary hover:bg-orange-600'
+                      }`}
+                    >
+                      {isReExamGranted ? (
+                        <>
+                          <RotateCcw size={18} /> Start Re-Exam
+                        </>
+                      ) : (
+                        <>
+                          <PlayCircle size={18} /> Start Exam
+                        </>
+                      )}
+                    </button>
+                  );
+                })()
               )}
             </div>
           </div>
         );
       })}
       </div>
+
+      {/* Re-Exam Modal */}
+      {reExamModalExam && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-gray-100 space-y-6 my-8 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start justify-between border-b border-gray-100 pb-4">
+              <div>
+                <div className="flex items-center gap-3">
+                  <span className="p-2.5 bg-amber-50 text-amber-600 rounded-2xl border border-amber-200">
+                    <RotateCcw size={22} />
+                  </span>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">Conduct Re-Exam</h3>
+                    <p className="text-xs text-gray-500 font-medium">
+                      {reExamModalExam.title} • Target: <span className="text-primary font-bold">{reExamModalExam.targetBatch || 'All Batches'}</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <button 
+                onClick={() => { setReExamModalExam(null); setReExamSuccessMsg(''); }}
+                className="text-gray-400 hover:text-gray-600 p-1.5 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Success Message Banner */}
+            {reExamSuccessMsg && (
+              <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl flex items-center gap-3 text-sm font-semibold animate-in fade-in duration-200">
+                <Check className="shrink-0 text-emerald-600" size={18} />
+                <span>{reExamSuccessMsg}</span>
+              </div>
+            )}
+
+            {/* Mode Tabs: Batch-wise vs Student-wise */}
+            <div className="flex rounded-xl bg-gray-100 p-1">
+              <button
+                type="button"
+                onClick={() => { setReExamTab('batch'); setReExamSuccessMsg(''); }}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  reExamTab === 'batch' 
+                    ? 'bg-white text-gray-900 shadow-sm' 
+                    : 'text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                <Users size={16} />
+                Batch-Wise Re-Exam
+              </button>
+              <button
+                type="button"
+                onClick={() => { setReExamTab('student'); setReExamSuccessMsg(''); }}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  reExamTab === 'student' 
+                    ? 'bg-white text-gray-900 shadow-sm' 
+                    : 'text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                <User size={16} />
+                Student-Wise Re-Exam
+              </button>
+            </div>
+
+            {/* TAB 1: BATCH-WISE RE-EXAM */}
+            {reExamTab === 'batch' && (() => {
+              const targetStudents = getStudentsForBatch(reExamSelectedBatch);
+              return (
+                <div className="space-y-5">
+                  <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 text-sm text-amber-900 space-y-1">
+                    <p className="font-bold flex items-center gap-2">
+                      <AlertCircle size={16} className="text-amber-600" />
+                      About Batch Re-Exam:
+                    </p>
+                    <p className="text-xs text-amber-800 leading-relaxed">
+                      Enabling Re-Exam for a batch will reset test submissions for all students in that batch. 
+                      Students will be able to take and submit the exam again immediately from their student portal.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Select Target Batch</label>
+                    <select
+                      value={reExamSelectedBatch}
+                      onChange={(e) => { setReExamSelectedBatch(e.target.value); setReExamSuccessMsg(''); }}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-primary text-sm font-bold text-gray-800"
+                    >
+                      {reExamModalExam.targetBatch && (
+                        <option value={reExamModalExam.targetBatch}>
+                          {reExamModalExam.targetBatch} Batch (Current Exam Batch)
+                        </option>
+                      )}
+                      <option value="All Batches">All Batches</option>
+                      {availableBatches.filter(b => b !== reExamModalExam.targetBatch).map(b => (
+                        <option key={b} value={b}>{b} Batch</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider block">Eligible Students</span>
+                      <span className="text-lg font-black text-gray-900">
+                        {targetStudents.length} Students in {reExamSelectedBatch}
+                      </span>
+                    </div>
+                    <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-lg border border-blue-200">
+                      Batch Active
+                    </span>
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      disabled={isProcessingReExam || targetStudents.length === 0}
+                      onClick={() => handleConductBatchReExam(reExamSelectedBatch, reExamModalExam)}
+                      className="w-full py-3.5 px-6 rounded-2xl font-bold text-white bg-amber-600 hover:bg-amber-700 active:scale-[0.99] transition-all shadow-md flex items-center justify-center gap-2 text-sm disabled:opacity-50 cursor-pointer"
+                    >
+                      {isProcessingReExam ? (
+                        <>
+                          <Loader2 size={18} className="animate-spin" />
+                          <span>Processing Batch Re-Exam...</span>
+                        </>
+                      ) : (
+                        <>
+                          <RotateCcw size={18} />
+                          <span>Conduct Re-Exam for Batch {reExamSelectedBatch} ({targetStudents.length} Students)</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* TAB 2: STUDENT-WISE RE-EXAM */}
+            {reExamTab === 'student' && (() => {
+              const studentsInBatch = getStudentsForBatch(reExamSelectedBatch);
+              const q = reExamSearch.toLowerCase().trim();
+              const filtered = studentsInBatch.filter(s => {
+                if (!q) return true;
+                return (s.name && s.name.toLowerCase().includes(q)) ||
+                       (s.roll && s.roll.toLowerCase().includes(q)) ||
+                       (s.email && s.email.toLowerCase().includes(q));
+              });
+
+              return (
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                      <input
+                        type="text"
+                        placeholder="Search student by name, roll no, or email..."
+                        value={reExamSearch}
+                        onChange={(e) => setReExamSearch(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-primary font-medium"
+                      />
+                    </div>
+                    <select
+                      value={reExamSelectedBatch}
+                      onChange={(e) => { setReExamSelectedBatch(e.target.value); setReExamSuccessMsg(''); }}
+                      className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs sm:text-sm font-bold text-gray-700 focus:outline-none focus:border-primary"
+                    >
+                      {reExamModalExam.targetBatch && (
+                        <option value={reExamModalExam.targetBatch}>{reExamModalExam.targetBatch}</option>
+                      )}
+                      <option value="All Batches">All Batches</option>
+                      {availableBatches.filter(b => b !== reExamModalExam.targetBatch).map(b => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Scrollable Student List */}
+                  <div className="max-h-[350px] overflow-y-auto space-y-2 pr-1 border border-gray-100 rounded-2xl p-2 bg-gray-50/50 divide-y divide-gray-100">
+                    {filtered.length > 0 ? (
+                      filtered.map(student => {
+                        const sEmail = (student.email || '').toLowerCase().trim();
+                        const isExamSkillTest2 = reExamModalExam.id === 'skill_test_2' || reExamModalExam.id.startsWith('skill_test_2') || reExamModalExam.id === 'week1';
+                        const isGranted = Boolean(
+                          localStorage.getItem(`reExamGranted_${sEmail}_${reExamModalExam.id}`) ||
+                          (isExamSkillTest2 && localStorage.getItem(`reExamGranted_${sEmail}_skill_test_2`))
+                        );
+
+                        return (
+                          <div key={sEmail} className="pt-2 first:pt-0 pb-1 px-2 flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-sm text-gray-900 truncate">{student.name}</span>
+                                {student.roll && (
+                                  <span className="text-[11px] font-bold px-1.5 py-0.5 bg-gray-200 text-gray-700 rounded">
+                                    {student.roll}
+                                  </span>
+                                )}
+                                <span className="text-[11px] font-bold px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                  {student.batch || reExamModalExam.targetBatch || 'A1'}
+                                </span>
+                              </div>
+                              <span className="text-xs text-gray-500 truncate block">{sEmail}</span>
+                            </div>
+
+                            <div className="shrink-0 flex items-center gap-2">
+                              {isGranted ? (
+                                <span className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl">
+                                  Re-Exam Active
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled={isProcessingReExam}
+                                  onClick={() => handleGrantSingleStudentReExam(student, reExamModalExam)}
+                                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                                  title="Grant re-exam for this student"
+                                >
+                                  <RotateCcw size={13} />
+                                  <span>Grant Re-Exam</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="py-8 text-center text-xs text-gray-500 font-medium">
+                        No students found matching "{reExamSearch}".
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+            <div className="border-t border-gray-100 pt-3 flex justify-end">
+              <button
+                type="button"
+                onClick={() => { setReExamModalExam(null); setReExamSuccessMsg(''); }}
+                className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-sm transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
