@@ -218,6 +218,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
   const [studentTheoryTextAnswer, setStudentTheoryTextAnswer] = useState('');
   const [studentTheoryPdf, setStudentTheoryPdf] = useState('');
   const [studentTheoryPdfDataUrl, setStudentTheoryPdfDataUrl] = useState('');
+  const [isSubmittingExam, setIsSubmittingExam] = useState(false);
   
   // Submissions state
   const [submissions, setSubmissions] = useState<Record<string, WeeklyExamSubmission>>({});
@@ -456,78 +457,101 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
   };
 
   const handleStudentSubmit = async () => {
-    if (!takingExamId) return;
+    if (!takingExamId || isSubmittingExam) return;
     const exam = exams.find(e => e.id === takingExamId);
     if (!exam) return;
 
-    const isSkillTest2Taking = isMuni && (
-      takingExamId === 'skill_test_2' || takingExamId === 'week1' ||
-      takingExamId.startsWith('skill_test_2') || takingExamId.startsWith('week1') ||
-      exam.title.toLowerCase().includes('skill test 2')
-    );
+    const isSkillTest2Taking = takingExamId === 'skill_test_2' || 
+      takingExamId === 'week1' ||
+      takingExamId.startsWith('skill_test_2') || 
+      takingExamId.startsWith('week1') ||
+      exam.title.toLowerCase().includes('skill test 2');
 
     if (!isSkillTest2Taking && exam.projectTitle && !studentProjectUrl && !studentProjectPdf) {
       alert("Please provide a project URL or PDF");
       return;
     }
 
-    const submission: WeeklyExamSubmission = {
-      projectUrl: studentProjectUrl,
-      projectPdfName: studentProjectPdf || 'project_file.pdf',
-      projectPdfDataUrl: studentProjectPdfDataUrl,
-      portfolioPdfName: studentPortfolioPdf || 'portfolio_file.pdf',
-      portfolioPdfDataUrl: studentPortfolioPdfDataUrl,
-      theoryAnswers: studentTheoryAnswers,
-      theoryTextAnswer: studentTheoryTextAnswer,
-      theoryAnswerPdfName: studentTheoryPdf || 'theory_answers.pdf',
-      theoryAnswerPdfDataUrl: studentTheoryPdfDataUrl,
-      submittedAt: new Date().toISOString(),
-      examId: takingExamId,
-      batch: studentDetails?.batch || exam.targetBatch,
-      targetBatch: exam.targetBatch,
-      theoryQuestions: effectiveQuestions
-    };
+    setIsSubmittingExam(true);
 
-    const newSubmissions = { ...submissions, [takingExamId]: submission };
-    if (isSkillTest2Taking) {
-      newSubmissions['week1'] = submission;
-      newSubmissions['skill_test_2'] = submission;
-    }
-    setSubmissions(newSubmissions);
-    localStorage.setItem(`weeklyExamSubmissions_${loggedInEmail}`, JSON.stringify(newSubmissions));
-    await saveToCloudflare(`weeklyExamSubmissions_${loggedInEmail}`, newSubmissions);
-    
-    // Save raw submission for the mentor to read in Exam Reports
-    localStorage.setItem(`weeklyReportSubmission_${loggedInEmail}_${takingExamId}`, JSON.stringify(submission));
-    await saveToCloudflare(`weeklyReportSubmission_${loggedInEmail}_${takingExamId}`, submission);
-    if (isSkillTest2Taking) {
-      localStorage.setItem(`weeklyReportSubmission_${loggedInEmail}_skill_test_2`, JSON.stringify(submission));
-      await saveToCloudflare(`weeklyReportSubmission_${loggedInEmail}_skill_test_2`, submission);
-      localStorage.setItem(`weeklyReportSubmission_${loggedInEmail}_week1`, JSON.stringify(submission));
-      await saveToCloudflare(`weeklyReportSubmission_${loggedInEmail}_week1`, submission);
-      if (studentDetails?.batch) {
-        localStorage.setItem(`weeklyReportSubmission_${loggedInEmail}_skill_test_2_${studentDetails.batch}`, JSON.stringify(submission));
-        await saveToCloudflare(`weeklyReportSubmission_${loggedInEmail}_skill_test_2_${studentDetails.batch}`, submission);
+    try {
+      const effectiveEmail = (currentEmail || loggedInEmail || sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail') || '').toLowerCase().trim();
+
+      const studentBatch = (studentDetails?.batch || exam.targetBatch || '').toString();
+      const examQuestionsToSubmit = (exam.theoryQuestions && exam.theoryQuestions.length > 0)
+        ? exam.theoryQuestions
+        : getSkillTest2McqsForBatch(exam.targetBatch || studentDetails?.batch);
+
+      const submission: WeeklyExamSubmission = {
+        projectUrl: studentProjectUrl || '',
+        projectPdfName: studentProjectPdf || 'project_file.pdf',
+        projectPdfDataUrl: studentProjectPdfDataUrl || '',
+        portfolioPdfName: studentPortfolioPdf || 'portfolio_file.pdf',
+        portfolioPdfDataUrl: studentPortfolioPdfDataUrl || '',
+        theoryAnswers: studentTheoryAnswers || [],
+        theoryTextAnswer: studentTheoryTextAnswer || '',
+        theoryAnswerPdfName: studentTheoryPdf || 'theory_answers.pdf',
+        theoryAnswerPdfDataUrl: studentTheoryPdfDataUrl || '',
+        submittedAt: new Date().toISOString(),
+        examId: takingExamId,
+        batch: studentBatch,
+        targetBatch: (exam.targetBatch || studentBatch).toString(),
+        theoryQuestions: examQuestionsToSubmit
+      };
+
+      const newSubmissions = { ...submissions, [takingExamId]: submission };
+      if (isSkillTest2Taking) {
+        newSubmissions['week1'] = submission;
+        newSubmissions['skill_test_2'] = submission;
+        if (studentBatch) {
+          const cleanB = studentBatch.replace(/batch/gi, '').trim().toUpperCase();
+          if (cleanB) {
+            newSubmissions[`skill_test_2_${cleanB}`] = submission;
+          }
+        }
       }
+      setSubmissions(newSubmissions);
+      localStorage.setItem(`weeklyExamSubmissions_${effectiveEmail}`, JSON.stringify(newSubmissions));
+      await saveToCloudflare(`weeklyExamSubmissions_${effectiveEmail}`, newSubmissions);
+      
+      // Save raw submission for the mentor to read in Exam Reports
+      localStorage.setItem(`weeklyReportSubmission_${effectiveEmail}_${takingExamId}`, JSON.stringify(submission));
+      await saveToCloudflare(`weeklyReportSubmission_${effectiveEmail}_${takingExamId}`, submission);
+      if (isSkillTest2Taking) {
+        localStorage.setItem(`weeklyReportSubmission_${effectiveEmail}_skill_test_2`, JSON.stringify(submission));
+        await saveToCloudflare(`weeklyReportSubmission_${effectiveEmail}_skill_test_2`, submission);
+        localStorage.setItem(`weeklyReportSubmission_${effectiveEmail}_week1`, JSON.stringify(submission));
+        await saveToCloudflare(`weeklyReportSubmission_${effectiveEmail}_week1`, submission);
+        const batchName = (studentDetails?.batch || exam.targetBatch || '').replace(/batch/gi, '').trim().toUpperCase();
+        if (batchName) {
+          localStorage.setItem(`weeklyReportSubmission_${effectiveEmail}_skill_test_2_${batchName}`, JSON.stringify(submission));
+          await saveToCloudflare(`weeklyReportSubmission_${effectiveEmail}_skill_test_2_${batchName}`, submission);
+        }
+      }
+
+      // Clear draft on successful submission
+      const draftKey = `examDraft_${effectiveEmail}_${takingExamId}`;
+      localStorage.removeItem(draftKey);
+      await saveToCloudflare(draftKey, null);
+
+      alert(isSkillTest2Taking ? "Skill Test 2 submitted successfully! Your answers have been submitted to your mentor for evaluation." : "Exam submitted successfully!");
+
+      setTakingExamId(null);
+      setStudentProjectUrl('');
+      setStudentProjectPdf('');
+      setStudentProjectPdfDataUrl('');
+      setStudentPortfolioPdf('');
+      setStudentPortfolioPdfDataUrl('');
+      setStudentTheoryAnswers([]);
+      setStudentTheoryTextAnswer('');
+      setStudentTheoryPdf('');
+      setStudentTheoryPdfDataUrl('');
+    } catch (error) {
+      console.error("Submission error:", error);
+      alert("Submission encountered an issue. Please try clicking Submit again.");
+    } finally {
+      setIsSubmittingExam(false);
     }
-
-    // Clear draft on successful submission
-    const draftKey = `examDraft_${loggedInEmail}_${takingExamId}`;
-    localStorage.removeItem(draftKey);
-    await saveToCloudflare(draftKey, null);
-
-    alert(isSkillTest2Taking ? "Skill Test 2 submitted successfully! Your answers have been submitted to your mentor for evaluation." : "Exam submitted successfully!");
-
-    setTakingExamId(null);
-    setStudentProjectUrl('');
-    setStudentProjectPdf('');
-    setStudentProjectPdfDataUrl('');
-    setStudentPortfolioPdf('');
-    setStudentPortfolioPdfDataUrl('');
-    setStudentTheoryAnswers([]);
-    setStudentTheoryTextAnswer('');
-    setStudentTheoryPdf('');
-    setStudentTheoryPdfDataUrl('');
   };
 
   const handleOpenPdf = (dataUrl?: string, name?: string) => {
@@ -762,10 +786,20 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
 
         <div className="flex justify-end pt-4">
           <button 
+            disabled={isSubmittingExam}
             onClick={handleStudentSubmit}
-            className="flex items-center gap-2 px-8 py-3 bg-primary text-white font-bold rounded-xl shadow-sm hover:bg-orange-600 transition-colors"
+            className="flex items-center gap-2 px-8 py-3 bg-primary text-white font-bold rounded-xl shadow-sm hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <CheckCircle2 size={20} /> Submit {isMuni && (takingExamId === 'skill_test_2' || takingExamId === 'week1') ? 'Skill Test 2' : 'Weekly Exam'}
+            {isSubmittingExam ? (
+              <>
+                <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-1" />
+                Submitting...
+              </>
+            ) : (
+              <>
+                <CheckCircle2 size={20} /> Submit {exam && (exam.id.startsWith('skill_test_2') || exam.id.startsWith('week1') || exam.title.toLowerCase().includes('skill test 2')) ? 'Skill Test 2' : 'Weekly Exam'}
+              </>
+            )}
           </button>
         </div>
       </div>

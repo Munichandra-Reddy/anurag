@@ -23,12 +23,12 @@ const COLLECTION_NAME = 'lms_data';
 export const saveToCloudflare = async (key: string, data: any) => {
   try {
     const docRef = doc(db, COLLECTION_NAME, key);
-    // Firestore setDoc doesn't accept top-level arrays or primitives/null. Wrap them.
-    let payload = data;
-    if (Array.isArray(data)) {
-      payload = { __isArray: true, data: data };
-    } else if (data === null || typeof data !== 'object') {
-      payload = { __isPrimitive: true, value: data };
+    // Firestore setDoc doesn't accept top-level arrays or primitives/null or undefined values. Wrap/sanitize them.
+    let payload = data === undefined ? null : JSON.parse(JSON.stringify(data));
+    if (Array.isArray(payload)) {
+      payload = { __isArray: true, data: payload };
+    } else if (payload === null || typeof payload !== 'object') {
+      payload = { __isPrimitive: true, value: payload };
     }
     await setDoc(docRef, payload, { merge: true });
     console.log(`Successfully saved ${key} to Firebase Firestore`);
@@ -44,11 +44,11 @@ export const saveToCloudflare = async (key: string, data: any) => {
 export const replaceInCloudflare = async (key: string, data: any) => {
   try {
     const docRef = doc(db, COLLECTION_NAME, key);
-    let payload = data;
-    if (Array.isArray(data)) {
-      payload = { __isArray: true, data: data };
-    } else if (data === null || typeof data !== 'object') {
-      payload = { __isPrimitive: true, value: data };
+    let payload = data === undefined ? null : JSON.parse(JSON.stringify(data));
+    if (Array.isArray(payload)) {
+      payload = { __isArray: true, data: payload };
+    } else if (payload === null || typeof payload !== 'object') {
+      payload = { __isPrimitive: true, value: payload };
     }
     await setDoc(docRef, payload);
     console.log(`Successfully replaced ${key} in Firebase Firestore`);
