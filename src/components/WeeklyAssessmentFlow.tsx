@@ -1647,16 +1647,17 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
 
       {/* Re-Exam Modal */}
       {reExamModalExam && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-gray-100 space-y-6 my-8 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start justify-between border-b border-gray-100 pb-4">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-gray-100 my-auto animate-in fade-in zoom-in-95 duration-150 overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-5 sm:px-7 sm:pt-6 sm:pb-4 border-b border-gray-100 flex items-start justify-between shrink-0 bg-white">
               <div>
                 <div className="flex items-center gap-3">
-                  <span className="p-2.5 bg-amber-50 text-amber-600 rounded-2xl border border-amber-200">
+                  <span className="p-2.5 bg-amber-50 text-amber-600 rounded-2xl border border-amber-200 shrink-0">
                     <RotateCcw size={22} />
                   </span>
                   <div>
-                    <h3 className="text-xl font-bold text-gray-900">Conduct Re-Exam</h3>
+                    <h3 className="text-xl font-bold text-gray-900 leading-snug">Conduct Re-Exam</h3>
                     <p className="text-xs text-gray-500 font-medium">
                       {reExamModalExam.title} • Target: <span className="text-primary font-bold">{reExamModalExam.targetBatch || 'All Batches'}</span>
                     </p>
@@ -1665,11 +1666,14 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
               </div>
               <button 
                 onClick={() => { setReExamModalExam(null); setReExamSuccessMsg(''); }}
-                className="text-gray-400 hover:text-gray-600 p-1.5 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+                className="text-gray-400 hover:text-gray-600 p-1.5 hover:bg-gray-100 rounded-full transition-colors cursor-pointer shrink-0"
               >
                 <X size={20} />
               </button>
             </div>
+
+            {/* Modal Scrollable Body */}
+            <div className="p-5 sm:p-7 overflow-y-auto space-y-5 flex-1">
 
             {/* Success Message Banner */}
             {reExamSuccessMsg && (
@@ -1876,11 +1880,15 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
               );
             })()}
 
-            <div className="border-t border-gray-100 pt-3 flex justify-end">
+            {/* End of Scrollable Body */}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 sm:px-7 border-t border-gray-100 flex justify-end shrink-0 bg-gray-50/80 rounded-b-3xl">
               <button
                 type="button"
                 onClick={() => { setReExamModalExam(null); setReExamSuccessMsg(''); }}
-                className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-sm transition-colors cursor-pointer"
+                className="px-6 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-xl text-sm transition-colors cursor-pointer"
               >
                 Close
               </button>
