@@ -15,8 +15,8 @@ export interface ConductedExam {
 }
 
 const DEFAULT_CONDUCTED_EXAMS: ConductedExam[] = [
-  { id: 'graph_exam', title: 'Graph Exam', category: 'graph', maxMarks: 10 },
-  { id: 'pre_assessment', title: 'Pre Assessment', category: 'pre', maxMarks: 20 },
+  { id: 'graph_exam', title: 'Graph Exam', category: 'graph', maxMarks: 20 },
+  { id: 'pre_assessment', title: 'Pre Assessment', category: 'pre', maxMarks: 30 },
   { id: 'skill_test_2', title: 'Skill Test 2', category: 'weekly', maxMarks: 20 }
 ];
 
@@ -53,7 +53,13 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
       const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed.conductedExams) && parsed.conductedExams.length > 0) return parsed.conductedExams;
+        if (Array.isArray(parsed.conductedExams) && parsed.conductedExams.length > 0) {
+          return parsed.conductedExams.map((e: ConductedExam) => {
+            if (e.id === 'graph_exam') return { ...e, maxMarks: 20 };
+            if (e.id === 'pre_assessment') return { ...e, maxMarks: 30 };
+            return e;
+          });
+        }
       }
     } catch (e) {}
     return DEFAULT_CONDUCTED_EXAMS;
@@ -84,8 +90,12 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
         const snapshot = await getFromCloudflare('facultySnapshotMarks');
         if (snapshot) {
           setStudents(snapshot.students || []);
-          setMarksData(snapshot.marksData || {});
-          setConductedExams(snapshot.conductedExams || DEFAULT_CONDUCTED_EXAMS);
+          const snapExams = (snapshot.conductedExams || DEFAULT_CONDUCTED_EXAMS).map((e: ConductedExam) => {
+            if (e.id === 'graph_exam') return { ...e, maxMarks: 20 };
+            if (e.id === 'pre_assessment') return { ...e, maxMarks: 30 };
+            return e;
+          });
+          setConductedExams(snapExams);
           setIsSubmitted(true);
         } else {
           setIsSubmitted(false);
@@ -157,8 +167,8 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
 
       // 4. Assemble dynamic list of conducted exams
       const examList: ConductedExam[] = [
-        { id: 'graph_exam', title: 'Graph Exam', category: 'graph', maxMarks: 10 },
-        { id: 'pre_assessment', title: 'Pre Assessment', category: 'pre', maxMarks: 20 },
+        { id: 'graph_exam', title: 'Graph Exam', category: 'graph', maxMarks: 20 },
+        { id: 'pre_assessment', title: 'Pre Assessment', category: 'pre', maxMarks: 30 },
         { id: 'skill_test_2', title: 'Skill Test 2', category: 'weekly', maxMarks: 20 }
       ];
 
