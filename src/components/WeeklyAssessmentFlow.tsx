@@ -107,27 +107,14 @@ const ensureSkillTest2 = (examList: WeeklyExamData[], emailToCheck: string): Wee
 
   if (isRemoved) return examList;
 
-  let updatedList = [...examList];
+  // Filter out any legacy unbatched 'skill_test_2' or 'week1' exams to avoid duplicate test cards
+  let updatedList = (examList || []).filter(e => e && e.id !== 'skill_test_2' && e.id !== 'week1');
 
   const hasBatchExam = (batch: string) => updatedList.some(e => 
     e && (e.id === `skill_test_2_${batch}` || (e.title && e.title.toLowerCase().includes('skill test 2') && e.targetBatch && e.targetBatch.toUpperCase().includes(batch)))
   );
 
-  const hasAnySkillTest2 = updatedList.some(e => 
-    e && (e.id.startsWith('skill_test_2') || (e.title && e.title.toLowerCase().includes('skill test 2')))
-  );
-
-  if (!hasAnySkillTest2) {
-    return [
-      PERMANENT_SKILL_TEST_2_B1,
-      PERMANENT_SKILL_TEST_2_B2,
-      PERMANENT_SKILL_TEST_2_A1,
-      PERMANENT_SKILL_TEST_2_A2,
-      ...updatedList
-    ];
-  }
-
-  // Ensure B1 and B2 default exams exist if not explicitly removed
+  // Ensure B1, B2, A1, A2 default exams exist if not explicitly removed
   if (!hasBatchExam('B1') && localStorage.getItem(`${examsKey}_removed_skill_test_2_B1`) !== 'true') {
     updatedList.push(PERMANENT_SKILL_TEST_2_B1);
   }
@@ -141,32 +128,37 @@ const ensureSkillTest2 = (examList: WeeklyExamData[], emailToCheck: string): Wee
     updatedList.push(PERMANENT_SKILL_TEST_2_A2);
   }
 
-  return updatedList.map(e => {
-    if (e.id.startsWith('skill_test_2') || (e.title && e.title.toLowerCase().includes('skill test 2'))) {
-      const batch = e.targetBatch || 'A2';
-      const cleanB = batch.toUpperCase();
-      const isBatch1 = cleanB.includes('B1') || cleanB.includes('A1');
-      const isBatch2 = cleanB.includes('B2') || cleanB.includes('A2');
-      
-      let questions = (e.theoryQuestions && e.theoryQuestions.length > 0) 
-        ? e.theoryQuestions 
-        : getSkillTest2McqsForBatch(batch);
+  // Deduplicate Skill Test 2 exams by batch so there is strictly one exam per batch (B1, B2, A1, A2)
+  const nonSkillExams = updatedList.filter(e => !e.id.startsWith('skill_test_2') && !e.title?.toLowerCase().includes('skill test 2'));
+  const skillExams = updatedList.filter(e => e.id.startsWith('skill_test_2') || e.title?.toLowerCase().includes('skill test 2'));
+  const batchSkillMap = new Map<string, WeeklyExamData>();
 
-      // Auto-repair if wrong set was saved in Cloudflare previously
-      if (isBatch1 && questions[0]?.question?.toLowerCase().includes('mate')) {
-        questions = SOLIDWORKS_SKILL_TEST_2_SET1_MCQS;
-      } else if (isBatch2 && questions[0]?.question?.toLowerCase().includes('sketch')) {
-        questions = SOLIDWORKS_SKILL_TEST_2_SET2_MCQS;
-      }
+  skillExams.forEach(e => {
+    const rawBatch = (e.targetBatch || e.id.replace('skill_test_2_', '') || 'B1').replace(/batch/gi, '').trim().toUpperCase();
+    const cleanB = rawBatch.includes('B1') ? 'B1' : rawBatch.includes('B2') ? 'B2' : rawBatch.includes('A1') ? 'A1' : 'A2';
+    const isBatch1 = cleanB === 'B1' || cleanB === 'A1';
+    const isBatch2 = cleanB === 'B2' || cleanB === 'A2';
+    
+    let questions = (e.theoryQuestions && e.theoryQuestions.length > 0) 
+      ? e.theoryQuestions 
+      : getSkillTest2McqsForBatch(cleanB);
 
-      return {
-        ...e,
-        targetBatch: batch,
-        theoryQuestions: questions
-      };
+    // Auto-repair if wrong set was saved in Cloudflare previously
+    if (isBatch1 && questions[0]?.question?.toLowerCase().includes('mate')) {
+      questions = SOLIDWORKS_SKILL_TEST_2_SET1_MCQS;
+    } else if (isBatch2 && questions[0]?.question?.toLowerCase().includes('sketch')) {
+      questions = SOLIDWORKS_SKILL_TEST_2_SET2_MCQS;
     }
-    return e;
+
+    batchSkillMap.set(cleanB, {
+      ...e,
+      id: `skill_test_2_${cleanB}`,
+      targetBatch: cleanB,
+      theoryQuestions: questions
+    });
   });
+
+  return [...Array.from(batchSkillMap.values()), ...nonSkillExams];
 };
 
 export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail }) => {
@@ -417,10 +409,20 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       targetBatch
     };
 
-    const updatedExams = [
-      ...exams.filter(ex => ex.id !== examId), 
-      newExam
-    ];
+    const updatedExams = isSkillTest2
+      ? [
+          ...exams.filter(ex => 
+            ex.id !== examId && 
+            ex.id !== 'skill_test_2' && 
+            ex.id !== 'week1' && 
+            !(ex.title?.toLowerCase().includes('skill test 2') && (ex.targetBatch || '').replace(/batch/gi, '').trim().toUpperCase() === cleanBatchName)
+          ),
+          newExam
+        ]
+      : [
+          ...exams.filter(ex => ex.id !== examId), 
+          newExam
+        ];
     setExams(updatedExams);
     
     const examsKey = getMentorKey('anuragLmsWeeklyExams', currentEmail);
@@ -1109,56 +1111,100 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
 
       {/* List Exams */}
       <div className="grid grid-cols-1 gap-4">
-        {exams.filter(exam => {
-          if (isMentor) {
-            // Mentor filter logic
-            if (filterExam.trim() && !exam.title.toLowerCase().includes(filterExam.toLowerCase()) && !exam.id.toLowerCase().includes(filterExam.toLowerCase())) {
+        {(() => {
+          let seenSkillTest2 = false;
+          return exams.filter(exam => {
+            if (isMentor) {
+              // Mentor filter logic
+              if (filterExam.trim() && !exam.title.toLowerCase().includes(filterExam.toLowerCase()) && !exam.id.toLowerCase().includes(filterExam.toLowerCase())) {
+                return false;
+              }
+              if (filterBatch !== 'All') {
+                if (!exam.targetBatch) return false;
+                if (exam.targetBatch !== filterBatch && exam.targetBatch !== 'All Batches') {
+                   if (!exam.targetBatch.includes(filterBatch) && !filterBatch.includes(exam.targetBatch)) return false;
+                }
+              }
+              return true;
+            }
+            // Student filter logic
+            const cleanEmail = (currentEmail || loggedInEmail || '').toLowerCase().trim();
+
+            const isSkillTest2Exam = isMuni && (
+              exam.id === 'week1' || exam.id === 'skill_test_2' || 
+              exam.id.startsWith('week1_') || exam.id.startsWith('skill_test_2_') || 
+              exam.title.toLowerCase().includes('week1') || exam.title.toLowerCase().includes('week 1') ||
+              exam.title.toLowerCase().includes('skill test 2')
+            );
+            
+            // Determine the student's batch — check all sources
+            const muniMatch = MUNI_STUDENTS.find(s => matchesStudentEmail(s?.email, cleanEmail));
+            const rawStudentBatch = (() => {
+              if (muniMatch?.batch) return muniMatch.batch;
+              if (studentDetails?.batch) return studentDetails.batch;
+              const localStudents = JSON.parse(localStorage.getItem(getStudentsKey(cleanEmail)) || '[]');
+              const localMatch = localStudents.find((s: any) => matchesStudentEmail(s?.email, cleanEmail));
+              if (localMatch?.batch) return localMatch.batch;
+              return '';
+            })();
+
+            const cleanBatch = (b?: string) => (b || '').toLowerCase().replace(/batch/gi, '').trim();
+            const targetBatchClean = cleanBatch(exam.targetBatch);
+            const studentBatchClean = cleanBatch(rawStudentBatch);
+
+            // For Skill Test 2: Strictly match student's batch ONLY (B1 sees B1 only, B2 sees B2 only)
+            if (isSkillTest2Exam) {
+              if (!targetBatchClean || targetBatchClean === 'all' || targetBatchClean === 'all batches') {
+                return false;
+              }
+              if (studentBatchClean === 'b1') {
+                return targetBatchClean === 'b1' || exam.id === 'skill_test_2_B1';
+              }
+              if (studentBatchClean === 'b2') {
+                return targetBatchClean === 'b2' || exam.id === 'skill_test_2_B2';
+              }
+              if (studentBatchClean === 'a1' || studentBatchClean === 'morning') {
+                return targetBatchClean === 'a1' || targetBatchClean === 'morning' || exam.id === 'skill_test_2_A1';
+              }
+              if (studentBatchClean === 'a2' || studentBatchClean === 'evening') {
+                return targetBatchClean === 'a2' || targetBatchClean === 'evening' || exam.id === 'skill_test_2_A2';
+              }
               return false;
             }
-            if (filterBatch !== 'All') {
-              if (!exam.targetBatch) return false;
-              if (exam.targetBatch !== filterBatch && exam.targetBatch !== 'All Batches') {
-                 if (!exam.targetBatch.includes(filterBatch) && !filterBatch.includes(exam.targetBatch)) return false;
-              }
+
+            if (!exam.targetBatch || exam.targetBatch === 'All Batches') return true;
+
+            if (studentBatchClean) {
+              return studentBatchClean === targetBatchClean || 
+                     (studentBatchClean === 'morning' && targetBatchClean === 'a1') || 
+                     (studentBatchClean === 'a1' && targetBatchClean === 'morning') ||
+                     (studentBatchClean === 'evening' && targetBatchClean === 'a2') ||
+                     (studentBatchClean === 'a2' && targetBatchClean === 'evening');
+            }
+            
+            // Check if targetBatch is a project batch number
+            const targetProjectBatch = projectBatches.find(b => cleanBatch(b.batchNumber) === targetBatchClean);
+            if (targetProjectBatch) {
+              return (targetProjectBatch.memberEmails || []).some((e: string) => matchesStudentEmail(e, cleanEmail));
+            }
+            
+            return false;
+          }).filter(exam => {
+            // For students, ensure only 1 Skill Test 2 exam is shown to prevent duplicate cards
+            if (isMentor) return true;
+            const isSkillTest2Exam = isMuni && (
+              exam.id === 'week1' || exam.id === 'skill_test_2' || 
+              exam.id.startsWith('week1_') || exam.id.startsWith('skill_test_2_') || 
+              exam.title.toLowerCase().includes('week1') || exam.title.toLowerCase().includes('week 1') ||
+              exam.title.toLowerCase().includes('skill test 2')
+            );
+            if (isSkillTest2Exam) {
+              if (seenSkillTest2) return false;
+              seenSkillTest2 = true;
             }
             return true;
-          }
-          // Student filter logic
-          const cleanEmail = (currentEmail || loggedInEmail || '').toLowerCase().trim();
-
-          if (!exam.targetBatch || exam.targetBatch === 'All Batches') return true;
-          
-          // Determine the student's batch — check all sources
-          const muniMatch = MUNI_STUDENTS.find(s => matchesStudentEmail(s?.email, cleanEmail));
-          const rawStudentBatch = (() => {
-            if (muniMatch?.batch) return muniMatch.batch;
-            if (studentDetails?.batch) return studentDetails.batch;
-            const localStudents = JSON.parse(localStorage.getItem(getStudentsKey(cleanEmail)) || '[]');
-            const localMatch = localStudents.find((s: any) => matchesStudentEmail(s?.email, cleanEmail));
-            if (localMatch?.batch) return localMatch.batch;
-            return '';
-          })();
-
-          const cleanBatch = (b?: string) => (b || '').toLowerCase().replace(/batch/gi, '').trim();
-          const targetBatchClean = cleanBatch(exam.targetBatch);
-          const studentBatchClean = cleanBatch(rawStudentBatch);
-
-          if (studentBatchClean) {
-            return studentBatchClean === targetBatchClean || 
-                   (studentBatchClean === 'morning' && targetBatchClean === 'a1') || 
-                   (studentBatchClean === 'a1' && targetBatchClean === 'morning') ||
-                   (studentBatchClean === 'evening' && targetBatchClean === 'a2') ||
-                   (studentBatchClean === 'a2' && targetBatchClean === 'evening');
-          }
-          
-          // Check if targetBatch is a project batch number
-          const targetProjectBatch = projectBatches.find(b => cleanBatch(b.batchNumber) === targetBatchClean);
-          if (targetProjectBatch) {
-            return (targetProjectBatch.memberEmails || []).some((e: string) => matchesStudentEmail(e, cleanEmail));
-          }
-          
-          return false;
-        }).map((exam) => {
+          });
+        })().map((exam) => {
           const isExamSkillTest2 = isMuni && (
             exam.id === 'week1' || exam.id === 'skill_test_2' || 
             exam.id.startsWith('week1_') || exam.id.startsWith('skill_test_2_') || 
