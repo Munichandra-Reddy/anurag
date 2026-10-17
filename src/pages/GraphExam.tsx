@@ -1176,13 +1176,12 @@ const GraphExam: React.FC = () => {
                     <th className="py-2.5 px-3 whitespace-nowrap">Status</th>
                     <th className="py-2.5 px-3 whitespace-nowrap">{currentConfig.badgeTitle}</th>
                     <th className="py-2.5 px-3 whitespace-nowrap">Pre Marks</th>
-                    <th className="py-2.5 px-3 text-center whitespace-nowrap">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-xs">
                   {mentorTableData.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="py-8 text-center text-gray-400 italic">
+                      <td colSpan={7} className="py-8 text-center text-gray-400 italic">
                         No student records found matching filter criteria.
                       </td>
                     </tr>
@@ -1232,20 +1231,20 @@ const GraphExam: React.FC = () => {
                             )}
                           </td>
 
-                          {/* Status */}
+                          {/* Status (text only, no tick or pending icons) */}
                           <td className="py-2.5 px-3 whitespace-nowrap">
                             {isCompleted ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-medium rounded-md">
-                                <CheckCircle2 size={12} /> Completed
+                              <span className="inline-flex items-center px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-medium rounded-md">
+                                Completed
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 text-xs font-medium rounded-md">
-                                <Clock size={12} /> Pending
+                              <span className="inline-flex items-center px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 text-xs font-medium rounded-md">
+                                Pending
                               </span>
                             )}
                           </td>
 
-                          {/* Marks (Fixed Display as number only + Edit Button or Input + Submit Button) */}
+                          {/* Marks (Fixed Display as number only + Edit Icon only or Input + Submit Button) */}
                           <td className="py-2.5 px-3 whitespace-nowrap">
                             {(() => {
                               const savedMark = studentMarksDict[studentCleanEmail] ?? (sub?.marks ?? '');
@@ -1256,20 +1255,18 @@ const GraphExam: React.FC = () => {
                               if (hasSavedMark && !isEditing) {
                                 return (
                                   <div className="flex items-center gap-1.5">
-                                    <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md font-bold text-xs inline-flex items-center gap-1">
-                                      <CheckCircle2 size={12} className="text-emerald-600" />
-                                      <span>{cleanMark}</span>
+                                    <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md font-bold text-xs">
+                                      {cleanMark}
                                     </span>
                                     <button
                                       onClick={() => {
                                         setEditingMarks(prev => ({ ...prev, [studentCleanEmail]: cleanMark }));
                                         setEditingMarksMode(prev => ({ ...prev, [studentCleanEmail]: true }));
                                       }}
-                                      className="px-1.5 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-primary font-medium text-xs rounded-md transition-colors flex items-center gap-0.5 cursor-pointer"
-                                      title="Edit student marks"
+                                      className="p-1 bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-primary rounded-md transition-colors inline-flex items-center justify-center cursor-pointer"
+                                      title="Edit marks"
                                     >
-                                      <Edit2 size={11} />
-                                      <span>Edit</span>
+                                      <Edit2 size={12} />
                                     </button>
                                   </div>
                                 );
@@ -1310,7 +1307,7 @@ const GraphExam: React.FC = () => {
                             })()}
                           </td>
 
-                          {/* Pre Assessment Marks (Fixed Display as number only + Edit Button or Input + Submit Button) */}
+                          {/* Pre Assessment Marks (Fixed Display as number only + Edit Icon only or Input + Submit Button) */}
                           <td className="py-2.5 px-3 whitespace-nowrap">
                             {(() => {
                               const savedPreMark = preMarksDict[studentCleanEmail];
@@ -1321,20 +1318,18 @@ const GraphExam: React.FC = () => {
                               if (hasSavedPreMark && !isEditingPre) {
                                 return (
                                   <div className="flex items-center gap-1.5">
-                                    <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md font-bold text-xs inline-flex items-center gap-1">
-                                      <CheckCircle2 size={12} className="text-emerald-600" />
-                                      <span>{cleanPreMark}</span>
+                                    <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md font-bold text-xs">
+                                      {cleanPreMark}
                                     </span>
                                     <button
                                       onClick={() => {
                                         setEditingPreMarks(prev => ({ ...prev, [studentCleanEmail]: cleanPreMark }));
                                         setEditingPreMarksMode(prev => ({ ...prev, [studentCleanEmail]: true }));
                                       }}
-                                      className="px-1.5 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-primary font-medium text-xs rounded-md transition-colors flex items-center gap-0.5 cursor-pointer"
+                                      className="p-1 bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-primary rounded-md transition-colors inline-flex items-center justify-center cursor-pointer"
                                       title="Edit Pre Assessment marks"
                                     >
-                                      <Edit2 size={11} />
-                                      <span>Edit</span>
+                                      <Edit2 size={12} />
                                     </button>
                                   </div>
                                 );
@@ -1373,26 +1368,6 @@ const GraphExam: React.FC = () => {
                                 </div>
                               );
                             })()}
-                          </td>
-
-                          {/* Delete Action */}
-                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                            {isCompleted ? (
-                              <button
-                                onClick={() => handleDeleteSubmission(student.email)}
-                                disabled={deletingEmail === student.email}
-                                title="Delete submission to let student submit again"
-                                className="p-1 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white rounded-md transition-colors cursor-pointer inline-flex items-center justify-center"
-                              >
-                                {deletingEmail === student.email ? (
-                                  <RefreshCw size={12} className="animate-spin" />
-                                ) : (
-                                  <Trash2 size={13} />
-                                )}
-                              </button>
-                            ) : (
-                              <span className="text-gray-300">-</span>
-                            )}
                           </td>
                         </tr>
                       );
