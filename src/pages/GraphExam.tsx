@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
   FileText, CheckCircle2, Clock, Upload, Trash2, Search, 
-  Eye, X, AlertCircle, FileCheck, FileCode, Sparkles, RefreshCw, ExternalLink, Download, Award, Edit2
+  Eye, X, AlertCircle, FileCheck, FileCode, RefreshCw, ExternalLink, Download, Award, Edit2
 } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare, replaceInCloudflare } from '../utils/cloudflare';
 import { MUNI_STUDENTS } from '../data/students';
@@ -836,34 +836,53 @@ const GraphExam: React.FC = () => {
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 pb-12">
-      {/* Exam Switcher Tabs */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-gray-200 shadow-xs">
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+      {/* Page Header (Clean, Standard & Professional) */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-bold text-gray-900">{currentConfig.title}</h1>
+            <span className="px-2.5 py-0.5 rounded-md text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
+              Lab Exam
+            </span>
+          </div>
+          <p className="text-gray-500 text-sm mt-1">
+            {isMentorView 
+              ? `View and manage ${currentConfig.title} lab answer submissions for Muni Mentor students.` 
+              : `Upload your question answer (Screenshot or PDF) for ${currentConfig.title}.`}
+          </p>
+        </div>
+
+        {/* Professional Exam Switcher Tabs */}
+        <div className="flex items-center gap-1.5 bg-gray-100 p-1 rounded-lg border border-gray-200 self-start sm:self-auto">
           <button
             type="button"
             onClick={() => { setActiveExam(1); setSubmitSuccess(''); setSubmitError(''); }}
-            className={`flex-1 sm:flex-initial flex items-center justify-center gap-2.5 px-6 py-3 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-semibold transition-all cursor-pointer ${
               activeExam === 1 
-                ? 'bg-primary text-white shadow-md' 
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                ? 'bg-primary text-white shadow-xs' 
+                : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
             }`}
           >
-            <FileText size={18} />
+            <FileText size={15} />
             <span>Graph Exam 1</span>
             {isMentorView ? (
-              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+              <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
                 activeExam === 1 ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-700'
               }`}>
-                {completedCount1} / {totalMuniCount}
+                {completedCount1}/{totalMuniCount}
               </span>
             ) : (
               submissions1[loggedInEmail] ? (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                  <CheckCircle2 size={12} /> Completed
+                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                  activeExam === 1 ? 'bg-emerald-500 text-white' : 'bg-emerald-100 text-emerald-800'
+                }`}>
+                  <CheckCircle2 size={11} /> Done
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
-                  <Clock size={12} /> Pending
+                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                  activeExam === 1 ? 'bg-amber-400 text-amber-950' : 'bg-amber-100 text-amber-800'
+                }`}>
+                  <Clock size={11} /> Pending
                 </span>
               )
             )}
@@ -872,63 +891,42 @@ const GraphExam: React.FC = () => {
           <button
             type="button"
             onClick={() => { setActiveExam(2); setSubmitSuccess(''); setSubmitError(''); }}
-            className={`flex-1 sm:flex-initial flex items-center justify-center gap-2.5 px-6 py-3 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-semibold transition-all cursor-pointer ${
               activeExam === 2 
-                ? 'bg-primary text-white shadow-md' 
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                ? 'bg-primary text-white shadow-xs' 
+                : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
             }`}
           >
-            <FileText size={18} />
+            <FileText size={15} />
             <span>Graph Exam 2</span>
             {isMentorView ? (
-              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+              <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
                 activeExam === 2 ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-700'
               }`}>
-                {completedCount2} / {totalMuniCount}
+                {completedCount2}/{totalMuniCount}
               </span>
             ) : (
               submissions2[loggedInEmail] ? (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                  <CheckCircle2 size={12} /> Completed
+                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                  activeExam === 2 ? 'bg-emerald-500 text-white' : 'bg-emerald-100 text-emerald-800'
+                }`}>
+                  <CheckCircle2 size={11} /> Done
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
-                  <Clock size={12} /> Pending
+                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                  activeExam === 2 ? 'bg-amber-400 text-amber-950' : 'bg-amber-100 text-amber-800'
+                }`}>
+                  <Clock size={11} /> Pending
                 </span>
               )
             )}
           </button>
         </div>
-
-        <div className="hidden sm:flex items-center gap-2 text-xs text-gray-500 font-medium px-2">
-          <span>Active View:</span>
-          <span className="font-bold text-gray-800 bg-gray-100 px-2.5 py-1 rounded-lg">
-            {currentConfig.title}
-          </span>
-        </div>
-      </div>
-
-      {/* Header Banner */}
-      <div className="bg-gradient-to-r from-red-950 via-primary to-red-900 p-6 md:p-8 rounded-3xl text-white shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4 relative overflow-hidden">
-        <div className="space-y-1 relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-xs font-semibold uppercase tracking-wide text-red-200 border border-white/20 mb-1">
-            <Sparkles size={14} className="text-yellow-300" /> Lab Exam Portal
-          </div>
-          <h1 className="text-2xl md:text-3xl font-extrabold flex items-center gap-3">
-            <FileText size={32} />
-            {currentConfig.title}
-          </h1>
-          <p className="text-red-100 text-sm max-w-xl">
-            {isMentorView 
-              ? `View and manage ${currentConfig.title} lab answer screenshots/PDFs submitted by Muni Mentor students.` 
-              : `Upload your question answer (Screenshot or PDF) for ${currentConfig.title}.`}
-          </p>
-        </div>
       </div>
 
       {submitSuccess && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-800 text-sm font-semibold flex items-center gap-3 shadow-sm">
-          <CheckCircle2 size={20} className="text-emerald-600 shrink-0" />
+        <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-xs font-semibold flex items-center gap-2.5 shadow-xs">
+          <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
           {submitSuccess}
         </div>
       )}
@@ -938,18 +936,18 @@ const GraphExam: React.FC = () => {
       {/* ======================================================== */}
       {!isMentorView && (
         <div className="space-y-6">
-          <div className="bg-white rounded-3xl border border-gray-200 p-6 md:p-8 shadow-sm space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-gray-100">
+          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-gray-100">
               <div className="space-y-1">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-xl font-bold text-gray-900">{currentConfig.title}</h2>
+                <div className="flex items-center gap-2.5">
+                  <h2 className="text-lg font-bold text-gray-900">{currentConfig.title}</h2>
                   {isMyExamCompleted ? (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                      <CheckCircle2 size={14} /> Completed
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <CheckCircle2 size={13} /> Completed
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
-                      <Clock size={14} /> Pending
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                      <Clock size={13} /> Pending
                     </span>
                   )}
                 </div>
@@ -965,15 +963,15 @@ const GraphExam: React.FC = () => {
                     setFilePreviewData(null);
                     setIsSubmitModalOpen(true);
                   }}
-                  className="px-6 py-3 bg-primary hover:bg-primary-dark text-white font-bold text-sm rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto"
+                  className="px-4 py-2 bg-primary hover:bg-primary-dark text-white font-medium text-xs rounded-lg shadow-xs transition-colors flex items-center gap-2 cursor-pointer self-start sm:self-auto"
                 >
-                  <Upload size={18} />
+                  <Upload size={16} />
                   Submit Answers
                 </button>
               ) : (
-                <div className="text-xs text-right text-gray-500 bg-gray-50 p-3 rounded-xl border border-gray-200">
-                  <p className="font-semibold text-gray-800">Submitted On:</p>
-                  <p>{mySubmission.submittedAt}</p>
+                <div className="text-xs text-right text-gray-500 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+                  <span className="font-semibold text-gray-700">Submitted: </span>
+                  <span>{mySubmission.submittedAt}</span>
                 </div>
               )}
             </div>
@@ -981,49 +979,49 @@ const GraphExam: React.FC = () => {
             {/* Submission Status Summary Box */}
             {isMyExamCompleted ? (
               <div className="space-y-4">
-                <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-2xl flex items-start gap-3">
-                  <CheckCircle2 size={20} className="text-emerald-600 shrink-0 mt-0.5" />
-                  <div className="text-sm">
+                <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-lg flex items-start gap-3">
+                  <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
+                  <div className="text-xs">
                     <p className="font-bold text-emerald-900">Your {currentConfig.title} answer has been submitted!</p>
-                    <p className="text-xs text-emerald-700 mt-0.5">
+                    <p className="text-emerald-700 mt-0.5">
                       Muni Mentor can view your submitted answer. If your mentor deletes your submission, your status will revert to Pending so you can re-submit.
                     </p>
                   </div>
                 </div>
 
-                <h3 className="text-sm font-bold text-gray-900 pt-2">Submitted Question Details</h3>
-                <div className="p-5 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
+                <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider pt-1">Submitted Question Details</h3>
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
                     {mySubmission.fileType === 'image' ? (
-                      <img src={mySubmission.fileData} alt={mySubmission.questionNumber} className="w-14 h-14 object-cover rounded-xl border border-gray-200 shrink-0 bg-white" />
+                      <img src={mySubmission.fileData} alt={mySubmission.questionNumber} className="w-12 h-12 object-cover rounded-lg border border-gray-200 shrink-0 bg-white" />
                     ) : (
-                      <div className="w-14 h-14 rounded-xl bg-red-100 text-red-600 flex items-center justify-center font-bold text-sm shrink-0">
+                      <div className="w-12 h-12 rounded-lg bg-red-100 text-red-600 flex items-center justify-center font-bold text-xs shrink-0">
                         PDF
                       </div>
                     )}
                     <div>
-                      <span className="px-2.5 py-1 bg-primary/10 text-primary text-xs font-bold rounded-lg inline-block whitespace-nowrap mb-1">
+                      <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded-md inline-block whitespace-nowrap mb-1">
                         {mySubmission.questionNumber}
                       </span>
-                      <p className="text-xs font-bold text-gray-800 truncate max-w-xs">{mySubmission.fileName}</p>
-                      <p className="text-[10px] text-gray-400 uppercase font-semibold">{mySubmission.fileType}</p>
+                      <p className="text-xs font-semibold text-gray-800 truncate max-w-xs">{mySubmission.fileName}</p>
+                      <p className="text-[10px] text-gray-400 uppercase font-medium">{mySubmission.fileType}</p>
                     </div>
                   </div>
 
                   <button
                     onClick={() => handleOpenPreviewModal(mySubmission)}
-                    className="px-4 py-2.5 bg-white border border-gray-200 text-gray-800 hover:text-primary hover:border-primary text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                    className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 hover:text-primary hover:border-primary text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                   >
-                    <Eye size={15} /> View File
+                    <Eye size={14} /> View File
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="p-8 bg-amber-50/50 border border-amber-200 rounded-2xl text-center space-y-3">
-                <AlertCircle size={36} className="text-amber-500 mx-auto" />
-                <h3 className="text-base font-bold text-amber-900">Lab Exam Submission Pending</h3>
+              <div className="p-6 bg-amber-50/40 border border-amber-200 rounded-lg text-center space-y-2">
+                <AlertCircle size={28} className="text-amber-500 mx-auto" />
+                <h3 className="text-sm font-bold text-amber-900">Lab Exam Submission Pending</h3>
                 <p className="text-xs text-amber-700 max-w-md mx-auto">
-                  You have not submitted {currentConfig.title} yet. Click the <strong>Submit Answers</strong> button above to select your question number and upload your answer screenshot or PDF file.
+                  You have not submitted {currentConfig.title} yet. Click <strong>Submit Answers</strong> above to choose your question number and upload your answer screenshot or PDF file.
                 </p>
               </div>
             )}
@@ -1036,21 +1034,21 @@ const GraphExam: React.FC = () => {
 
               return (
                 <div className="pt-2 border-t border-gray-100">
-                  <div className="p-5 bg-gradient-to-r from-red-50/80 via-white to-amber-50/80 border border-red-200/70 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
-                    <div className="flex items-center gap-3.5">
-                      <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center font-black shrink-0 shadow-sm">
-                        <Award size={24} />
+                  <div className="p-4 bg-white border border-gray-200 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0">
+                        <Award size={20} />
                       </div>
                       <div>
-                        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">{currentConfig.badgeTitle}</h4>
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{currentConfig.badgeTitle}</h4>
                         <div className="flex items-center gap-2 mt-0.5">
                           {hasMarks ? (
-                            <span className="text-xl font-black text-gray-900 flex items-center gap-1.5">
+                            <span className="text-lg font-bold text-gray-900 flex items-center gap-1">
                               <span className="text-primary">{myMarks}</span>
-                              {!String(myMarks).includes('/') && <span className="text-xs font-semibold text-gray-400">/ 20</span>}
+                              {!String(myMarks).includes('/') && <span className="text-xs font-normal text-gray-400">/ 20</span>}
                             </span>
                           ) : (
-                            <span className="text-xs font-bold text-amber-700 bg-amber-100/80 px-2.5 py-1 rounded-lg">
+                            <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
                               Pending Mentor Evaluation
                             </span>
                           )}
@@ -1072,57 +1070,57 @@ const GraphExam: React.FC = () => {
         <div className="space-y-6">
           {/* KPI Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                <FileCode size={24} />
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                <FileCode size={20} />
               </div>
               <div>
                 <p className="text-xs text-gray-500 font-medium">Total Muni Students</p>
-                <h3 className="text-2xl font-black text-gray-900">{totalMuniCount}</h3>
-                <p className="text-[11px] text-blue-600 font-semibold mt-0.5">Enrolled Students</p>
+                <h3 className="text-xl font-bold text-gray-900">{totalMuniCount}</h3>
+                <p className="text-[11px] text-blue-600 font-medium">Enrolled Students</p>
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                <CheckCircle2 size={24} />
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                <CheckCircle2 size={20} />
               </div>
               <div>
                 <p className="text-xs text-gray-500 font-medium">Completed Submissions</p>
-                <h3 className="text-2xl font-black text-gray-900">{completedMuniCount}</h3>
-                <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">Lab Exams Submitted</p>
+                <h3 className="text-xl font-bold text-gray-900">{completedMuniCount}</h3>
+                <p className="text-[11px] text-emerald-600 font-medium">Lab Exams Submitted</p>
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                <Clock size={24} />
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                <Clock size={20} />
               </div>
               <div>
                 <p className="text-xs text-gray-500 font-medium">Pending Submissions</p>
-                <h3 className="text-2xl font-black text-gray-900">{pendingMuniCount}</h3>
-                <p className="text-[11px] text-amber-600 font-semibold mt-0.5">Awaiting Student Upload</p>
+                <h3 className="text-xl font-bold text-gray-900">{pendingMuniCount}</h3>
+                <p className="text-[11px] text-amber-600 font-medium">Awaiting Student Upload</p>
               </div>
             </div>
           </div>
 
           {/* Table Controls & Filters */}
-          <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <FileCheck className="text-primary" size={20} />
-                {currentConfig.title} Student Submissions Table
+          <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-gray-100">
+              <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                <FileCheck className="text-primary" size={18} />
+                <span>{currentConfig.title} Student Submissions</span>
               </h2>
 
               <div className="flex flex-wrap items-center gap-2">
                 {/* Batch Filter */}
-                <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl text-xs font-semibold">
-                  <span className="text-gray-400 px-2">Batch:</span>
+                <div className="flex items-center gap-0.5 bg-gray-100 p-0.5 rounded-lg text-xs">
+                  <span className="text-gray-400 px-2 font-medium">Batch:</span>
                   {['ALL', 'A1', 'A2', 'B1', 'B2'].map(b => (
                     <button
                       key={b}
                       onClick={() => setBatchFilter(b)}
-                      className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-semibold ${
                         batchFilter === b ? 'bg-white text-primary shadow-xs' : 'text-gray-600 hover:text-gray-900'
                       }`}
                     >
@@ -1132,8 +1130,8 @@ const GraphExam: React.FC = () => {
                 </div>
 
                 {/* Status Filter */}
-                <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl text-xs font-semibold">
-                  <span className="text-gray-400 px-2">Status:</span>
+                <div className="flex items-center gap-0.5 bg-gray-100 p-0.5 rounded-lg text-xs">
+                  <span className="text-gray-400 px-2 font-medium">Status:</span>
                   {[
                     { id: 'ALL', label: 'All' },
                     { id: 'COMPLETED', label: 'Completed' },
@@ -1142,7 +1140,7 @@ const GraphExam: React.FC = () => {
                     <button
                       key={s.id}
                       onClick={() => setStatusFilter(s.id)}
-                      className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-semibold ${
                         statusFilter === s.id ? 'bg-white text-primary shadow-xs' : 'text-gray-600 hover:text-gray-900'
                       }`}
                     >
@@ -1155,29 +1153,29 @@ const GraphExam: React.FC = () => {
 
             {/* Search Input */}
             <div className="relative max-w-md">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
               <input
                 type="text"
                 placeholder="Search by student name, roll number, or email..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
               />
             </div>
 
             {/* Submissions Table */}
-            <div className="overflow-x-auto rounded-2xl border border-gray-200">
+            <div className="overflow-x-auto rounded-lg border border-gray-200">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                    <th className="py-3.5 px-4">Student Name</th>
-                    <th className="py-3.5 px-4">Roll Number</th>
-                    <th className="py-3.5 px-4">Question Number</th>
-                    <th className="py-3.5 px-4">Answers (PDF / Screenshot)</th>
-                    <th className="py-3.5 px-4">Status</th>
-                    <th className="py-3.5 px-4">{currentConfig.badgeTitle}</th>
-                    <th className="py-3.5 px-4">Pre Assessment Marks</th>
-                    <th className="py-3.5 px-4 text-center">Action</th>
+                  <tr className="bg-gray-50 border-b border-gray-200 text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="py-3 px-4">Student Name</th>
+                    <th className="py-3 px-4">Roll Number</th>
+                    <th className="py-3 px-4">Question Number</th>
+                    <th className="py-3 px-4">Answers (PDF / Screenshot)</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4">{currentConfig.badgeTitle}</th>
+                    <th className="py-3 px-4">Pre Assessment Marks</th>
+                    <th className="py-3 px-4 text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-xs">
@@ -1196,20 +1194,20 @@ const GraphExam: React.FC = () => {
                       return (
                         <tr key={student.email} className="hover:bg-gray-50/80 transition-colors">
                           {/* Name & Email */}
-                          <td className="py-3.5 px-4">
-                            <p className="font-bold text-gray-900">{student.name}</p>
+                          <td className="py-3 px-4">
+                            <p className="font-semibold text-gray-900">{student.name}</p>
                             <p className="text-[11px] text-gray-400 truncate max-w-[180px]">{student.email}</p>
                           </td>
 
                           {/* Roll Number */}
-                          <td className="py-3.5 px-4 font-mono font-bold text-gray-700">
+                          <td className="py-3 px-4 font-mono font-semibold text-gray-700">
                             {student.roll || 'N/A'}
                           </td>
 
                           {/* Question Number */}
-                          <td className="py-3.5 px-4">
+                          <td className="py-3 px-4">
                             {isCompleted && sub.questionNumber ? (
-                              <span className="px-2.5 py-1 bg-primary/10 text-primary font-bold rounded-lg text-xs whitespace-nowrap">
+                              <span className="px-2 py-0.5 bg-gray-100 text-gray-800 font-semibold rounded-md text-xs border border-gray-200 whitespace-nowrap">
                                 {sub.questionNumber}
                               </span>
                             ) : (
@@ -1218,13 +1216,13 @@ const GraphExam: React.FC = () => {
                           </td>
 
                           {/* Answers (PDF or Screenshot View) */}
-                          <td className="py-3.5 px-4">
+                          <td className="py-3 px-4">
                             {isCompleted ? (
                               <button
                                 onClick={() => handleOpenPreviewModal(sub)}
-                                className="px-3 py-1.5 bg-white border border-gray-200 hover:border-primary hover:text-primary text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                                className="px-2.5 py-1 bg-white border border-gray-200 hover:border-primary hover:text-primary text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
                               >
-                                <Eye size={14} />
+                                <Eye size={13} />
                                 <span>{sub.fileName} ({sub.fileType.toUpperCase()})</span>
                               </button>
                             ) : (
@@ -1233,20 +1231,20 @@ const GraphExam: React.FC = () => {
                           </td>
 
                           {/* Status */}
-                          <td className="py-3.5 px-4">
+                          <td className="py-3 px-4">
                             {isCompleted ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 text-emerald-800 text-[11px] font-extrabold rounded-full">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-medium rounded-md">
                                 <CheckCircle2 size={12} /> Completed
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-800 text-[11px] font-extrabold rounded-full">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 text-xs font-medium rounded-md">
                                 <Clock size={12} /> Pending
                               </span>
                             )}
                           </td>
 
                           {/* Marks (Fixed Display + Edit Button or Input + Submit Button) */}
-                          <td className="py-3.5 px-4">
+                          <td className="py-3 px-4">
                             {(() => {
                               const savedMark = studentMarksDict[studentCleanEmail] ?? (sub?.marks ?? '');
                               const hasSavedMark = savedMark !== undefined && savedMark !== null && String(savedMark).trim() !== '';
@@ -1254,9 +1252,9 @@ const GraphExam: React.FC = () => {
 
                               if (hasSavedMark && !isEditing) {
                                 return (
-                                  <div className="flex items-center gap-2">
-                                    <span className="px-3 py-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200/80 rounded-xl font-extrabold text-xs inline-flex items-center gap-1.5 shadow-2xs">
-                                      <CheckCircle2 size={13} className="text-emerald-600" />
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md font-semibold text-xs inline-flex items-center gap-1">
+                                      <CheckCircle2 size={12} className="text-emerald-600" />
                                       <span>{savedMark} {!String(savedMark).toLowerCase().includes('mark') && 'Marks'}</span>
                                     </span>
                                     <button
@@ -1264,10 +1262,10 @@ const GraphExam: React.FC = () => {
                                         setEditingMarks(prev => ({ ...prev, [studentCleanEmail]: String(savedMark) }));
                                         setEditingMarksMode(prev => ({ ...prev, [studentCleanEmail]: true }));
                                       }}
-                                      className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-primary font-bold text-xs rounded-xl transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                                      className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-primary font-medium text-xs rounded-md transition-colors flex items-center gap-1 cursor-pointer"
                                       title="Edit student marks"
                                     >
-                                      <Edit2 size={13} />
+                                      <Edit2 size={11} />
                                       <span>Edit</span>
                                     </button>
                                   </div>
@@ -1275,10 +1273,10 @@ const GraphExam: React.FC = () => {
                               }
 
                               return (
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1.5">
                                   <input
                                     type="text"
-                                    placeholder="Enter graph 1 marks"
+                                    placeholder="Enter marks"
                                     value={editingMarks[studentCleanEmail] !== undefined
                                       ? editingMarks[studentCleanEmail]
                                       : (studentMarksDict[studentCleanEmail] ?? (sub?.marks ?? ''))}
@@ -1286,18 +1284,18 @@ const GraphExam: React.FC = () => {
                                       const val = e.target.value;
                                       setEditingMarks(prev => ({ ...prev, [studentCleanEmail]: val }));
                                     }}
-                                    className="w-24 px-2.5 py-1.5 bg-gray-50 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
+                                    className="w-20 px-2 py-1 bg-white border border-gray-300 rounded-md text-xs font-medium text-gray-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-center"
                                   />
                                   <button
                                     onClick={() => handleSaveMarks(student.email)}
                                     disabled={savingMarksEmail === studentCleanEmail}
-                                    className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1 cursor-pointer shrink-0 disabled:opacity-50"
+                                    className="px-2.5 py-1 bg-primary hover:bg-primary-dark text-white text-xs font-medium rounded-md transition-colors shadow-xs flex items-center gap-1 cursor-pointer shrink-0 disabled:opacity-50"
                                   >
                                     {savingMarksEmail === studentCleanEmail ? (
-                                      <RefreshCw size={13} className="animate-spin" />
+                                      <RefreshCw size={12} className="animate-spin" />
                                     ) : savedMarksStatus[studentCleanEmail] ? (
                                       <>
-                                        <CheckCircle2 size={13} className="text-emerald-300" />
+                                        <CheckCircle2 size={12} className="text-emerald-300" />
                                         <span>Saved</span>
                                       </>
                                     ) : (
@@ -1310,7 +1308,7 @@ const GraphExam: React.FC = () => {
                           </td>
 
                           {/* Pre Assessment Marks (Fixed Display + Edit Button or Input + Submit Button) */}
-                          <td className="py-3.5 px-4">
+                          <td className="py-3 px-4">
                             {(() => {
                               const savedPreMark = preMarksDict[studentCleanEmail];
                               const hasSavedPreMark = savedPreMark !== undefined && savedPreMark !== null && String(savedPreMark).trim() !== '';
@@ -1318,9 +1316,9 @@ const GraphExam: React.FC = () => {
 
                               if (hasSavedPreMark && !isEditingPre) {
                                 return (
-                                  <div className="flex items-center gap-2">
-                                    <span className="px-3 py-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200/80 rounded-xl font-extrabold text-xs inline-flex items-center gap-1.5 shadow-2xs">
-                                      <CheckCircle2 size={13} className="text-emerald-600" />
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md font-semibold text-xs inline-flex items-center gap-1">
+                                      <CheckCircle2 size={12} className="text-emerald-600" />
                                       <span>{savedPreMark} {!String(savedPreMark).toLowerCase().includes('mark') && 'Marks'}</span>
                                     </span>
                                     <button
@@ -1328,10 +1326,10 @@ const GraphExam: React.FC = () => {
                                         setEditingPreMarks(prev => ({ ...prev, [studentCleanEmail]: String(savedPreMark) }));
                                         setEditingPreMarksMode(prev => ({ ...prev, [studentCleanEmail]: true }));
                                       }}
-                                      className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-primary font-bold text-xs rounded-xl transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                                      className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-primary font-medium text-xs rounded-md transition-colors flex items-center gap-1 cursor-pointer"
                                       title="Edit Pre Assessment marks"
                                     >
-                                      <Edit2 size={13} />
+                                      <Edit2 size={11} />
                                       <span>Edit</span>
                                     </button>
                                   </div>
@@ -1339,7 +1337,7 @@ const GraphExam: React.FC = () => {
                               }
 
                               return (
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1.5">
                                   <input
                                     type="text"
                                     placeholder="Enter pre marks"
@@ -1350,18 +1348,18 @@ const GraphExam: React.FC = () => {
                                       const val = e.target.value;
                                       setEditingPreMarks(prev => ({ ...prev, [studentCleanEmail]: val }));
                                     }}
-                                    className="w-24 px-2.5 py-1.5 bg-gray-50 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
+                                    className="w-20 px-2 py-1 bg-white border border-gray-300 rounded-md text-xs font-medium text-gray-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-center"
                                   />
                                   <button
                                     onClick={() => handleSavePreMarks(student.email)}
                                     disabled={savingPreMarksEmail === studentCleanEmail}
-                                    className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1 cursor-pointer shrink-0 disabled:opacity-50"
+                                    className="px-2.5 py-1 bg-primary hover:bg-primary-dark text-white text-xs font-medium rounded-md transition-colors shadow-xs flex items-center gap-1 cursor-pointer shrink-0 disabled:opacity-50"
                                   >
                                     {savingPreMarksEmail === studentCleanEmail ? (
-                                      <RefreshCw size={13} className="animate-spin" />
+                                      <RefreshCw size={12} className="animate-spin" />
                                     ) : savedPreMarksStatus[studentCleanEmail] ? (
                                       <>
-                                        <CheckCircle2 size={13} className="text-emerald-300" />
+                                        <CheckCircle2 size={12} className="text-emerald-300" />
                                         <span>Saved</span>
                                       </>
                                     ) : (
@@ -1374,18 +1372,18 @@ const GraphExam: React.FC = () => {
                           </td>
 
                           {/* Delete Action */}
-                          <td className="py-3.5 px-4 text-center">
+                          <td className="py-3 px-4 text-center">
                             {isCompleted ? (
                               <button
                                 onClick={() => handleDeleteSubmission(student.email)}
                                 disabled={deletingEmail === student.email}
                                 title="Delete submission to let student submit again"
-                                className="p-2 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white rounded-xl transition-all cursor-pointer inline-flex items-center justify-center"
+                                className="p-1.5 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white rounded-md transition-colors cursor-pointer inline-flex items-center justify-center"
                               >
                                 {deletingEmail === student.email ? (
-                                  <RefreshCw size={14} className="animate-spin" />
+                                  <RefreshCw size={13} className="animate-spin" />
                                 ) : (
-                                  <Trash2 size={15} />
+                                  <Trash2 size={14} />
                                 )}
                               </button>
                             ) : (
@@ -1407,41 +1405,41 @@ const GraphExam: React.FC = () => {
       {/* SUBMISSION FORM MODAL (TYPE QUESTION NO & UPLOAD FILE) */}
       {/* ======================================================== */}
       {isSubmitModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <form 
             onSubmit={handleSubmitAnswer}
-            className="bg-white rounded-3xl max-w-lg w-full p-6 md:p-8 space-y-6 shadow-2xl relative"
+            className="bg-white rounded-xl max-w-lg w-full p-6 space-y-5 shadow-xl relative border border-gray-200"
           >
-            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
               <div>
-                <h3 className="text-xl font-bold text-gray-900">Submit Answers - {currentConfig.title}</h3>
+                <h3 className="text-lg font-bold text-gray-900">Submit Answers - {currentConfig.title}</h3>
                 <p className="text-xs text-gray-500">Select question number and upload answer screenshot or PDF.</p>
               </div>
               <button 
                 type="button"
                 onClick={() => setIsSubmitModalOpen(false)}
-                className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100 transition-colors"
+                className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
             {submitError && (
-              <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl flex items-center gap-2">
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-lg flex items-center gap-2">
                 <AlertCircle size={16} className="shrink-0 text-red-500" />
                 {submitError}
               </div>
             )}
 
             {/* Question Number Input / Select */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-gray-800 uppercase tracking-wide">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide">
                 Question Number
               </label>
               <select
                 value={questionNumber}
                 onChange={e => setQuestionNumber(e.target.value)}
-                className="w-full py-3 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer"
+                className="w-full py-2.5 px-3.5 bg-gray-50 border border-gray-300 rounded-lg text-xs font-semibold text-gray-800 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer"
               >
                 <option value="Question 1">Question 1</option>
                 <option value="Question 2">Question 2</option>
@@ -1453,20 +1451,20 @@ const GraphExam: React.FC = () => {
             </div>
 
             {/* File Upload Box */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-gray-800 uppercase tracking-wide">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide">
                 Answer Screenshot or PDF File
               </label>
 
               {filePreviewData ? (
-                <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex items-center justify-between gap-3">
+                <div className="p-3.5 bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 overflow-hidden">
-                    <div className="w-10 h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center font-bold text-xs shrink-0">
+                    <div className="w-9 h-9 bg-primary/10 text-primary rounded-lg flex items-center justify-center font-bold text-xs shrink-0">
                       {filePreviewData.fileType.toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-gray-900 truncate" title={filePreviewData.fileName}>{filePreviewData.fileName}</p>
-                      <p className="text-[10px] text-gray-400 font-semibold uppercase">{filePreviewData.fileType}</p>
+                      <p className="text-xs font-semibold text-gray-900 truncate" title={filePreviewData.fileName}>{filePreviewData.fileName}</p>
+                      <p className="text-[10px] text-gray-400 font-medium uppercase">{filePreviewData.fileType}</p>
                     </div>
                   </div>
 
@@ -1476,16 +1474,16 @@ const GraphExam: React.FC = () => {
                       setSelectedFileObj(null);
                       setFilePreviewData(null);
                     }}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer shrink-0"
+                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer shrink-0"
                     title="Change file"
                   >
-                    <Trash2 size={18} />
+                    <Trash2 size={16} />
                   </button>
                 </div>
               ) : (
-                <label className="border-2 border-dashed border-gray-300 hover:border-primary/50 bg-gray-50 hover:bg-gray-100/50 p-6 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer transition-colors space-y-2">
-                  <Upload size={28} className="text-gray-400" />
-                  <span className="text-xs font-bold text-gray-700">Click to upload answer file</span>
+                <label className="border-2 border-dashed border-gray-300 hover:border-primary/50 bg-gray-50 hover:bg-gray-100/50 p-6 rounded-lg flex flex-col items-center justify-center text-center cursor-pointer transition-colors space-y-2">
+                  <Upload size={24} className="text-gray-400" />
+                  <span className="text-xs font-semibold text-gray-700">Click to upload answer file</span>
                   <span className="text-[10px] text-gray-400">Supports Screenshot (Image) or PDF</span>
                   <input
                     type="file"
@@ -1502,20 +1500,20 @@ const GraphExam: React.FC = () => {
             </div>
 
             {/* Actions */}
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-100">
               <button
                 type="button"
                 onClick={() => setIsSubmitModalOpen(false)}
-                className="px-5 py-2.5 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
+                className="px-4 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-6 py-2.5 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                className="px-5 py-2 bg-primary hover:bg-primary-dark text-white text-xs font-medium rounded-lg shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
               >
-                {isSubmitting && <RefreshCw size={14} className="animate-spin" />}
+                {isSubmitting && <RefreshCw size={13} className="animate-spin" />}
                 Submit
               </button>
             </div>
@@ -1527,61 +1525,61 @@ const GraphExam: React.FC = () => {
       {/* FILE PREVIEW MODAL (IMAGE / PDF PREVIEW) */}
       {/* ======================================================== */}
       {previewFile && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-4xl w-full p-6 space-y-4 shadow-2xl relative max-h-[95vh] flex flex-col">
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-4xl w-full p-5 space-y-4 shadow-xl relative max-h-[92vh] flex flex-col border border-gray-200">
             <div className="flex items-center justify-between border-b border-gray-100 pb-3 shrink-0">
               <div>
-                <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 bg-primary text-white rounded-md text-xs whitespace-nowrap">
+                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                  <span className="px-2 py-0.5 bg-primary text-white rounded-md text-xs whitespace-nowrap">
                     {previewFile.questionNumber}
                   </span>
                   Answer File: {previewFile.fileName}
                 </h3>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 mt-0.5">
                   Student: <strong className="text-gray-800">{previewFile.studentName}</strong> ({previewFile.rollNumber})
                 </p>
               </div>
               <button 
                 onClick={() => setPreviewFile(null)}
-                className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100 transition-colors"
+                className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
               >
-                <X size={22} />
+                <X size={20} />
               </button>
             </div>
 
             {/* Viewer Area */}
-            <div className="flex-1 overflow-auto bg-gray-900 rounded-2xl p-4 flex items-center justify-center min-h-[400px]">
+            <div className="flex-1 overflow-auto bg-gray-900 rounded-lg p-4 flex items-center justify-center min-h-[400px]">
               {previewFile.fileType === 'image' && previewFile.fileData && previewFile.fileData.length > 20 ? (
                 <img 
                   src={previewFile.fileData} 
                   alt={previewFile.questionNumber} 
-                  className="max-h-[70vh] w-auto object-contain rounded-lg shadow-lg mx-auto bg-white"
+                  className="max-h-[70vh] w-auto object-contain rounded-lg shadow-md mx-auto bg-white"
                   onError={(e) => {
                     (e.target as HTMLElement).style.display = 'none';
                   }}
                 />
               ) : previewFile.fileType === 'pdf' ? (
-                <div className="w-full h-full flex flex-col items-center justify-center text-white space-y-4">
-                  <FileText size={64} className="text-primary animate-pulse" />
-                  <h3 className="text-lg font-bold">{previewFile.fileName}</h3>
+                <div className="w-full h-full flex flex-col items-center justify-center text-white space-y-3">
+                  <FileText size={48} className="text-primary" />
+                  <h3 className="text-base font-bold">{previewFile.fileName}</h3>
                   <p className="text-xs text-gray-300">Click below to open or download the student PDF answer.</p>
                   <button
                     onClick={handleDownloadFile}
-                    className="px-6 py-3 bg-primary text-white font-bold rounded-xl hover:bg-primary-dark transition-all shadow-md flex items-center gap-2 cursor-pointer text-xs"
+                    className="px-5 py-2.5 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors shadow-xs flex items-center gap-2 cursor-pointer text-xs"
                   >
-                    <ExternalLink size={16} /> Open / Download PDF Answer
+                    <ExternalLink size={15} /> Open / Download PDF Answer
                   </button>
                 </div>
               ) : (
                 <div className="text-center p-8 text-white space-y-3">
-                  <FileText size={48} className="text-primary mx-auto" />
-                  <p className="text-sm font-bold">{previewFile.fileName || 'Submitted Document'}</p>
+                  <FileText size={40} className="text-primary mx-auto" />
+                  <p className="text-sm font-semibold">{previewFile.fileName || 'Submitted Document'}</p>
                   <p className="text-xs text-gray-400">File content ready for mentor inspection.</p>
                   <button
                     onClick={handleDownloadFile}
-                    className="px-5 py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-primary-dark transition-all shadow-md flex items-center gap-2 mx-auto cursor-pointer text-xs"
+                    className="px-4 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors shadow-xs flex items-center gap-2 mx-auto cursor-pointer text-xs"
                   >
-                    <Download size={15} /> Download File
+                    <Download size={14} /> Download File
                   </button>
                 </div>
               )}
@@ -1590,14 +1588,14 @@ const GraphExam: React.FC = () => {
             <div className="flex items-center justify-between shrink-0 pt-2 text-xs">
               <button
                 onClick={handleDownloadFile}
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-xl transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+                className="px-3.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium rounded-lg transition-colors inline-flex items-center gap-1.5 cursor-pointer"
               >
-                <Download size={15} /> Download Answer File
+                <Download size={14} /> Download Answer File
               </button>
 
               <button
                 onClick={() => setPreviewFile(null)}
-                className="px-5 py-2 bg-primary text-white font-bold rounded-xl hover:bg-primary-dark transition-colors cursor-pointer"
+                className="px-4 py-1.5 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors cursor-pointer"
               >
                 Close Preview
               </button>
