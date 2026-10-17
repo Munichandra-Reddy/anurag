@@ -1009,7 +1009,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
 
   if (evaluatingExamId) {
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+      <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
         <WeeklyExamReport 
           pattern={evaluatingExamId} 
           isMentor={isMentor} 
@@ -1045,10 +1045,10 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           : (isExamSkillTest2 ? getSkillTest2McqsForBatch(exam.targetBatch || studentDetails?.batch) : []));
 
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 space-y-8 relative">
+      <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6 space-y-6 relative">
         <button 
           onClick={() => setTakingExamId(null)}
-          className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 p-1"
+          className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 p-1 rounded-lg transition-colors"
         >
           <X size={20} />
         </button>
@@ -1244,7 +1244,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       {isMentor && (
         <div className="mb-8">
           {!isAdding ? (
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap items-center gap-2.5">
               <button 
                 onClick={() => { 
                   setSelectedWeek(isMuni ? 'skill_test_2' : 'week1'); 
@@ -1254,9 +1254,9 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                   setTheoryQuestions(isMuni ? getSkillTest2McqsForBatch(defaultBatch) : SOLIDWORKS_60_MCQS);
                   setIsAdding('weekly'); 
                 }}
-                className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-primary text-primary font-bold rounded-xl shadow-sm hover:bg-primary/5 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-gray-300 hover:border-primary hover:text-primary text-gray-700 text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
               >
-                <Plus size={20} /> {isMuni ? 'Add Skill Test 2 Exam Paper' : 'Add Weekly Exam Paper'}
+                <Plus size={15} /> {isMuni ? 'Add Skill Test 2 Paper' : 'Add Weekly Exam Paper'}
               </button>
               {isMuni && (
                 <button 
@@ -1268,23 +1268,23 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                     setTheoryQuestions(getSkillTest3McqsForBatch(defaultBatch));
                     setIsAdding('weekly'); 
                   }}
-                  className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-indigo-600 text-indigo-600 font-bold rounded-xl shadow-sm hover:bg-indigo-50 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-gray-300 hover:border-primary hover:text-primary text-gray-700 text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
                 >
-                  <Plus size={20} /> Add Skill Test 3 Exam Paper
+                  <Plus size={15} /> Add Skill Test 3 Paper
                 </button>
               )}
               <button 
                 onClick={() => { setSelectedWeek('CIE1'); setIsAdding('cie'); }}
-                className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-orange-500 text-orange-500 font-bold rounded-xl shadow-sm hover:bg-orange-50 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-gray-300 hover:border-primary hover:text-primary text-gray-700 text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
               >
-                <Plus size={20} /> Add CIE Exam Paper
+                <Plus size={15} /> Add CIE Exam Paper
               </button>
             </div>
           ) : (
-            <div className="bg-white border-2 border-primary/20 p-6 rounded-2xl shadow-sm relative">
+            <div className="bg-white border border-gray-200 p-6 rounded-xl shadow-xs relative">
               <button 
                 onClick={() => setIsAdding(false)}
-                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1 bg-gray-50 rounded-full"
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <X size={18} />
               </button>
@@ -1294,7 +1294,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
               <form onSubmit={handleAddExam} className="space-y-6">
                 <div className="flex flex-col md:flex-row gap-4">
                   <div className="flex-1">
-                    <label className="block text-sm font-bold text-gray-700 mb-1">Select Exam</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Select Exam</label>
                     <select 
                       value={selectedWeek} 
                       onChange={(e) => {
@@ -1308,7 +1308,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                           setTheoryQuestions(getSkillTest2McqsForBatch(targetBatch));
                         }
                       }}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-primary text-sm font-medium"
+                      className="w-full px-3.5 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-xs font-medium shadow-xs"
                     >
                       {isAdding === 'cie' ? (
                         <>
@@ -1339,7 +1339,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                     </select>
                   </div>
                   <div className="flex-1">
-                    <label className="block text-sm font-bold text-gray-700 mb-1">Target Batch</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Target Batch</label>
                     <select 
                       value={targetBatch} 
                       onChange={(e) => {
@@ -1353,7 +1353,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                           setTheoryQuestions(getSkillTest2McqsForBatch(newBatch));
                         }
                       }}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-primary text-sm font-medium"
+                      className="w-full px-3.5 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-xs font-medium shadow-xs"
                     >
                       <option value="All Batches">All Batches</option>
                       {availableBatches.map(b => (
@@ -1368,12 +1368,12 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
 
                 {/* 1. Project - Hidden for Skill Test 2 & Skill Test 3 */}
                 {!(selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni) || selectedWeek === 'skill_test_3' || (selectedWeek === 'week2' && isMuni)) && (
-                  <div className="bg-gray-50 p-5 rounded-xl border border-gray-100">
-                    <h4 className="font-bold text-gray-900 mb-3 border-b border-gray-200 pb-2">1. Project</h4>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Project Title / Description</label>
+                  <div className="bg-gray-50/50 p-4 rounded-lg border border-gray-200">
+                    <h4 className="font-semibold text-gray-900 text-sm mb-3 border-b border-gray-200 pb-2">1. Project</h4>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Project Title / Description</label>
                     <input 
                       type="text" value={projectTitle} onChange={(e) => setProjectTitle(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary"
+                      className="w-full px-3.5 py-2 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary shadow-xs"
                     />
                     <p className="text-xs text-gray-500 mt-2">Students will be prompted to submit a URL and PDFs.</p>
                   </div>
@@ -1381,19 +1381,19 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
 
                 {/* 2. Portfolio & Document - Hidden for Skill Test 2 & Skill Test 3 */}
                 {isAdding === 'weekly' && !(selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni) || selectedWeek === 'skill_test_3' || (selectedWeek === 'week2' && isMuni)) && (
-                  <div className="bg-gray-50 p-5 rounded-xl border border-gray-100">
-                    <h4 className="font-bold text-gray-900 mb-3 border-b border-gray-200 pb-2">2. Portfolio & Document</h4>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Portfolio Topic</label>
+                  <div className="bg-gray-50/50 p-4 rounded-lg border border-gray-200">
+                    <h4 className="font-semibold text-gray-900 text-sm mb-3 border-b border-gray-200 pb-2">2. Portfolio & Document</h4>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Portfolio Topic</label>
                     <input 
                       type="text" value={portfolioTopic} onChange={(e) => setPortfolioTopic(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary"
+                      className="w-full px-3.5 py-2 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary shadow-xs"
                     />
                     <p className="text-xs text-gray-500 mt-2">Students will be prompted to upload PDFs.</p>
                   </div>
                 )}
 
-                <div className="bg-gray-50 p-5 rounded-xl border border-gray-100 space-y-4">
-                  <h4 className="font-bold text-gray-900 border-b border-gray-200 pb-2">
+                <div className="bg-gray-50/50 p-4 rounded-lg border border-gray-200 space-y-4">
+                  <h4 className="font-semibold text-gray-900 text-sm border-b border-gray-200 pb-2">
                     {(selectedWeek === 'skill_test_3' || (selectedWeek === 'week2' && isMuni))
                       ? 'Multiple Choice Questions (20 MCQs - Skill Test 3)'
                       : ((selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni))
@@ -1403,14 +1403,14 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                   
                   {/* Select Type: MCQs vs Theory PDF (hidden for Skill Tests since they are strictly MCQs) */}
                   {!(selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni) || selectedWeek === 'skill_test_3' || (selectedWeek === 'week2' && isMuni)) && (
-                    <div className="flex flex-wrap gap-3">
+                    <div className="flex flex-wrap gap-2.5">
                       <button
                         type="button"
                         onClick={() => setAssessmentMode('mcq')}
-                        className={`px-4 py-2 rounded-xl font-bold text-sm border transition-all ${
+                        className={`px-3.5 py-2 rounded-lg font-medium text-xs border transition-colors shadow-xs ${
                           assessmentMode === 'mcq'
-                            ? 'bg-primary text-white border-primary shadow-sm'
-                            : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                            ? 'bg-primary text-white border-primary'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                         }`}
                       >
                         Multiple Choice Questions ({questionCount} MCQs)
@@ -1418,10 +1418,10 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                       <button
                         type="button"
                         onClick={() => setAssessmentMode('pdf')}
-                        className={`px-4 py-2 rounded-xl font-bold text-sm border transition-all ${
+                        className={`px-3.5 py-2 rounded-lg font-medium text-xs border transition-colors shadow-xs ${
                           assessmentMode === 'pdf'
-                            ? 'bg-primary text-white border-primary shadow-sm'
-                            : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                            ? 'bg-primary text-white border-primary'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                         }`}
                       >
                         Theory Assignment (Upload Reference PDF)
@@ -1562,7 +1562,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                 <div className="flex justify-end pt-2">
                   <button 
                     type="submit"
-                    className="px-8 py-3 bg-primary text-white rounded-xl font-bold hover:bg-orange-600 transition-colors shadow-sm"
+                    className="px-5 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg font-medium text-xs transition-colors shadow-xs"
                   >
                     Publish Weekly Exam
                   </button>
@@ -1575,18 +1575,18 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
 
       {/* Mentor Filters */}
       {isMentor && exams.length > 0 && (
-        <div className="flex flex-col md:flex-row gap-4 mb-4">
+        <div className="flex flex-col md:flex-row gap-3 mb-4">
           <input 
             type="text" 
             placeholder="Search by Exam Title (e.g. CIE1)..." 
             value={filterExam}
             onChange={(e) => setFilterExam(e.target.value)}
-            className="px-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-primary text-sm flex-1"
+            className="px-3.5 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-xs flex-1 shadow-xs"
           />
           <select 
             value={filterBatch} 
             onChange={(e) => setFilterBatch(e.target.value)}
-            className="px-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-primary text-sm flex-1 md:flex-none md:w-64"
+            className="px-3.5 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-xs font-medium flex-1 md:flex-none md:w-56 shadow-xs cursor-pointer"
           >
             <option value="All">All Batches</option>
             {availableBatches.map(b => (
@@ -1751,39 +1751,41 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           const displayTitle = isExamSkillTest3 ? 'Skill Test 3' : (isExamSkillTest2 ? 'Skill Test 2' : exam.title);
 
           return (
-            <div key={exam.id} className="bg-white border-l-4 border-l-orange-500 border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div key={exam.id} className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:border-gray-300 transition-colors">
               <div>
-                <div className="flex items-center gap-3 mb-1">
-                  <h3 className="font-bold text-xl text-gray-900">{displayTitle}</h3>
+                <div className="flex items-center gap-2.5 mb-1">
+                  <h3 className="font-bold text-base text-gray-900">{displayTitle}</h3>
                   {isMentor && exam.targetBatch && exam.targetBatch !== 'All Batches' && (
-                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded">{exam.targetBatch}</span>
+                    <span className="px-2 py-0.5 bg-gray-100 text-gray-700 border border-gray-200 text-xs font-semibold rounded-md">
+                      {exam.targetBatch}
+                    </span>
                   )}
                 </div>
               {exam.theoryPdfName && exam.theoryPdfName !== 'theory_assignment.pdf' && (
-                <div className="flex items-center gap-2 mt-2 bg-gray-50 p-2 rounded-lg border border-gray-100 w-max">
-                  <FileText size={16} className="text-primary" />
-                  <span className="text-sm font-medium text-gray-700">{exam.theoryPdfName}</span>
-                  <button onClick={() => handleOpenPdf(exam.theoryPdfDataUrl, exam.theoryPdfName)} className="text-sm text-blue-600 hover:underline font-bold ml-2">View File</button>
+                <div className="flex items-center gap-2 mt-2 bg-gray-50 px-2.5 py-1.5 rounded-md border border-gray-200 w-max text-xs">
+                  <FileText size={14} className="text-gray-500" />
+                  <span className="font-medium text-gray-700">{exam.theoryPdfName}</span>
+                  <button onClick={() => handleOpenPdf(exam.theoryPdfDataUrl, exam.theoryPdfName)} className="text-primary hover:underline font-semibold ml-1 cursor-pointer">View</button>
                 </div>
               )}
             </div>
             
-            <div className="w-full md:w-auto flex flex-col md:flex-row items-stretch md:items-center gap-3">
+            <div className="w-full md:w-auto flex flex-wrap items-center gap-2">
               {isMentor ? (
                 <>
                   <button 
                     onClick={() => setEvaluatingExamId(exam.id)}
-                    className="px-6 py-2 text-primary bg-primary/10 hover:bg-primary/20 rounded-xl font-bold text-sm transition-colors text-center"
+                    className="px-3.5 py-1.5 bg-primary hover:bg-primary-dark text-white font-medium text-xs rounded-lg shadow-xs transition-colors text-center cursor-pointer"
                   >
                     Evaluate Submissions
                   </button>
                   <button 
                     onClick={() => handleOpenReExamModal(exam)}
-                    className="px-4 py-2 text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-xl font-bold text-sm transition-colors text-center flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+                    className="px-3 py-1.5 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 font-medium text-xs rounded-lg transition-colors text-center inline-flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
                     title="Conduct Re-Exam (Batch-wise or Student-wise)"
                   >
-                    <RotateCcw size={16} />
-                    Re-Exam
+                    <RotateCcw size={13} />
+                    <span>Re-Exam</span>
                   </button>
                   <button 
                     onClick={async () => {
@@ -1877,7 +1879,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                         await Promise.all(promises);
                       }
                     }}
-                    className="px-4 py-2 text-red-500 bg-red-50 hover:bg-red-100 rounded-xl font-medium text-sm transition-colors text-center"
+                    className="px-2.5 py-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 font-medium text-xs rounded-lg transition-colors text-center cursor-pointer"
                   >
                     Remove
                   </button>
@@ -1908,8 +1910,8 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
 
                   if (hasSubmitted) {
                     return (
-                      <div className="flex items-center justify-center gap-2 px-6 py-2.5 bg-green-50 text-green-700 font-bold rounded-xl border border-green-100 shadow-sm">
-                        <CheckCircle2 size={18} /> Submitted
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 font-medium text-xs rounded-lg border border-emerald-200">
+                        <CheckCircle2 size={14} /> Submitted
                       </div>
                     );
                   }
@@ -1921,19 +1923,19 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                         localStorage.removeItem(draftKey);
                         setTakingExamId(exam.id);
                       }}
-                      className={`flex items-center justify-center gap-2 px-6 py-2.5 text-white font-bold rounded-xl transition-colors shadow-sm ${
+                      className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 text-white font-medium text-xs rounded-lg transition-colors shadow-xs cursor-pointer ${
                         isReExamGranted
                           ? 'bg-amber-600 hover:bg-amber-700 animate-pulse'
-                          : 'bg-primary hover:bg-orange-600'
+                          : 'bg-primary hover:bg-primary-dark'
                       }`}
                     >
                       {isReExamGranted ? (
                         <>
-                          <RotateCcw size={18} /> Start Re-Exam
+                          <RotateCcw size={14} /> Start Re-Exam
                         </>
                       ) : (
                         <>
-                          <PlayCircle size={18} /> Start Exam
+                          <PlayCircle size={14} /> Start Exam
                         </>
                       )}
                     </button>
@@ -1948,66 +1950,64 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
 
       {/* Re-Exam Modal */}
       {reExamModalExam && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-gray-100 my-auto animate-in fade-in zoom-in-95 duration-150 overflow-hidden">
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-xl border border-gray-200 my-auto overflow-hidden">
             {/* Modal Header */}
-            <div className="p-5 sm:px-7 sm:pt-6 sm:pb-4 border-b border-gray-100 flex items-start justify-between shrink-0 bg-white">
-              <div>
-                <div className="flex items-center gap-3">
-                  <span className="p-2.5 bg-amber-50 text-amber-600 rounded-2xl border border-amber-200 shrink-0">
-                    <RotateCcw size={22} />
-                  </span>
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900 leading-snug">Conduct Re-Exam</h3>
-                    <p className="text-xs text-gray-500 font-medium">
-                      {reExamModalExam.title} • Target: <span className="text-primary font-bold">{reExamModalExam.targetBatch || 'All Batches'}</span>
-                    </p>
-                  </div>
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between shrink-0 bg-white">
+              <div className="flex items-center gap-3">
+                <span className="p-2 bg-amber-50 text-amber-700 rounded-lg border border-amber-200 shrink-0">
+                  <RotateCcw size={18} />
+                </span>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 leading-tight">Conduct Re-Exam</h3>
+                  <p className="text-xs text-gray-500">
+                    {reExamModalExam.title} • Target: <span className="text-primary font-semibold">{reExamModalExam.targetBatch || 'All Batches'}</span>
+                  </p>
                 </div>
               </div>
               <button 
                 onClick={() => { setReExamModalExam(null); setReExamSuccessMsg(''); }}
-                className="text-gray-400 hover:text-gray-600 p-1.5 hover:bg-gray-100 rounded-full transition-colors cursor-pointer shrink-0"
+                className="text-gray-400 hover:text-gray-600 p-1.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer shrink-0"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
             {/* Modal Scrollable Body */}
-            <div className="p-5 sm:p-7 overflow-y-auto space-y-5 flex-1">
+            <div className="p-6 overflow-y-auto space-y-4 flex-1">
 
             {/* Success Message Banner */}
             {reExamSuccessMsg && (
-              <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl flex items-center gap-3 text-sm font-semibold animate-in fade-in duration-200">
-                <Check className="shrink-0 text-emerald-600" size={18} />
+              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg flex items-center gap-2 text-xs font-medium">
+                <Check className="shrink-0 text-emerald-600" size={16} />
                 <span>{reExamSuccessMsg}</span>
               </div>
             )}
 
             {/* Mode Tabs: Batch-wise vs Student-wise */}
-            <div className="flex rounded-xl bg-gray-100 p-1">
+            <div className="flex rounded-lg bg-gray-100 p-1">
               <button
                 type="button"
                 onClick={() => { setReExamTab('batch'); setReExamSuccessMsg(''); }}
-                className={`flex-1 py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                className={`flex-1 py-1.5 rounded-md text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                   reExamTab === 'batch' 
-                    ? 'bg-white text-gray-900 shadow-sm' 
+                    ? 'bg-white text-gray-900 shadow-xs' 
                     : 'text-gray-500 hover:text-gray-900'
                 }`}
               >
-                <Users size={16} />
+                <Users size={14} />
                 Batch-Wise Re-Exam
               </button>
               <button
                 type="button"
                 onClick={() => { setReExamTab('student'); setReExamSuccessMsg(''); }}
-                className={`flex-1 py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                className={`flex-1 py-1.5 rounded-md text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                   reExamTab === 'student' 
-                    ? 'bg-white text-gray-900 shadow-sm' 
+                    ? 'bg-white text-gray-900 shadow-xs' 
                     : 'text-gray-500 hover:text-gray-900'
                 }`}
               >
-                <User size={16} />
+                <User size={14} />
                 Student-Wise Re-Exam
               </button>
             </div>
@@ -2016,24 +2016,24 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
             {reExamTab === 'batch' && (() => {
               const targetStudents = getStudentsForBatch(reExamSelectedBatch);
               return (
-                <div className="space-y-5">
-                  <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 text-sm text-amber-900 space-y-1">
-                    <p className="font-bold flex items-center gap-2">
-                      <AlertCircle size={16} className="text-amber-600" />
+                <div className="space-y-4">
+                  <div className="bg-amber-50/70 border border-amber-200 rounded-lg p-3 text-xs text-amber-900 space-y-1">
+                    <p className="font-semibold flex items-center gap-1.5">
+                      <AlertCircle size={15} className="text-amber-600" />
                       About Batch Re-Exam:
                     </p>
-                    <p className="text-xs text-amber-800 leading-relaxed">
+                    <p className="text-amber-800 leading-relaxed">
                       Enabling Re-Exam for a batch will reset test submissions for all students in that batch. 
                       Students will be able to take and submit the exam again immediately from their student portal.
                     </p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Select Target Batch</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Select Target Batch</label>
                     <select
                       value={reExamSelectedBatch}
                       onChange={(e) => { setReExamSelectedBatch(e.target.value); setReExamSuccessMsg(''); }}
-                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-primary text-sm font-bold text-gray-800"
+                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-xs font-medium text-gray-800 shadow-xs"
                     >
                       {reExamModalExam.targetBatch && (
                         <option value={reExamModalExam.targetBatch}>
@@ -2047,14 +2047,14 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                     </select>
                   </div>
 
-                  <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center justify-between">
+                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between">
                     <div>
-                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider block">Eligible Students</span>
-                      <span className="text-lg font-black text-gray-900">
+                      <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block">Eligible Students</span>
+                      <span className="text-sm font-bold text-gray-900">
                         {targetStudents.length} Students in {reExamSelectedBatch}
                       </span>
                     </div>
-                    <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-lg border border-blue-200">
+                    <span className="px-2.5 py-0.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-md border border-blue-200">
                       Batch Active
                     </span>
                   </div>
@@ -2064,16 +2064,16 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                       type="button"
                       disabled={isProcessingReExam || targetStudents.length === 0}
                       onClick={() => handleConductBatchReExam(reExamSelectedBatch, reExamModalExam)}
-                      className="w-full py-3.5 px-6 rounded-2xl font-bold text-white bg-amber-600 hover:bg-amber-700 active:scale-[0.99] transition-all shadow-md flex items-center justify-center gap-2 text-sm disabled:opacity-50 cursor-pointer"
+                      className="w-full py-2.5 px-4 rounded-lg font-medium text-white bg-amber-600 hover:bg-amber-700 transition-colors shadow-xs flex items-center justify-center gap-2 text-xs disabled:opacity-50 cursor-pointer"
                     >
                       {isProcessingReExam ? (
                         <>
-                          <Loader2 size={18} className="animate-spin" />
+                          <Loader2 size={15} className="animate-spin" />
                           <span>Processing Batch Re-Exam...</span>
                         </>
                       ) : (
                         <>
-                          <RotateCcw size={18} />
+                          <RotateCcw size={15} />
                           <span>Conduct Re-Exam for Batch {reExamSelectedBatch} ({targetStudents.length} Students)</span>
                         </>
                       )}
@@ -2095,22 +2095,22 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
               });
 
               return (
-                <div className="space-y-4">
-                  <div className="flex flex-col sm:flex-row gap-3">
+                <div className="space-y-3">
+                  <div className="flex flex-col sm:flex-row gap-2.5">
                     <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
                       <input
                         type="text"
                         placeholder="Search student by name, roll no, or email..."
                         value={reExamSearch}
                         onChange={(e) => setReExamSearch(e.target.value)}
-                        className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-primary font-medium"
+                        className="w-full pl-9 pr-3 py-2 bg-white border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-medium shadow-xs"
                       />
                     </div>
                     <select
                       value={reExamSelectedBatch}
                       onChange={(e) => { setReExamSelectedBatch(e.target.value); setReExamSuccessMsg(''); }}
-                      className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs sm:text-sm font-bold text-gray-700 focus:outline-none focus:border-primary"
+                      className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary shadow-xs"
                     >
                       {reExamModalExam.targetBatch && (
                         <option value={reExamModalExam.targetBatch}>{reExamModalExam.targetBatch}</option>
@@ -2123,7 +2123,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                   </div>
 
                   {/* Scrollable Student List */}
-                  <div className="max-h-[350px] overflow-y-auto space-y-2 pr-1 border border-gray-100 rounded-2xl p-2 bg-gray-50/50 divide-y divide-gray-100">
+                  <div className="max-h-[350px] overflow-y-auto space-y-1.5 pr-1 border border-gray-200 rounded-lg p-2 bg-white divide-y divide-gray-100">
                     {filtered.length > 0 ? (
                       filtered.map(student => {
                         const sEmail = (student.email || '').toLowerCase().trim();
@@ -2134,25 +2134,25 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                         );
 
                         return (
-                          <div key={sEmail} className="pt-2 first:pt-0 pb-1 px-2 flex items-center justify-between gap-3">
+                          <div key={sEmail} className="pt-2 first:pt-0 pb-1.5 px-2 flex items-center justify-between gap-3">
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className="font-bold text-sm text-gray-900 truncate">{student.name}</span>
+                                <span className="font-semibold text-xs text-gray-900 truncate">{student.name}</span>
                                 {student.roll && (
-                                  <span className="text-[11px] font-bold px-1.5 py-0.5 bg-gray-200 text-gray-700 rounded">
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded border border-gray-200">
                                     {student.roll}
                                   </span>
                                 )}
-                                <span className="text-[11px] font-bold px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded border border-blue-200">
                                   {student.batch || reExamModalExam.targetBatch || 'A1'}
                                 </span>
                               </div>
-                              <span className="text-xs text-gray-500 truncate block">{sEmail}</span>
+                              <span className="text-[11px] text-gray-500 truncate block mt-0.5">{sEmail}</span>
                             </div>
 
                             <div className="shrink-0 flex items-center gap-2">
                               {isGranted ? (
-                                <span className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl">
+                                <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md">
                                   Re-Exam Active
                                 </span>
                               ) : (
@@ -2160,10 +2160,10 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                                   type="button"
                                   disabled={isProcessingReExam}
                                   onClick={() => handleGrantSingleStudentReExam(student, reExamModalExam)}
-                                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                                  className="px-3 py-1 rounded-md text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
                                   title="Grant re-exam for this student"
                                 >
-                                  <RotateCcw size={13} />
+                                  <RotateCcw size={12} />
                                   <span>Grant Re-Exam</span>
                                 </button>
                               )}
@@ -2185,11 +2185,11 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 sm:px-7 border-t border-gray-100 flex justify-end shrink-0 bg-gray-50/80 rounded-b-3xl">
+            <div className="px-6 py-3 border-t border-gray-200 flex justify-end shrink-0 bg-gray-50 rounded-b-xl">
               <button
                 type="button"
                 onClick={() => { setReExamModalExam(null); setReExamSuccessMsg(''); }}
-                className="px-6 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-xl text-sm transition-colors cursor-pointer"
+                className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium rounded-lg text-xs transition-colors shadow-xs cursor-pointer"
               >
                 Close
               </button>

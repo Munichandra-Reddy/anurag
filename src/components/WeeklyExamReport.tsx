@@ -745,7 +745,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         </div>
         
         {studentReport ? (
-          <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-xs">
             <div className="space-y-4 text-lg">
               {isSkillTest ? (
                 <div className="flex justify-between items-center border-b border-gray-100 pb-3">
@@ -878,17 +878,17 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
       )}
 
       {!selectedStudent ? (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="p-6 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <h3 className="font-bold text-lg text-gray-900">Select Student to Grade</h3>
+        <div className="bg-white rounded-xl shadow-xs border border-gray-200 overflow-hidden">
+          <div className="p-5 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <h3 className="font-bold text-base text-gray-900">Select Student to Grade</h3>
             <div className="relative w-full sm:w-72 flex-shrink-0">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={15} />
               <input 
                 type="text" 
                 placeholder="Search students..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                className="w-full pl-9 pr-3.5 py-2 bg-white border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary shadow-xs transition-all"
               />
             </div>
           </div>
@@ -979,7 +979,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
           </div>
         </div>
       ) : (
-        <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm relative">
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-xs relative">
           <button 
             onClick={() => setSelectedStudent(null)}
             className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 flex items-center gap-2 text-sm font-medium"
@@ -1371,31 +1371,31 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
             </span>
           </div>
 
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="flex justify-end gap-2.5 pt-4">
               <button 
                 onClick={() => setSelectedStudent(null)}
-                className="px-6 py-3 rounded-xl font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-lg font-medium text-xs text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 shadow-xs transition-colors cursor-pointer"
               >
                 Hide / Save Draft
               </button>
               <button 
                 type="button"
                 onClick={handleGrantStudentReExam}
-                className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-medium text-xs text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 shadow-xs transition-colors cursor-pointer"
                 title="Reset this student's submission and allow them to retake the exam"
               >
-                <RotateCcw size={18} />
+                <RotateCcw size={15} />
                 Grant Re-Exam
               </button>
               <button 
                 onClick={handleSendReport}
                 disabled={isSent}
-                className={`flex items-center gap-2 px-8 py-3 rounded-xl font-bold text-white shadow-sm transition-colors cursor-pointer ${isSent ? 'bg-green-500' : 'bg-primary hover:bg-orange-600'}`}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-medium text-xs text-white shadow-xs transition-colors cursor-pointer ${isSent ? 'bg-emerald-600' : 'bg-primary hover:bg-primary-dark'}`}
               >
                 {isSent ? (
-                  <><CheckCircle2 size={20} /> Sent Successfully!</>
+                  <><CheckCircle2 size={15} /> Sent Successfully!</>
                 ) : (
-                  <><Send size={20} /> Send Report to Student</>
+                  <><Send size={15} /> Send Report to Student</>
                 )}
               </button>
             </div>

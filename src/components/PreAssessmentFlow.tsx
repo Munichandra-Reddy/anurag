@@ -317,13 +317,13 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
             <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 space-y-4">
               <h3 className="font-bold text-lg text-gray-900 border-b border-gray-200 pb-2">Preloaded Evaluation</h3>
               <p className="text-gray-700">Calculated score according to the answer key:</p>
-              <div className="text-2xl font-black text-primary bg-white p-4 rounded-xl border border-gray-200 inline-block">
+              <div className="text-xl font-bold text-primary bg-white p-3 rounded-lg border border-gray-200 inline-block shadow-xs">
                 Score: {score} / 30
               </div>
               <div className="pt-4 border-t border-gray-200 flex justify-end">
                 <button 
                   onClick={handleEvaluateSubmit}
-                  className="px-8 py-3 bg-primary text-white font-bold rounded-xl hover:bg-orange-600 transition-colors shadow-sm"
+                  className="px-5 py-2 bg-primary hover:bg-primary-dark text-white font-medium text-xs rounded-lg transition-colors shadow-xs"
                 >
                   Submit Marks
                 </button>
@@ -333,36 +333,36 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
         );
       }
       return (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 space-y-8 relative">
-          <button onClick={() => setEvaluatingStudentEmail(null)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 p-1">
-            <X size={20} />
+        <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6 space-y-6 relative">
+          <button onClick={() => setEvaluatingStudentEmail(null)} className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+            <X size={18} />
           </button>
-          <h2 className="text-2xl font-bold text-gray-900">Evaluate: {evaluatingStudentEmail}</h2>
+          <h2 className="text-xl font-bold text-gray-900">Evaluate: {evaluatingStudentEmail}</h2>
           
-          <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 space-y-4">
-            <h3 className="font-bold text-lg text-gray-900 border-b border-gray-200 pb-2">Section D Answers (Max 10 Marks)</h3>
-            <div className="space-y-4">
+          <div className="bg-gray-50/50 p-5 rounded-lg border border-gray-200 space-y-4">
+            <h3 className="font-semibold text-base text-gray-900 border-b border-gray-200 pb-2">Section D Answers (Max 10 Marks)</h3>
+            <div className="space-y-3">
               {exam.sectionD.map((q, idx) => (
-                <div key={idx} className="bg-white p-4 rounded-lg border border-gray-200">
-                  <p className="font-medium text-gray-800 mb-2">Q{idx + 1}: {q}</p>
-                  <p className="text-gray-600 bg-gray-50 p-3 rounded border border-gray-100">{sub.sectionDAnswers[idx] || 'No answer provided'}</p>
+                <div key={idx} className="bg-white p-3.5 rounded-lg border border-gray-200 shadow-xs">
+                  <p className="font-medium text-xs text-gray-800 mb-1.5">Q{idx + 1}: {q}</p>
+                  <p className="text-gray-600 bg-gray-50 p-2.5 rounded text-xs border border-gray-200">{sub.sectionDAnswers[idx] || 'No answer provided'}</p>
                 </div>
               ))}
             </div>
             
-            <div className="pt-4 border-t border-gray-200 flex items-center justify-between">
+            <div className="pt-3 border-t border-gray-200 flex items-center justify-between">
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Marks for Section D</label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Marks for Section D</label>
                 <input 
                   type="number" min="0" max="10" 
                   value={sectionDMarks} onChange={(e) => setSectionDMarks(Number(e.target.value))}
-                  className="w-32 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary"
+                  className="w-28 px-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary shadow-xs"
                 />
-                <p className="text-xs text-gray-500 mt-1">Provide marks out of 10.</p>
+                <p className="text-[11px] text-gray-500 mt-1">Provide marks out of 10.</p>
               </div>
               <button 
                 onClick={handleEvaluateSubmit}
-                className="px-8 py-3 bg-primary text-white font-bold rounded-xl hover:bg-orange-600 transition-colors"
+                className="px-5 py-2 bg-primary hover:bg-primary-dark text-white font-medium text-xs rounded-lg transition-colors shadow-xs"
               >
                 Save Evaluation
               </button>
@@ -376,25 +376,25 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
   if (evaluatingExamId) {
     const exam = exams.find(e => e.id === evaluatingExamId);
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 space-y-6 relative">
-        <button onClick={() => setEvaluatingExamId(null)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 p-1">
-          <X size={20} />
+      <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6 space-y-5 relative">
+        <button onClick={() => setEvaluatingExamId(null)} className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+          <X size={18} />
         </button>
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Submissions for {exam?.title}</h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-4">Submissions for {exam?.title}</h2>
         
         {Object.keys(allSubmissions).length === 0 ? (
-          <p className="text-gray-500">No submissions yet.</p>
+          <p className="text-gray-500 text-xs">No submissions yet.</p>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {Object.entries(allSubmissions).map(([email, sub]) => (
-              <div key={email} className="flex items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-xl">
+              <div key={email} className="flex items-center justify-between p-4 bg-gray-50/50 border border-gray-200 rounded-lg">
                 <div>
-                  <p className="font-bold text-gray-900">{email}</p>
-                  <p className="text-sm text-gray-500">Submitted: {new Date(sub.submittedAt).toLocaleString()}</p>
+                  <p className="font-semibold text-xs text-gray-900">{email}</p>
+                  <p className="text-[11px] text-gray-500">Submitted: {new Date(sub.submittedAt).toLocaleString()}</p>
                 </div>
                 {sub.marks ? (
-                  <div className="flex items-center gap-4">
-                    <span className="font-bold text-green-600 bg-green-50 px-3 py-1 rounded-lg border border-green-100">
+                  <div className="flex items-center gap-2.5">
+                    <span className="font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 text-xs">
                       Score: {sub.marks.total}/30
                     </span>
                     <button 
@@ -402,7 +402,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
                         setSectionDMarks(sub.marks!.sectionD);
                         setEvaluatingStudentEmail(email);
                       }}
-                      className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-100"
+                      className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-50 shadow-xs transition-colors"
                     >
                       Re-evaluate
                     </button>
@@ -413,7 +413,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
                       setSectionDMarks(0);
                       setEvaluatingStudentEmail(email);
                     }}
-                    className="px-6 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-orange-600"
+                    className="px-3.5 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-xs font-medium shadow-xs transition-colors"
                   >
                     Evaluate
                   </button>
@@ -431,26 +431,26 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
     const sub = findSubmissionForExam(submissions, exam) || submissions[viewingReportId];
     if (exam && sub && sub.marks) {
       return (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 space-y-6 relative">
-          <button onClick={() => setViewingReportId(null)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 p-1">
-            <X size={20} />
+        <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6 space-y-6 relative">
+          <button onClick={() => setViewingReportId(null)} className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+            <X size={18} />
           </button>
           
-          <div className="flex items-center gap-3 mb-6">
-            <FileText className="text-orange-500" size={28} />
-            <h2 className="text-2xl font-bold text-gray-900">{exam.title} - Score Report</h2>
+          <div className="flex items-center gap-3 mb-4">
+            <FileText className="text-orange-500" size={24} />
+            <h2 className="text-xl font-bold text-gray-900">{exam.title} - Score Report</h2>
           </div>
           
-          <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 space-y-4 text-lg">
+          <div className="bg-gray-50/50 p-5 rounded-lg border border-gray-200 space-y-4 text-base">
             {isMuni ? (
               <>
                 <div className="flex justify-between items-center border-b border-gray-200 pb-3">
                   <span className="font-medium text-gray-700">Multiple choice questions</span>
                   <span className="font-bold text-primary">{sub.marks.total} / 30M</span>
                 </div>
-                <div className="flex justify-between items-center pt-4">
-                  <span className="font-black text-gray-900 text-xl">Total Marks Obtained</span>
-                  <span className="font-black text-green-600 text-2xl">{sub.marks.total} / 30M</span>
+                <div className="flex justify-between items-center pt-3">
+                  <span className="font-bold text-gray-900 text-lg">Total Marks Obtained</span>
+                  <span className="font-black text-emerald-600 text-xl">{sub.marks.total} / 30M</span>
                 </div>
               </>
             ) : (
@@ -497,9 +497,9 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
     if (!exam) return null;
 
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 space-y-8 relative">
-        <button onClick={() => setTakingExamId(null)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 p-1">
-          <X size={20} />
+      <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6 space-y-6 relative">
+        <button onClick={() => setTakingExamId(null)} className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+          <X size={18} />
         </button>
         <div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">{exam.title}</h2>
@@ -591,12 +591,12 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
           </div>
         )}
 
-        <div className="flex justify-end pt-4">
+        <div className="flex justify-end pt-3">
           <button 
             onClick={handleStudentSubmit}
-            className="flex items-center gap-2 px-8 py-3 bg-primary text-white font-bold rounded-xl shadow-sm hover:bg-orange-600 transition-colors"
+            className="flex items-center gap-1.5 px-5 py-2.5 bg-primary hover:bg-primary-dark text-white font-medium text-xs rounded-lg shadow-xs transition-colors"
           >
-            <CheckCircle2 size={20} /> Submit Pre Assessment
+            <CheckCircle2 size={16} /> Submit Pre Assessment
           </button>
         </div>
       </div>
@@ -607,7 +607,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
     <div className="space-y-6">
       {/* Mentor Add Form */}
       {isMentor && (
-        <div className="mb-8">
+        <div className="mb-6">
           {!isAdding ? (
             <button 
               onClick={() => {
@@ -616,13 +616,13 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
                 setTitle('');
                 setSectionA(Array.from({ length: isMuni ? 30 : 10 }, () => ({ question: '', options: ['', '', '', ''], answerIndex: 0 })));
               }}
-              className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-indigo-500 text-indigo-600 font-bold rounded-xl shadow-sm hover:bg-indigo-50 transition-colors"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-gray-300 text-gray-700 font-semibold text-xs rounded-lg shadow-xs hover:bg-gray-50 hover:border-gray-400 transition-colors"
             >
-              <Plus size={20} /> Add Pre Assessment Paper
+              <Plus size={15} /> Add Pre Assessment Paper
             </button>
           ) : (
-            <div className="bg-white border-2 border-indigo-500/20 p-6 rounded-2xl shadow-sm relative">
-              <button onClick={() => setIsAdding(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1 bg-gray-50 rounded-full">
+            <div className="bg-white border border-gray-200 p-6 rounded-xl shadow-xs relative">
+              <button onClick={() => setIsAdding(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
                 <X size={18} />
               </button>
               
@@ -631,15 +631,15 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
               <form onSubmit={handleAddExam} className="space-y-6">
                 <div className="flex flex-col md:flex-row gap-4">
                   <div className="flex-1">
-                    <label className="block text-sm font-bold text-gray-700 mb-1">Assessment Title</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Assessment Title</label>
                     <input 
                       type="text" required value={title} onChange={e => setTitle(e.target.value)}
                       placeholder="e.g. Pre Assessment 1"
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500"
+                      className="w-full px-3.5 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-xs shadow-xs"
                     />
                   </div>
                   <div className="flex-1">
-                    <label className="block text-sm font-bold text-gray-700 mb-1">Target Batch</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Target Batch</label>
                     <select 
                       value={targetBatch} 
                       onChange={(e) => {
@@ -671,7 +671,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
                           setSectionA(Array.from({ length: 30 }, () => ({ question: '', options: ['', '', '', ''], answerIndex: 0 })));
                         }
                       }}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-indigo-500 text-sm font-medium"
+                      className="w-full px-3.5 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-xs font-medium shadow-xs"
                     >
                       {isMuni ? (
                         <>
@@ -813,23 +813,23 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
           if (targetProjectBatch) return targetProjectBatch.memberEmails.includes(loggedInEmail);
           return false;
         }).map((exam) => (
-          <div key={exam.id} className="bg-white border-l-4 border-l-indigo-500 border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div key={exam.id} className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
-              <div className="flex items-center gap-3 mb-1">
-                <h3 className="font-bold text-xl text-gray-900">{exam.title}</h3>
+              <div className="flex items-center gap-2.5 mb-1">
+                <h3 className="font-bold text-base text-gray-900">{exam.title}</h3>
                 {isMentor && exam.targetBatch && exam.targetBatch !== 'All Batches' && (
-                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded">{exam.targetBatch}</span>
+                  <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs font-semibold rounded-md border border-gray-200">{exam.targetBatch}</span>
                 )}
               </div>
             </div>
             
-            <div className="w-full md:w-auto flex flex-col md:flex-row items-stretch md:items-center gap-3">
+            <div className="w-full md:w-auto flex flex-wrap items-center gap-2">
               {isMentor ? (
                 <>
                   {isMuni && (
                     exam.isLaunched ? (
                       <div className="flex items-center gap-2">
-                        <span className="px-4 py-2 text-green-700 bg-green-50 border border-green-200 rounded-xl font-bold text-sm text-center">
+                        <span className="px-2.5 py-1 text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md font-semibold text-xs text-center">
                           Launched
                         </span>
                         <button 
@@ -875,7 +875,7 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
                               console.error("Error resetting submissions:", err);
                             });
                           }}
-                          className="px-3 py-1.5 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg font-bold text-xs transition-colors text-center border border-red-200"
+                          className="px-2.5 py-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg font-medium text-xs transition-colors text-center"
                         >
                           Reset Test
                         </button>
@@ -887,13 +887,13 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
                           setExams(updatedExams);
                           await saveToCloudflare('anuragLmsPreAssessmentsData', updatedExams);
                         }}
-                        className="px-4 py-2 text-green-600 bg-green-50 hover:bg-green-100 rounded-xl font-bold text-sm transition-colors text-center"
+                        className="px-3 py-1.5 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg font-medium text-xs transition-colors shadow-xs text-center"
                       >
                         Launch Test
                       </button>
                     )
                   )}
-                  <button onClick={() => handleLoadSubmissionsForExam(exam.id)} className="px-6 py-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl font-bold text-sm transition-colors text-center">
+                  <button onClick={() => handleLoadSubmissionsForExam(exam.id)} className="px-3.5 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-lg font-medium text-xs shadow-xs transition-colors text-center">
                     Evaluate Submissions
                   </button>
                   <button onClick={async () => {
@@ -943,24 +943,24 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
                     })).then(() => {
                       if (onSubmissionChange) onSubmissionChange();
                     }).catch(err => console.error("Error clearing submissions:", err));
-                  }} className="px-4 py-2 text-red-500 bg-red-50 hover:bg-red-100 rounded-xl font-medium text-sm transition-colors text-center">
+                  }} className="px-2.5 py-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg font-medium text-xs transition-colors text-center">
                     Remove
                   </button>
                 </>
               ) : (() => {
                 const foundSub = findSubmissionForExam(submissions, exam);
                 return foundSub ? (
-                  <div className="flex items-center justify-center gap-3">
+                  <div className="flex items-center justify-center gap-2">
                     {foundSub.marks && foundSub.marks?.total !== undefined ? (
                       <button 
                         onClick={() => setViewingReportId(exam.id)}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-green-50 text-green-700 font-bold rounded-xl border border-green-100 shadow-sm hover:bg-green-100 transition-colors"
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-50 text-emerald-700 font-medium text-xs rounded-lg border border-emerald-200 shadow-xs hover:bg-emerald-100 transition-colors"
                       >
-                        <Award size={18}/> View Report (Score: {foundSub.marks!.total}/30)
+                        <Award size={15}/> View Report (Score: {foundSub.marks!.total}/30)
                       </button>
                     ) : (
-                      <span className="flex items-center gap-2 px-6 py-2.5 bg-amber-50 text-amber-700 font-bold rounded-xl border border-amber-200 shadow-sm">
-                        <CheckCircle2 size={18}/> Pending Evaluation
+                      <span className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 font-medium text-xs rounded-lg border border-amber-200 shadow-xs">
+                        <CheckCircle2 size={15}/> Pending Evaluation
                       </span>
                     )}
                   </div>
@@ -971,8 +971,8 @@ export const PreAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail, on
                     setAnsC([]);
                     setAnsD([]);
                     setTakingExamId(exam.id);
-                  }} className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-sm">
-                    <PlayCircle size={18} /> Start Exam
+                  }} className="flex items-center justify-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary-dark text-white font-medium text-xs rounded-lg transition-colors shadow-xs">
+                    <PlayCircle size={15} /> Start Exam
                   </button>
                 );
               })()}

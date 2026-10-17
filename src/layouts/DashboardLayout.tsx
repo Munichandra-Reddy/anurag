@@ -162,8 +162,8 @@ const DashboardLayout: React.FC = () => {
                     onClick={() => setIsAssessmentsExpanded(!isAssessmentsExpanded)}
                     className={cn(
                       "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                      location.pathname.includes('/assessments')
-                        ? "bg-primary/10 text-primary" 
+                      location.pathname.includes('/assessments') && Boolean(location.search.includes('pattern='))
+                        ? "bg-primary/10 text-primary font-semibold" 
                         : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                     )}
                   >
@@ -180,11 +180,15 @@ const DashboardLayout: React.FC = () => {
                         const isSkillTest3 = isMuniStudent && subItem === 'week2';
                         const displayLabel = isSkillTest2 ? 'Skill Test 2' : isSkillTest3 ? 'Skill Test 3' : subItem;
                         const targetPattern = isSkillTest2 ? 'skill_test_2' : isSkillTest3 ? 'skill_test_3' : subItem;
+                        const isSubActive = location.search.includes(encodeURIComponent(targetPattern)) || location.search.includes(targetPattern);
                         return (
                           <button 
                             key={idx} 
                             onClick={() => navigate(`/dashboard/assessments?pattern=${encodeURIComponent(targetPattern)}`)}
-                            className="text-left text-sm font-medium text-gray-500 hover:text-primary cursor-pointer transition-colors"
+                            className={cn(
+                              "text-left text-sm font-medium cursor-pointer transition-colors",
+                              isSubActive ? "text-primary font-bold" : "text-gray-500 hover:text-primary"
+                            )}
                           >
                             {displayLabel}
                           </button>
@@ -201,12 +205,15 @@ const DashboardLayout: React.FC = () => {
                 key={index}
                 to={item.path}
                 end={item.path === '/dashboard'}
-                className={({ isActive }) => cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                  isActive 
-                    ? "bg-primary/10 text-primary" 
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                )}
+                className={({ isActive }) => {
+                  const isCurrentActive = isActive && (item.path !== '/dashboard/assessments' || !location.search.includes('pattern='));
+                  return cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                    isCurrentActive 
+                      ? "bg-primary/10 text-primary font-semibold" 
+                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  );
+                }}
               >
                 {item.icon}
                 {item.title}
