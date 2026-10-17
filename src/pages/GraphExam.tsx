@@ -21,8 +21,41 @@ interface StudentSubmission {
   marks?: string | number;
 }
 
-const INDEX_KEY = 'graphExamIndex_muni';
-const SUB_PREFIX = 'graphExamSub_';
+export type GraphExamNumber = 1 | 2;
+
+export interface ExamConfig {
+  id: GraphExamNumber;
+  title: string;
+  badgeTitle: string;
+  indexKey: string;
+  subPrefix: string;
+  pdfPrefix: string;
+  dictKey: string;
+  marksKey: string;
+}
+
+export const EXAM_CONFIGS: Record<GraphExamNumber, ExamConfig> = {
+  1: {
+    id: 1,
+    title: 'Graph Exam 1',
+    badgeTitle: 'Graph 1 Marks',
+    indexKey: 'graphExamIndex_muni',
+    subPrefix: 'graphExamSub_',
+    pdfPrefix: 'graphExamPdf_',
+    dictKey: 'graphExamSubmissions_muni',
+    marksKey: 'graphExamMarks_muni',
+  },
+  2: {
+    id: 2,
+    title: 'Graph Exam 2',
+    badgeTitle: 'Graph 2 Marks',
+    indexKey: 'graphExam2Index_muni',
+    subPrefix: 'graphExam2Sub_',
+    pdfPrefix: 'graphExam2Pdf_',
+    dictKey: 'graphExam2Submissions_muni',
+    marksKey: 'graphExam2Marks_muni',
+  }
+};
 
 // Helper to compress image files before Base64 encoding
 const compressImageFile = (file: File): Promise<string> => {
@@ -98,8 +131,11 @@ const GraphExam: React.FC = () => {
   const isMentorView = location.pathname.includes('/mentor-dashboard');
   const loggedInEmail = (sessionStorage.getItem('loggedInEmail') || '').toLowerCase().trim();
 
-  // Data states
-  const [submissions, setSubmissions] = useState<Record<string, StudentSubmission>>({});
+  const [activeExam, setActiveExam] = useState<GraphExamNumber>(1);
+
+  // Data states per Exam
+  const [submissions1, setSubmissions1] = useState<Record<string, StudentSubmission>>({});
+  const [submissions2, setSubmissions2] = useState<Record<string, StudentSubmission>>({});
   const [muniStudentsList, setMuniStudentsList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -122,12 +158,20 @@ const GraphExam: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [deletingEmail, setDeletingEmail] = useState<string | null>(null);
 
-  // Marks states
-  const [studentMarksDict, setStudentMarksDict] = useState<Record<string, string | number>>({});
+  // Marks states per Exam
+  const [studentMarksDict1, setStudentMarksDict1] = useState<Record<string, string | number>>({});
+  const [studentMarksDict2, setStudentMarksDict2] = useState<Record<string, string | number>>({});
   const [editingMarks, setEditingMarks] = useState<Record<string, string>>({});
   const [editingMarksMode, setEditingMarksMode] = useState<Record<string, boolean>>({});
   const [savingMarksEmail, setSavingMarksEmail] = useState<string | null>(null);
   const [savedMarksStatus, setSavedMarksStatus] = useState<Record<string, boolean>>({});
+
+  // Dynamic getters based on activeExam
+  const submissions = activeExam === 1 ? submissions1 : submissions2;
+  const setSubmissions = activeExam === 1 ? setSubmissions1 : setSubmissions2;
+  const studentMarksDict = activeExam === 1 ? studentMarksDict1 : studentMarksDict2;
+  const setStudentMarksDict = activeExam === 1 ? setStudentMarksDict1 : setStudentMarksDict2;
+  const currentConfig = EXAM_CONFIGS[activeExam];
 
   // Pre Assessment Marks states
   const [preMarksDict, setPreMarksDict] = useState<Record<string, string | number>>({});
@@ -147,27 +191,39 @@ const GraphExam: React.FC = () => {
     blobUrl?: string;
   } | null>(null);
 
-  // Load Muni students and submissions comprehensively across dictionary, index, and per-student keys
+  // Load Muni students and submissions comprehensively across dictionary, index, and per-student keys for both exams
   const loadData = async () => {
     setIsLoading(true);
     try {
-      // 0. Fetch Marks Dictionary
-      const cloudMarks = await getFromCloudflare('graphExamMarks_muni') || {};
-      const localMarks = JSON.parse(localStorage.getItem('graphExamMarks_muni') || '{}');
-      const combinedMarks = { ...(localMarks || {}), ...(cloudMarks || {}) };
-      setStudentMarksDict(combinedMarks);
+      // 0. Fetch Marks Dictionaries for both Exam 1 & Exam 2
+      const [cloudMarks1, cloudMarks2, cloudPreMarks] = await Promise.all([
+        getFromCloudflare('graphExamMarks_muni'),
+        getFromCloudflare('graphExam2Marks_muni'),
+        getFromCloudflare('preAssessmentManualMarks_muni')
+      ]);
 
-      // 0b. Fetch Pre Assessment Manual Marks Dictionary
-      const cloudPreMarks = await getFromCloudflare('preAssessmentManualMarks_muni') || {};
+      const localMarks1 = JSON.parse(localStorage.getItem('graphExamMarks_muni') || '{}');
+      const combinedMarks1 = { ...(localMarks1 || {}), ...(cloudMarks1 || {}) };
+      setStudentMarksDict1(combinedMarks1);
+
+      const localMarks2 = JSON.parse(localStorage.getItem('graphExam2Marks_muni') || '{}');
+      const combinedMarks2 = { ...(localMarks2 || {}), ...(cloudMarks2 || {}) };
+      setStudentMarksDict2(combinedMarks2);
+
+      // Pre Assessment Manual Marks Dictionary
       const localPreMarks = JSON.parse(localStorage.getItem('preAssessmentManualMarks_muni') || '{}');
       const combinedPreMarks = { ...(localPreMarks || {}), ...(cloudPreMarks || {}) };
       setPreMarksDict(combinedPreMarks);
+
       // 1. Fetch Muni Student List
-      const cloudMuniStudents = await getFromCloudflare('registeredStudents_muni@geonixa.com') || [];
-      const localMuniStudents = JSON.parse(localStorage.getItem('registeredStudents_muni@geonixa.com') || '[]');
+      const [cloudMuniStudents, localMuniStudentsRaw] = await Promise.all([
+        getFromCloudflare('registeredStudents_muni@geonixa.com'),
+        Promise.resolve(localStorage.getItem('registeredStudents_muni@geonixa.com'))
+      ]);
+      const localMuniStudents = JSON.parse(localMuniStudentsRaw || '[]');
 
       const studentMap = new Map();
-      [...MUNI_STUDENTS, ...localMuniStudents, ...cloudMuniStudents].forEach((s: any) => {
+      [...MUNI_STUDENTS, ...localMuniStudents, ...(cloudMuniStudents || [])].forEach((s: any) => {
         if (s && s.email) {
           const cleanEmail = s.email.toLowerCase().trim();
           if (!studentMap.has(cleanEmail)) {
@@ -193,99 +249,107 @@ const GraphExam: React.FC = () => {
       const allList = Array.from(studentMap.values());
       setMuniStudentsList(allList);
 
-      const loadedSubmissions: Record<string, StudentSubmission> = {};
+      const isValidSub = (s: any) => s && s.submittedAt && !s.isDeleted;
 
-      if (!isMentorView && loggedInEmail) {
-        // Student View: Check single student submission document + pdf key + dict key
-        const cleanEmail = loggedInEmail.toLowerCase().trim();
-        const studentSubKey = `${SUB_PREFIX}${cleanEmail}`;
-        const cloudPdfKey = `graphExamPdf_${cleanEmail}`;
+      // Generic loader for an exam config
+      const fetchSubmissionsForConfig = async (config: ExamConfig): Promise<Record<string, StudentSubmission>> => {
+        const loaded: Record<string, StudentSubmission> = {};
 
-        const [cloudSub, cloudPdfSub, cloudDict] = await Promise.all([
-          getFromCloudflare(studentSubKey),
-          getFromCloudflare(cloudPdfKey),
-          getFromCloudflare('graphExamSubmissions_muni')
-        ]);
+        if (!isMentorView && loggedInEmail) {
+          // Student View
+          const cleanEmail = loggedInEmail.toLowerCase().trim();
+          const studentSubKey = `${config.subPrefix}${cleanEmail}`;
+          const cloudPdfKey = `${config.pdfPrefix}${cleanEmail}`;
 
-        const localSubStr = localStorage.getItem(studentSubKey);
-        const localSub = localSubStr ? JSON.parse(localSubStr) : null;
-
-        const localDict = JSON.parse(localStorage.getItem('graphExamSubmissions_muni') || '{}');
-        const combinedDict = { ...(localDict || {}), ...(cloudDict || {}) };
-
-        const dictKey = Object.keys(combinedDict).find(k => k.toLowerCase().trim() === cleanEmail);
-        const dictSub = dictKey ? combinedDict[dictKey] : null;
-
-        const isValidSub = (s: any) => s && s.submittedAt && !s.isDeleted;
-
-        const activeSub = [cloudSub, cloudPdfSub, dictSub, localSub].find(isValidSub);
-
-        if (activeSub) {
-          loadedSubmissions[cleanEmail] = activeSub;
-          try {
-            localStorage.setItem(studentSubKey, JSON.stringify(activeSub));
-          } catch (e) {}
-        } else {
-          try {
-            localStorage.removeItem(studentSubKey);
-            localStorage.removeItem(cloudPdfKey);
-          } catch (e) {}
-        }
-      } else if (isMentorView) {
-        // Mentor View: Fetch dictionary object + index list + per-student keys
-        const [cloudDict, cloudIndex] = await Promise.all([
-          getFromCloudflare('graphExamSubmissions_muni'),
-          getFromCloudflare(INDEX_KEY)
-        ]);
-
-        const localDict = JSON.parse(localStorage.getItem('graphExamSubmissions_muni') || '{}');
-        const localIndex = JSON.parse(localStorage.getItem(INDEX_KEY) || '[]');
-
-        const combinedDict = { ...localDict, ...(cloudDict || {}) };
-
-        // Pre-fill from dictionary object
-        Object.keys(combinedDict).forEach(email => {
-          const clean = email.toLowerCase().trim();
-          const item = combinedDict[email];
-          if (item && item.submittedAt && !item.isDeleted) {
-            loadedSubmissions[clean] = item;
-          }
-        });
-
-        // Collect all emails to check per-student documents
-        const emailsToCheck = new Set<string>([
-          ...Object.keys(combinedDict).map(e => e.toLowerCase().trim()),
-          ...(Array.isArray(cloudIndex) ? cloudIndex : []).map(e => String(e).toLowerCase().trim()),
-          ...(Array.isArray(localIndex) ? localIndex : []).map(e => String(e).toLowerCase().trim()),
-          ...allList.map(s => s.email.toLowerCase().trim())
-        ]);
-
-        // Fetch per-student documents in parallel (both SUB_PREFIX and PDF prefix)
-        const fetchPromises = Array.from(emailsToCheck).map(async (email) => {
-          const k = `${SUB_PREFIX}${email}`;
-          const pdfK = `graphExamPdf_${email}`;
-          
-          const [cloudItem, cloudPdfItem] = await Promise.all([
-            getFromCloudflare(k),
-            getFromCloudflare(pdfK)
+          const [cloudSub, cloudPdfSub, cloudDict] = await Promise.all([
+            getFromCloudflare(studentSubKey),
+            getFromCloudflare(cloudPdfKey),
+            getFromCloudflare(config.dictKey)
           ]);
-          
-          const localItem = JSON.parse(localStorage.getItem(k) || 'null');
-          const item = cloudItem !== null ? cloudItem : (cloudPdfItem !== null ? cloudPdfItem : localItem);
 
-          if (item && item.submittedAt && !item.isDeleted) {
-            if (!loadedSubmissions[email] || (item.fileData && !loadedSubmissions[email].fileData)) {
-              loadedSubmissions[email] = item;
-            }
-          } else if (item && item.isDeleted) {
-            delete loadedSubmissions[email];
+          const localSubStr = localStorage.getItem(studentSubKey);
+          const localSub = localSubStr ? JSON.parse(localSubStr) : null;
+
+          const localDict = JSON.parse(localStorage.getItem(config.dictKey) || '{}');
+          const combinedDict = { ...(localDict || {}), ...(cloudDict || {}) };
+
+          const dictKey = Object.keys(combinedDict).find(k => k.toLowerCase().trim() === cleanEmail);
+          const dictSub = dictKey ? combinedDict[dictKey] : null;
+
+          const activeSub = [cloudSub, cloudPdfSub, dictSub, localSub].find(isValidSub);
+
+          if (activeSub) {
+            loaded[cleanEmail] = activeSub;
+            try {
+              localStorage.setItem(studentSubKey, JSON.stringify(activeSub));
+            } catch (e) {}
+          } else {
+            try {
+              localStorage.removeItem(studentSubKey);
+              localStorage.removeItem(cloudPdfKey);
+            } catch (e) {}
           }
-        });
+        } else if (isMentorView) {
+          // Mentor View
+          const [cloudDict, cloudIndex] = await Promise.all([
+            getFromCloudflare(config.dictKey),
+            getFromCloudflare(config.indexKey)
+          ]);
 
-        await Promise.all(fetchPromises);
-      }
+          const localDict = JSON.parse(localStorage.getItem(config.dictKey) || '{}');
+          const localIndex = JSON.parse(localStorage.getItem(config.indexKey) || '[]');
+          const combinedDict = { ...localDict, ...(cloudDict || {}) };
 
-      setSubmissions(loadedSubmissions);
+          Object.keys(combinedDict).forEach(email => {
+            const clean = email.toLowerCase().trim();
+            const item = combinedDict[email];
+            if (isValidSub(item)) {
+              loaded[clean] = item;
+            }
+          });
+
+          const emailsToCheck = new Set<string>([
+            ...Object.keys(combinedDict).map(e => e.toLowerCase().trim()),
+            ...(Array.isArray(cloudIndex) ? cloudIndex : []).map(e => String(e).toLowerCase().trim()),
+            ...(Array.isArray(localIndex) ? localIndex : []).map(e => String(e).toLowerCase().trim()),
+            ...allList.map(s => s.email.toLowerCase().trim())
+          ]);
+
+          const fetchPromises = Array.from(emailsToCheck).map(async (email) => {
+            const k = `${config.subPrefix}${email}`;
+            const pdfK = `${config.pdfPrefix}${email}`;
+            
+            const [cloudItem, cloudPdfItem] = await Promise.all([
+              getFromCloudflare(k),
+              getFromCloudflare(pdfK)
+            ]);
+            
+            const localItem = JSON.parse(localStorage.getItem(k) || 'null');
+            const item = cloudItem !== null ? cloudItem : (cloudPdfItem !== null ? cloudPdfItem : localItem);
+
+            if (isValidSub(item)) {
+              if (!loaded[email] || (item.fileData && !loaded[email].fileData)) {
+                loaded[email] = item;
+              }
+            } else if (item && item.isDeleted) {
+              delete loaded[email];
+            }
+          });
+
+          await Promise.all(fetchPromises);
+        }
+
+        return loaded;
+      };
+
+      // Load both Exam 1 and Exam 2 in parallel
+      const [subs1, subs2] = await Promise.all([
+        fetchSubmissionsForConfig(EXAM_CONFIGS[1]),
+        fetchSubmissionsForConfig(EXAM_CONFIGS[2])
+      ]);
+
+      setSubmissions1(subs1);
+      setSubmissions2(subs2);
     } catch (err) {
       console.error("Failed to load Graph Exam data:", err);
     } finally {
@@ -387,14 +451,22 @@ const GraphExam: React.FC = () => {
         isDeleted: false
       };
 
-      const studentSubKey = `${SUB_PREFIX}${loggedInEmail}`;
-      const pdfSubKey = `graphExamPdf_${loggedInEmail}`;
+      const config = EXAM_CONFIGS[activeExam];
+      const studentSubKey = `${config.subPrefix}${loggedInEmail}`;
+      const pdfSubKey = `${config.pdfPrefix}${loggedInEmail}`;
 
       // 1. Update react state immediately for instant feedback
-      setSubmissions(prev => ({
-        ...prev,
-        [loggedInEmail]: newSubmission
-      }));
+      if (activeExam === 1) {
+        setSubmissions1(prev => ({
+          ...prev,
+          [loggedInEmail]: newSubmission
+        }));
+      } else {
+        setSubmissions2(prev => ({
+          ...prev,
+          [loggedInEmail]: newSubmission
+        }));
+      }
 
       // 2. Safe LocalStorage save (QuotaExceededError safety wrapper)
       try {
@@ -410,9 +482,9 @@ const GraphExam: React.FC = () => {
         await replaceInCloudflare(studentSubKey, newSubmission);
         await replaceInCloudflare(pdfSubKey, newSubmission);
 
-        // Also update graphExamSubmissions_muni (combined dictionary)
-        const cloudDict = await getFromCloudflare('graphExamSubmissions_muni') || {};
-        const localDict = JSON.parse(localStorage.getItem('graphExamSubmissions_muni') || '{}');
+        // Also update combined dictionary
+        const cloudDict = await getFromCloudflare(config.dictKey) || {};
+        const localDict = JSON.parse(localStorage.getItem(config.dictKey) || '{}');
         const updatedDict = { ...localDict, ...(cloudDict || {}), [loggedInEmail]: newSubmission };
         
         try {
@@ -420,22 +492,22 @@ const GraphExam: React.FC = () => {
           Object.keys(updatedDict).forEach(k => {
             lightDict[k] = { ...updatedDict[k], fileData: '' };
           });
-          localStorage.setItem('graphExamSubmissions_muni', JSON.stringify(lightDict));
+          localStorage.setItem(config.dictKey, JSON.stringify(lightDict));
         } catch (e) {}
         
-        await replaceInCloudflare('graphExamSubmissions_muni', updatedDict);
+        await replaceInCloudflare(config.dictKey, updatedDict);
 
-        // Also update graphExamIndex_muni (index array)
-        const cloudIndex = await getFromCloudflare(INDEX_KEY) || [];
-        const localIndex = JSON.parse(localStorage.getItem(INDEX_KEY) || '[]');
+        // Also update index array
+        const cloudIndex = await getFromCloudflare(config.indexKey) || [];
+        const localIndex = JSON.parse(localStorage.getItem(config.indexKey) || '[]');
         const indexSet = new Set<string>([...(Array.isArray(cloudIndex) ? cloudIndex : []), ...localIndex, loggedInEmail]);
         const updatedIndex = Array.from(indexSet);
 
         try {
-          localStorage.setItem(INDEX_KEY, JSON.stringify(updatedIndex));
+          localStorage.setItem(config.indexKey, JSON.stringify(updatedIndex));
         } catch (e) {}
 
-        await replaceInCloudflare(INDEX_KEY, updatedIndex);
+        await replaceInCloudflare(config.indexKey, updatedIndex);
       } catch (cloudErr) {
         console.error("Cloud sync notice:", cloudErr);
       }
@@ -463,8 +535,9 @@ const GraphExam: React.FC = () => {
 
     setDeletingEmail(studentEmail);
     try {
-      const studentSubKey = `${SUB_PREFIX}${studentEmail}`;
-      const pdfSubKey = `graphExamPdf_${studentEmail}`;
+      const config = EXAM_CONFIGS[activeExam];
+      const studentSubKey = `${config.subPrefix}${studentEmail}`;
+      const pdfSubKey = `${config.pdfPrefix}${studentEmail}`;
       const deletedObj = { isDeleted: true, deletedAt: Date.now() };
 
       try {
@@ -475,33 +548,41 @@ const GraphExam: React.FC = () => {
       await replaceInCloudflare(studentSubKey, deletedObj);
       await replaceInCloudflare(pdfSubKey, deletedObj);
 
-      const cloudDict = await getFromCloudflare('graphExamSubmissions_muni') || {};
-      const localDict = JSON.parse(localStorage.getItem('graphExamSubmissions_muni') || '{}');
+      const cloudDict = await getFromCloudflare(config.dictKey) || {};
+      const localDict = JSON.parse(localStorage.getItem(config.dictKey) || '{}');
       const updatedDict = { ...localDict, ...(cloudDict || {}) };
       delete updatedDict[studentEmail];
 
       try {
-        localStorage.setItem('graphExamSubmissions_muni', JSON.stringify(updatedDict));
+        localStorage.setItem(config.dictKey, JSON.stringify(updatedDict));
       } catch (e) {}
 
-      await replaceInCloudflare('graphExamSubmissions_muni', updatedDict);
+      await replaceInCloudflare(config.dictKey, updatedDict);
 
-      const cloudIndex = await getFromCloudflare(INDEX_KEY) || [];
-      const localIndex = JSON.parse(localStorage.getItem(INDEX_KEY) || '[]');
+      const cloudIndex = await getFromCloudflare(config.indexKey) || [];
+      const localIndex = JSON.parse(localStorage.getItem(config.indexKey) || '[]');
       const updatedIndex = Array.from(new Set([...(Array.isArray(cloudIndex) ? cloudIndex : []), ...localIndex]))
         .filter(email => email !== studentEmail);
 
       try {
-        localStorage.setItem(INDEX_KEY, JSON.stringify(updatedIndex));
+        localStorage.setItem(config.indexKey, JSON.stringify(updatedIndex));
       } catch (e) {}
 
-      await replaceInCloudflare(INDEX_KEY, updatedIndex);
+      await replaceInCloudflare(config.indexKey, updatedIndex);
 
-      setSubmissions(prev => {
-        const updated = { ...prev };
-        delete updated[studentEmail];
-        return updated;
-      });
+      if (activeExam === 1) {
+        setSubmissions1(prev => {
+          const updated = { ...prev };
+          delete updated[studentEmail];
+          return updated;
+        });
+      } else {
+        setSubmissions2(prev => {
+          const updated = { ...prev };
+          delete updated[studentEmail];
+          return updated;
+        });
+      }
     } catch (err) {
       console.error("Failed to delete submission:", err);
       alert("Failed to delete submission. Please try again.");
@@ -520,18 +601,23 @@ const GraphExam: React.FC = () => {
     setSavingMarksEmail(cleanEmail);
 
     try {
+      const config = EXAM_CONFIGS[activeExam];
       // 1. Update marks dictionary state & local/cloud storage
-      const localMarks = JSON.parse(localStorage.getItem('graphExamMarks_muni') || '{}');
-      const cloudMarks = await getFromCloudflare('graphExamMarks_muni') || {};
+      const localMarks = JSON.parse(localStorage.getItem(config.marksKey) || '{}');
+      const cloudMarks = await getFromCloudflare(config.marksKey) || {};
       const updatedMarks = { ...(localMarks || {}), ...(cloudMarks || {}), [cleanEmail]: markVal };
 
-      setStudentMarksDict(updatedMarks);
+      if (activeExam === 1) {
+        setStudentMarksDict1(updatedMarks);
+      } else {
+        setStudentMarksDict2(updatedMarks);
+      }
 
       try {
-        localStorage.setItem('graphExamMarks_muni', JSON.stringify(updatedMarks));
+        localStorage.setItem(config.marksKey, JSON.stringify(updatedMarks));
       } catch (e) {}
 
-      await replaceInCloudflare('graphExamMarks_muni', updatedMarks);
+      await replaceInCloudflare(config.marksKey, updatedMarks);
 
       // 2. If student submission exists, update submission object with marks as well
       if (submissions[cleanEmail]) {
@@ -540,13 +626,20 @@ const GraphExam: React.FC = () => {
           marks: markVal
         };
 
-        setSubmissions(prev => ({
-          ...prev,
-          [cleanEmail]: updatedSub
-        }));
+        if (activeExam === 1) {
+          setSubmissions1(prev => ({
+            ...prev,
+            [cleanEmail]: updatedSub
+          }));
+        } else {
+          setSubmissions2(prev => ({
+            ...prev,
+            [cleanEmail]: updatedSub
+          }));
+        }
 
-        const studentSubKey = `${SUB_PREFIX}${cleanEmail}`;
-        const pdfSubKey = `graphExamPdf_${cleanEmail}`;
+        const studentSubKey = `${config.subPrefix}${cleanEmail}`;
+        const pdfSubKey = `${config.pdfPrefix}${cleanEmail}`;
 
         try {
           localStorage.setItem(studentSubKey, JSON.stringify(updatedSub));
@@ -556,16 +649,16 @@ const GraphExam: React.FC = () => {
         await replaceInCloudflare(studentSubKey, updatedSub);
         await replaceInCloudflare(pdfSubKey, updatedSub);
 
-        // Also update graphExamSubmissions_muni dictionary
-        const cloudDict = await getFromCloudflare('graphExamSubmissions_muni') || {};
-        const localDict = JSON.parse(localStorage.getItem('graphExamSubmissions_muni') || '{}');
+        // Also update combined dictionary
+        const cloudDict = await getFromCloudflare(config.dictKey) || {};
+        const localDict = JSON.parse(localStorage.getItem(config.dictKey) || '{}');
         const updatedDict = { ...(localDict || {}), ...(cloudDict || {}), [cleanEmail]: updatedSub };
 
         try {
-          localStorage.setItem('graphExamSubmissions_muni', JSON.stringify(updatedDict));
+          localStorage.setItem(config.dictKey, JSON.stringify(updatedDict));
         } catch (e) {}
 
-        await replaceInCloudflare('graphExamSubmissions_muni', updatedDict);
+        await replaceInCloudflare(config.dictKey, updatedDict);
       }
 
       setSavedMarksStatus(prev => ({ ...prev, [cleanEmail]: true }));
@@ -647,10 +740,11 @@ const GraphExam: React.FC = () => {
     if (!currentSub.fileData || currentSub.fileData.length < 20) {
       try {
         const studentEmail = currentSub.studentEmail.toLowerCase().trim();
+        const config = EXAM_CONFIGS[activeExam];
         const [cloudSub, cloudPdf, cloudDict] = await Promise.all([
-          getFromCloudflare(`${SUB_PREFIX}${studentEmail}`),
-          getFromCloudflare(`graphExamPdf_${studentEmail}`),
-          getFromCloudflare('graphExamSubmissions_muni')
+          getFromCloudflare(`${config.subPrefix}${studentEmail}`),
+          getFromCloudflare(`${config.pdfPrefix}${studentEmail}`),
+          getFromCloudflare(config.dictKey)
         ]);
         const fetched = (cloudSub && cloudSub.fileData) 
           ? cloudSub 
@@ -660,10 +754,17 @@ const GraphExam: React.FC = () => {
 
         if (fetched && fetched.fileData) {
           currentSub = { ...currentSub, ...fetched };
-          setSubmissions(prev => ({
-            ...prev,
-            [studentEmail]: currentSub
-          }));
+          if (activeExam === 1) {
+            setSubmissions1(prev => ({
+              ...prev,
+              [studentEmail]: currentSub
+            }));
+          } else {
+            setSubmissions2(prev => ({
+              ...prev,
+              [studentEmail]: currentSub
+            }));
+          }
         }
       } catch (err) {
         console.error("Failed to load missing fileData:", err);
@@ -725,11 +826,88 @@ const GraphExam: React.FC = () => {
   });
 
   const totalMuniCount = muniStudentsList.length;
-  const completedMuniCount = Object.keys(submissions).filter(email => muniStudentsList.some(s => s.email.toLowerCase().trim() === email.toLowerCase().trim())).length;
-  const pendingMuniCount = Math.max(0, totalMuniCount - completedMuniCount);
+  const completedCount1 = Object.keys(submissions1).filter(email => muniStudentsList.some(s => s.email.toLowerCase().trim() === email.toLowerCase().trim())).length;
+  const pendingCount1 = Math.max(0, totalMuniCount - completedCount1);
+  const completedCount2 = Object.keys(submissions2).filter(email => muniStudentsList.some(s => s.email.toLowerCase().trim() === email.toLowerCase().trim())).length;
+  const pendingCount2 = Math.max(0, totalMuniCount - completedCount2);
+
+  const completedMuniCount = activeExam === 1 ? completedCount1 : completedCount2;
+  const pendingMuniCount = activeExam === 1 ? pendingCount1 : pendingCount2;
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 pb-12">
+      {/* Exam Switcher Tabs */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-gray-200 shadow-xs">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={() => { setActiveExam(1); setSubmitSuccess(''); setSubmitError(''); }}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-2.5 px-6 py-3 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+              activeExam === 1 
+                ? 'bg-primary text-white shadow-md' 
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+            }`}
+          >
+            <FileText size={18} />
+            <span>Graph Exam 1</span>
+            {isMentorView ? (
+              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                activeExam === 1 ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-700'
+              }`}>
+                {completedCount1} / {totalMuniCount}
+              </span>
+            ) : (
+              submissions1[loggedInEmail] ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                  <CheckCircle2 size={12} /> Completed
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                  <Clock size={12} /> Pending
+                </span>
+              )
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { setActiveExam(2); setSubmitSuccess(''); setSubmitError(''); }}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-2.5 px-6 py-3 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+              activeExam === 2 
+                ? 'bg-primary text-white shadow-md' 
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+            }`}
+          >
+            <FileText size={18} />
+            <span>Graph Exam 2</span>
+            {isMentorView ? (
+              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                activeExam === 2 ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-700'
+              }`}>
+                {completedCount2} / {totalMuniCount}
+              </span>
+            ) : (
+              submissions2[loggedInEmail] ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                  <CheckCircle2 size={12} /> Completed
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                  <Clock size={12} /> Pending
+                </span>
+              )
+            )}
+          </button>
+        </div>
+
+        <div className="hidden sm:flex items-center gap-2 text-xs text-gray-500 font-medium px-2">
+          <span>Active View:</span>
+          <span className="font-bold text-gray-800 bg-gray-100 px-2.5 py-1 rounded-lg">
+            {currentConfig.title}
+          </span>
+        </div>
+      </div>
+
       {/* Header Banner */}
       <div className="bg-gradient-to-r from-red-950 via-primary to-red-900 p-6 md:p-8 rounded-3xl text-white shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4 relative overflow-hidden">
         <div className="space-y-1 relative z-10">
@@ -738,12 +916,12 @@ const GraphExam: React.FC = () => {
           </div>
           <h1 className="text-2xl md:text-3xl font-extrabold flex items-center gap-3">
             <FileText size={32} />
-            Graph Exam 1
+            {currentConfig.title}
           </h1>
           <p className="text-red-100 text-sm max-w-xl">
             {isMentorView 
-              ? "View and manage Graph Exam 1 lab answer screenshots/PDFs submitted by Muni Mentor students." 
-              : "Upload your question answer (Screenshot or PDF) for Graph Exam 1."}
+              ? `View and manage ${currentConfig.title} lab answer screenshots/PDFs submitted by Muni Mentor students.` 
+              : `Upload your question answer (Screenshot or PDF) for ${currentConfig.title}.`}
           </p>
         </div>
       </div>
@@ -764,7 +942,7 @@ const GraphExam: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-gray-100">
               <div className="space-y-1">
                 <div className="flex items-center gap-3">
-                  <h2 className="text-xl font-bold text-gray-900">Graph Exam 1</h2>
+                  <h2 className="text-xl font-bold text-gray-900">{currentConfig.title}</h2>
                   {isMyExamCompleted ? (
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">
                       <CheckCircle2 size={14} /> Completed
@@ -806,7 +984,7 @@ const GraphExam: React.FC = () => {
                 <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-2xl flex items-start gap-3">
                   <CheckCircle2 size={20} className="text-emerald-600 shrink-0 mt-0.5" />
                   <div className="text-sm">
-                    <p className="font-bold text-emerald-900">Your Graph Exam 1 answer has been submitted!</p>
+                    <p className="font-bold text-emerald-900">Your {currentConfig.title} answer has been submitted!</p>
                     <p className="text-xs text-emerald-700 mt-0.5">
                       Muni Mentor can view your submitted answer. If your mentor deletes your submission, your status will revert to Pending so you can re-submit.
                     </p>
@@ -845,7 +1023,7 @@ const GraphExam: React.FC = () => {
                 <AlertCircle size={36} className="text-amber-500 mx-auto" />
                 <h3 className="text-base font-bold text-amber-900">Lab Exam Submission Pending</h3>
                 <p className="text-xs text-amber-700 max-w-md mx-auto">
-                  You have not submitted Graph Exam 1 yet. Click the <strong>Submit Answers</strong> button above to select your question number and upload your answer screenshot or PDF file.
+                  You have not submitted {currentConfig.title} yet. Click the <strong>Submit Answers</strong> button above to select your question number and upload your answer screenshot or PDF file.
                 </p>
               </div>
             )}
@@ -864,7 +1042,7 @@ const GraphExam: React.FC = () => {
                         <Award size={24} />
                       </div>
                       <div>
-                        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Graph 1 Marks</h4>
+                        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">{currentConfig.badgeTitle}</h4>
                         <div className="flex items-center gap-2 mt-0.5">
                           {hasMarks ? (
                             <span className="text-xl font-black text-gray-900 flex items-center gap-1.5">
@@ -933,7 +1111,7 @@ const GraphExam: React.FC = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-gray-100">
               <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                 <FileCheck className="text-primary" size={20} />
-                Graph Exam 1 Student Submissions Table
+                {currentConfig.title} Student Submissions Table
               </h2>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -997,7 +1175,7 @@ const GraphExam: React.FC = () => {
                     <th className="py-3.5 px-4">Question Number</th>
                     <th className="py-3.5 px-4">Answers (PDF / Screenshot)</th>
                     <th className="py-3.5 px-4">Status</th>
-                    <th className="py-3.5 px-4">Graph 1 Marks</th>
+                    <th className="py-3.5 px-4">{currentConfig.badgeTitle}</th>
                     <th className="py-3.5 px-4">Pre Assessment Marks</th>
                     <th className="py-3.5 px-4 text-center">Action</th>
                   </tr>
@@ -1236,7 +1414,7 @@ const GraphExam: React.FC = () => {
           >
             <div className="flex items-center justify-between border-b border-gray-100 pb-4">
               <div>
-                <h3 className="text-xl font-bold text-gray-900">Submit Answers</h3>
+                <h3 className="text-xl font-bold text-gray-900">Submit Answers - {currentConfig.title}</h3>
                 <p className="text-xs text-gray-500">Select question number and upload answer screenshot or PDF.</p>
               </div>
               <button 

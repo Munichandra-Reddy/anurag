@@ -15,7 +15,8 @@ export interface ConductedExam {
 }
 
 const DEFAULT_CONDUCTED_EXAMS: ConductedExam[] = [
-  { id: 'graph_exam', title: 'Graph Exam', category: 'graph', maxMarks: 20 },
+  { id: 'graph_exam', title: 'Graph Exam 1', category: 'graph', maxMarks: 20 },
+  { id: 'graph_exam_2', title: 'Graph Exam 2', category: 'graph', maxMarks: 20 },
   { id: 'pre_assessment', title: 'Pre Assessment', category: 'pre', maxMarks: 30 },
   { id: 'skill_test_2', title: 'Skill Test 2', category: 'weekly', maxMarks: 20 }
 ];
@@ -55,7 +56,7 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed.conductedExams) && parsed.conductedExams.length > 0) {
           return parsed.conductedExams.map((e: ConductedExam) => {
-            if (e.id === 'graph_exam') return { ...e, maxMarks: 20 };
+            if (e.id === 'graph_exam' || e.id === 'graph_exam_2') return { ...e, maxMarks: 20 };
             if (e.id === 'pre_assessment') return { ...e, maxMarks: 30 };
             return e;
           });
@@ -96,7 +97,7 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
           setStudents(snapshot.students || []);
           setMarksData(snapshot.marksData || {});
           const snapExams = (snapshot.conductedExams || DEFAULT_CONDUCTED_EXAMS).map((e: ConductedExam) => {
-            if (e.id === 'graph_exam') return { ...e, maxMarks: 20 };
+            if (e.id === 'graph_exam' || e.id === 'graph_exam_2') return { ...e, maxMarks: 20 };
             if (e.id === 'pre_assessment') return { ...e, maxMarks: 30 };
             return e;
           });
@@ -117,6 +118,7 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
       const [
         cloudStudents,
         cloudGraphMarks,
+        cloudGraph2Marks,
         cloudPreMarks,
         cloudExams,
         cloudSnap1,
@@ -124,6 +126,7 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
       ] = await Promise.all([
         getFromCloudflare(studentsKey),
         getFromCloudflare('graphExamMarks_muni'),
+        getFromCloudflare('graphExam2Marks_muni'),
         getFromCloudflare('preAssessmentManualMarks_muni'),
         getFromCloudflare(examsKey) || (userIsMuni ? getFromCloudflare('anuragLmsWeeklyExams_muni@geonixa.com') : Promise.resolve(null)),
         getFromCloudflare('facultySnapshotMarks'),
@@ -133,10 +136,12 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
 
       const localStudents = JSON.parse(localStorage.getItem(studentsKey) || '[]');
       const localGraphMarks = JSON.parse(localStorage.getItem('graphExamMarks_muni') || '{}');
+      const localGraph2Marks = JSON.parse(localStorage.getItem('graphExam2Marks_muni') || '{}');
       const localPreMarks = JSON.parse(localStorage.getItem('preAssessmentManualMarks_muni') || '{}');
       const localExams = JSON.parse(localStorage.getItem(examsKey) || (userIsMuni ? localStorage.getItem('anuragLmsWeeklyExams_muni@geonixa.com') : null) || '[]');
 
       const mergedGraphMarks = { ...(localGraphMarks || {}), ...(cloudGraphMarks || {}) };
+      const mergedGraph2Marks = { ...(localGraph2Marks || {}), ...(cloudGraph2Marks || {}) };
       const mergedPreMarks = { ...(localPreMarks || {}), ...(cloudPreMarks || {}) };
 
       // 3. Assemble complete student list with Roll Numbers & Batches
@@ -175,7 +180,8 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
 
       // 4. Assemble dynamic list of conducted exams
       const examList: ConductedExam[] = [
-        { id: 'graph_exam', title: 'Graph Exam', category: 'graph', maxMarks: 20 },
+        { id: 'graph_exam', title: 'Graph Exam 1', category: 'graph', maxMarks: 20 },
+        { id: 'graph_exam_2', title: 'Graph Exam 2', category: 'graph', maxMarks: 20 },
         { id: 'pre_assessment', title: 'Pre Assessment', category: 'pre', maxMarks: 30 },
         { id: 'skill_test_2', title: 'Skill Test 2', category: 'weekly', maxMarks: 20 }
       ];
@@ -215,11 +221,15 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
         const sEmail = (student.email || '').toLowerCase().trim();
         allMarks[sEmail] = {};
 
-        // (a) Graph Exam (Instant from memory dictionary!)
+        // (a) Graph Exam 1 (Instant from memory dictionary!)
         const graphVal = mergedGraphMarks[sEmail];
         allMarks[sEmail]['graph_exam'] = (graphVal !== undefined && graphVal !== null && graphVal !== '') ? graphVal : '-';
 
-        // (b) Pre Assessment (Instant from memory dictionary!)
+        // (b) Graph Exam 2 (Instant from memory dictionary!)
+        const graph2Val = mergedGraph2Marks[sEmail];
+        allMarks[sEmail]['graph_exam_2'] = (graph2Val !== undefined && graph2Val !== null && graph2Val !== '') ? graph2Val : '-';
+
+        // (c) Pre Assessment (Instant from memory dictionary!)
         const preVal = mergedPreMarks[sEmail];
         allMarks[sEmail]['pre_assessment'] = (preVal !== undefined && preVal !== null && preVal !== '') ? preVal : '-';
       });

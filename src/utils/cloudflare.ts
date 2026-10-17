@@ -155,7 +155,9 @@ export const cleanBloatedLocalStorage = () => {
             val.includes('data:application/pdf') ||
             val.includes('base64') ||
             key.startsWith('graphExamSub_') ||
+            key.startsWith('graphExam2Sub_') ||
             key === 'graphExamSubmissions_muni' ||
+            key === 'graphExam2Submissions_muni' ||
             key.startsWith('anuragLmsCourses_')
           ) {
             keysToRemove.push(key);

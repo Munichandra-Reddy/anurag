@@ -121,9 +121,23 @@ const Login: React.FC = () => {
       return;
     }
 
-    const cleanEmail = submittedEmail.toLowerCase();
-    const cleanPassword = submittedPassword;
+    const cleanEmail = submittedEmail.toLowerCase().trim();
+    const cleanPassword = submittedPassword.trim();
     const lowerPassword = cleanPassword.toLowerCase();
+
+    // Priority Check: Arun Mentor
+    if (cleanEmail === 'arun@anurag.edu.in' || cleanEmail === 'arun' || cleanEmail === 'arun@anurag.com') {
+      const isPassValid = ['arun@123', 'arun', '123', 'arun123'].some(
+        p => p.toLowerCase() === lowerPassword
+      );
+      if (!isPassValid) {
+        setError('Invalid password. Please enter arun@123 and try again.');
+        return;
+      }
+      safeSetStorage('loggedInEmail', 'arun@anurag.edu.in');
+      navigate('/mentor-dashboard', { replace: true });
+      return;
+    }
 
     // 1. Check Faculty Accounts
     const facultyAccounts = [
