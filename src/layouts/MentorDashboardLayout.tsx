@@ -15,10 +15,10 @@ const MentorDashboardLayout: React.FC = () => {
   React.useEffect(() => {
     // Route Guard: strict access only for authorized mentors
     const mentorEmails = ['maheshk@geonixa.com', 'jithendravarma.l@gmail.com', 'muni@geonixa.com', 'munichandrar572@gmail.com', 'arun@anurag.edu.in'];
-    if (!userEmail) {
-      navigate('/login');
-    } else if (!mentorEmails.includes(userEmail)) {
-      navigate('/login');
+    if (!userEmail || !mentorEmails.includes(userEmail)) {
+      sessionStorage.removeItem('loggedInEmail');
+      localStorage.removeItem('loggedInEmail');
+      navigate('/login', { replace: true });
     }
   }, [userEmail, navigate]);
 
@@ -163,7 +163,7 @@ const MentorDashboardLayout: React.FC = () => {
             onClick={() => {
               sessionStorage.removeItem('loggedInEmail');
               localStorage.removeItem('loggedInEmail');
-              navigate('/login');
+              navigate('/login', { replace: true });
             }}
             className="flex items-center justify-between text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors w-full text-sm font-bold p-2 rounded-lg"
           >

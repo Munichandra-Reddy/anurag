@@ -40,21 +40,26 @@ const Login: React.FC = () => {
     cleanBloatedLocalStorage();
 
     const rawEmail = safeGetStorage('loggedInEmail');
-    if (rawEmail) {
+    if (rawEmail && rawEmail !== 'null' && rawEmail !== 'undefined' && rawEmail.trim().length > 0) {
       const loggedInEmail = rawEmail.toLowerCase().trim();
       const facultyEmails = ['munidhoni@72', 'naveence@anurag.edu.in', 'shekarreddyce@anurag.edu.in', 'hodce@anurag.edu.in'];
+      const mentorEmails = [
+        'maheshk@geonixa.com', 
+        'jithendravarma.l@gmail.com', 
+        'muni@geonixa.com', 
+        'munichandrar572@gmail.com', 
+        'arun@anurag.edu.in'
+      ];
+
       if (facultyEmails.includes(loggedInEmail)) {
         navigate('/faculty-dashboard', { replace: true });
-      } else if (
-        loggedInEmail === 'maheshk@geonixa.com' || 
-        loggedInEmail === 'jithendravarma.l@gmail.com' ||
-        loggedInEmail === 'muni@geonixa.com' ||
-        loggedInEmail === 'munichandrar572@gmail.com' ||
-        loggedInEmail === 'arun@anurag.edu.in'
-      ) {
+      } else if (mentorEmails.includes(loggedInEmail)) {
         navigate('/mentor-dashboard', { replace: true });
-      } else {
+      } else if (loggedInEmail.includes('@anurag') || loggedInEmail === 'raju@anurag.com') {
         navigate('/dashboard', { replace: true });
+      } else {
+        sessionStorage.removeItem('loggedInEmail');
+        localStorage.removeItem('loggedInEmail');
       }
     }
   }, [navigate]);

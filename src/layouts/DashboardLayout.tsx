@@ -20,7 +20,7 @@ const getInitials = (name: string) => {
 const DashboardLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const userEmail = sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail') || '';
+  const userEmail = (sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail') || '').toLowerCase().trim();
   const profileKey = `anuragLmsProfile_${userEmail}`;
   const [profile, setProfile] = useState<any>(null);
 
@@ -83,11 +83,16 @@ const DashboardLayout: React.FC = () => {
 
   React.useEffect(() => {
     // Route Guard: strict access only for logged in users
-    const mentorEmails = ['maheshk@geonixa.com', 'jithendravarma.l@gmail.com', 'muni@geonixa.com'];
+    const mentorEmails = ['maheshk@geonixa.com', 'jithendravarma.l@gmail.com', 'muni@geonixa.com', 'munichandrar572@gmail.com', 'arun@anurag.edu.in'];
+    const facultyEmails = ['munidhoni@72', 'naveence@anurag.edu.in', 'shekarreddyce@anurag.edu.in', 'hodce@anurag.edu.in'];
     if (!userEmail) {
-      navigate('/login');
+      sessionStorage.removeItem('loggedInEmail');
+      localStorage.removeItem('loggedInEmail');
+      navigate('/login', { replace: true });
     } else if (mentorEmails.includes(userEmail)) {
-      navigate('/mentor-dashboard');
+      navigate('/mentor-dashboard', { replace: true });
+    } else if (facultyEmails.includes(userEmail)) {
+      navigate('/faculty-dashboard', { replace: true });
     }
   }, [userEmail, navigate]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -242,7 +247,7 @@ const DashboardLayout: React.FC = () => {
             onClick={() => {
               sessionStorage.removeItem('loggedInEmail');
               localStorage.removeItem('loggedInEmail');
-              navigate('/login');
+              navigate('/login', { replace: true });
             }}
             className="flex items-center justify-between text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors w-full text-sm font-bold p-2 rounded-lg"
           >

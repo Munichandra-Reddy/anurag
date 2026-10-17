@@ -8,13 +8,15 @@ import { cn } from '../utils/cn';
 const FacultyDashboardLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const userEmail = sessionStorage.getItem('loggedInEmail') || '';
+  const userEmail = (sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail') || '').toLowerCase().trim();
 
   React.useEffect(() => {
     // Route Guard: strict access only for faculty
     const facultyEmails = ['munidhoni@72', 'naveence@anurag.edu.in', 'shekarreddyce@anurag.edu.in', 'hodce@anurag.edu.in'];
     if (!facultyEmails.includes(userEmail)) {
-      navigate('/login');
+      sessionStorage.removeItem('loggedInEmail');
+      localStorage.removeItem('loggedInEmail');
+      navigate('/login', { replace: true });
     }
   }, [userEmail, navigate]);
 
@@ -90,7 +92,8 @@ const FacultyDashboardLayout: React.FC = () => {
           <button 
             onClick={() => {
               sessionStorage.removeItem('loggedInEmail');
-              navigate('/login');
+              localStorage.removeItem('loggedInEmail');
+              navigate('/login', { replace: true });
             }}
             className="flex items-center gap-2 text-gray-600 hover:text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg w-full transition-colors text-sm font-medium"
           >
