@@ -853,33 +853,32 @@ const GraphExam: React.FC = () => {
         </div>
 
         {/* Professional Exam Switcher Tabs */}
-        <div className="flex items-center gap-1.5 bg-gray-100 p-1 rounded-lg border border-gray-200 self-start sm:self-auto">
+        <div className="flex items-center gap-1.5 bg-gray-100 p-1 rounded-lg border border-gray-200 self-start sm:self-auto shrink-0 whitespace-nowrap">
           <button
             type="button"
             onClick={() => { setActiveExam(1); setSubmitSuccess(''); setSubmitError(''); }}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               activeExam === 1 
                 ? 'bg-primary text-white shadow-xs' 
                 : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
             }`}
           >
-            <FileText size={15} />
             <span>Graph Exam 1</span>
             {isMentorView ? (
-              <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
+              <span className={`px-2 py-0.5 rounded text-[11px] font-semibold whitespace-nowrap ${
                 activeExam === 1 ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-700'
               }`}>
                 {completedCount1}/{totalMuniCount}
               </span>
             ) : (
               submissions1[loggedInEmail] ? (
-                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold whitespace-nowrap ${
                   activeExam === 1 ? 'bg-emerald-500 text-white' : 'bg-emerald-100 text-emerald-800'
                 }`}>
                   <CheckCircle2 size={11} /> Done
                 </span>
               ) : (
-                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold whitespace-nowrap ${
                   activeExam === 1 ? 'bg-amber-400 text-amber-950' : 'bg-amber-100 text-amber-800'
                 }`}>
                   <Clock size={11} /> Pending
@@ -891,29 +890,28 @@ const GraphExam: React.FC = () => {
           <button
             type="button"
             onClick={() => { setActiveExam(2); setSubmitSuccess(''); setSubmitError(''); }}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               activeExam === 2 
                 ? 'bg-primary text-white shadow-xs' 
                 : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
             }`}
           >
-            <FileText size={15} />
             <span>Graph Exam 2</span>
             {isMentorView ? (
-              <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
+              <span className={`px-2 py-0.5 rounded text-[11px] font-semibold whitespace-nowrap ${
                 activeExam === 2 ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-700'
               }`}>
                 {completedCount2}/{totalMuniCount}
               </span>
             ) : (
               submissions2[loggedInEmail] ? (
-                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold whitespace-nowrap ${
                   activeExam === 2 ? 'bg-emerald-500 text-white' : 'bg-emerald-100 text-emerald-800'
                 }`}>
                   <CheckCircle2 size={11} /> Done
                 </span>
               ) : (
-                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold whitespace-nowrap ${
                   activeExam === 2 ? 'bg-amber-400 text-amber-950' : 'bg-amber-100 text-amber-800'
                 }`}>
                   <Clock size={11} /> Pending
