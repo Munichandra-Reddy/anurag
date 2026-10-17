@@ -1381,7 +1381,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
               <button 
                 type="button"
                 onClick={handleGrantStudentReExam}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-medium text-xs text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 shadow-xs transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-md font-medium text-xs text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 shadow-xs transition-colors cursor-pointer"
                 title="Reset this student's submission and allow them to retake the exam"
               >
                 <RotateCcw size={15} />

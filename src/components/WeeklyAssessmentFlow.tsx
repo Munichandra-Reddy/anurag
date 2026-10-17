@@ -1951,11 +1951,11 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       {/* Re-Exam Modal */}
       {reExamModalExam && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-xl border border-gray-200 my-auto overflow-hidden">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] flex flex-col shadow-xl border border-gray-200 my-auto overflow-hidden">
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between shrink-0 bg-white">
               <div className="flex items-center gap-3">
-                <span className="p-2 bg-amber-50 text-amber-700 rounded-lg border border-amber-200 shrink-0">
+                <span className="p-2 bg-gray-100 text-gray-700 rounded-md border border-gray-200 shrink-0">
                   <RotateCcw size={18} />
                 </span>
                 <div>
@@ -1967,7 +1967,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
               </div>
               <button 
                 onClick={() => { setReExamModalExam(null); setReExamSuccessMsg(''); }}
-                className="text-gray-400 hover:text-gray-600 p-1.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer shrink-0"
+                className="text-gray-400 hover:text-gray-600 p-1.5 hover:bg-gray-100 rounded-md transition-colors cursor-pointer shrink-0"
               >
                 <X size={18} />
               </button>
@@ -1978,14 +1978,14 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
 
             {/* Success Message Banner */}
             {reExamSuccessMsg && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg flex items-center gap-2 text-xs font-medium">
+              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-md flex items-center gap-2 text-xs font-medium">
                 <Check className="shrink-0 text-emerald-600" size={16} />
                 <span>{reExamSuccessMsg}</span>
               </div>
             )}
 
             {/* Mode Tabs: Batch-wise vs Student-wise */}
-            <div className="flex rounded-lg bg-gray-100 p-1">
+            <div className="flex rounded-md bg-gray-100 p-1">
               <button
                 type="button"
                 onClick={() => { setReExamTab('batch'); setReExamSuccessMsg(''); }}
@@ -2017,23 +2017,12 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
               const targetStudents = getStudentsForBatch(reExamSelectedBatch);
               return (
                 <div className="space-y-4">
-                  <div className="bg-amber-50/70 border border-amber-200 rounded-lg p-3 text-xs text-amber-900 space-y-1">
-                    <p className="font-semibold flex items-center gap-1.5">
-                      <AlertCircle size={15} className="text-amber-600" />
-                      About Batch Re-Exam:
-                    </p>
-                    <p className="text-amber-800 leading-relaxed">
-                      Enabling Re-Exam for a batch will reset test submissions for all students in that batch. 
-                      Students will be able to take and submit the exam again immediately from their student portal.
-                    </p>
-                  </div>
-
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">Select Target Batch</label>
                     <select
                       value={reExamSelectedBatch}
                       onChange={(e) => { setReExamSelectedBatch(e.target.value); setReExamSuccessMsg(''); }}
-                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-xs font-medium text-gray-800 shadow-xs"
+                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-xs font-medium text-gray-800 shadow-xs"
                     >
                       {reExamModalExam.targetBatch && (
                         <option value={reExamModalExam.targetBatch}>
@@ -2047,7 +2036,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                     </select>
                   </div>
 
-                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between">
+                  <div className="p-3 bg-gray-50 rounded-md border border-gray-200 flex items-center justify-between">
                     <div>
                       <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block">Eligible Students</span>
                       <span className="text-sm font-bold text-gray-900">
@@ -2064,7 +2053,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                       type="button"
                       disabled={isProcessingReExam || targetStudents.length === 0}
                       onClick={() => handleConductBatchReExam(reExamSelectedBatch, reExamModalExam)}
-                      className="w-full py-2.5 px-4 rounded-lg font-medium text-white bg-amber-600 hover:bg-amber-700 transition-colors shadow-xs flex items-center justify-center gap-2 text-xs disabled:opacity-50 cursor-pointer"
+                      className="w-full py-2.5 px-4 rounded-md font-medium text-white bg-primary hover:bg-primary-dark transition-colors shadow-xs flex items-center justify-center gap-2 text-xs disabled:opacity-50 cursor-pointer"
                     >
                       {isProcessingReExam ? (
                         <>
@@ -2104,13 +2093,13 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                         placeholder="Search student by name, roll no, or email..."
                         value={reExamSearch}
                         onChange={(e) => setReExamSearch(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 bg-white border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-medium shadow-xs"
+                        className="w-full pl-9 pr-3 py-2 bg-white border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-medium shadow-xs"
                       />
                     </div>
                     <select
                       value={reExamSelectedBatch}
                       onChange={(e) => { setReExamSelectedBatch(e.target.value); setReExamSuccessMsg(''); }}
-                      className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary shadow-xs"
+                      className="px-3 py-2 bg-white border border-gray-300 rounded-md text-xs font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary shadow-xs"
                     >
                       {reExamModalExam.targetBatch && (
                         <option value={reExamModalExam.targetBatch}>{reExamModalExam.targetBatch}</option>
@@ -2123,7 +2112,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                   </div>
 
                   {/* Scrollable Student List */}
-                  <div className="max-h-[350px] overflow-y-auto space-y-1.5 pr-1 border border-gray-200 rounded-lg p-2 bg-white divide-y divide-gray-100">
+                  <div className="max-h-[350px] overflow-y-auto space-y-1.5 pr-1 border border-gray-200 rounded-md p-2 bg-white divide-y divide-gray-100">
                     {filtered.length > 0 ? (
                       filtered.map(student => {
                         const sEmail = (student.email || '').toLowerCase().trim();
@@ -2152,7 +2141,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
 
                             <div className="shrink-0 flex items-center gap-2">
                               {isGranted ? (
-                                <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md">
+                                <span className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-md">
                                   Re-Exam Active
                                 </span>
                               ) : (
@@ -2160,7 +2149,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                                   type="button"
                                   disabled={isProcessingReExam}
                                   onClick={() => handleGrantSingleStudentReExam(student, reExamModalExam)}
-                                  className="px-3 py-1 rounded-md text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+                                  className="px-2.5 py-1 rounded-md text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 hover:border-gray-400 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
                                   title="Grant re-exam for this student"
                                 >
                                   <RotateCcw size={12} />
@@ -2185,11 +2174,11 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-3 border-t border-gray-200 flex justify-end shrink-0 bg-gray-50 rounded-b-xl">
+            <div className="px-6 py-3 border-t border-gray-200 flex justify-end shrink-0 bg-gray-50 rounded-b-lg">
               <button
                 type="button"
                 onClick={() => { setReExamModalExam(null); setReExamSuccessMsg(''); }}
-                className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium rounded-lg text-xs transition-colors shadow-xs cursor-pointer"
+                className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium rounded-md text-xs transition-colors shadow-xs cursor-pointer"
               >
                 Close
               </button>
