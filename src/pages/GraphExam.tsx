@@ -1071,37 +1071,22 @@ const GraphExam: React.FC = () => {
         <div className="space-y-6">
           {/* KPI Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                <FileCode size={20} />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 font-medium">Total Muni Students</p>
-                <h3 className="text-xl font-bold text-gray-900">{totalMuniCount}</h3>
-                <p className="text-[11px] text-blue-600 font-medium">Enrolled Students</p>
-              </div>
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs">
+              <p className="text-xs text-gray-500 font-medium">Total Muni Students</p>
+              <h3 className="text-xl font-bold text-gray-900 mt-1">{totalMuniCount}</h3>
+              <p className="text-[11px] text-blue-600 font-medium mt-0.5">Enrolled Students</p>
             </div>
 
-            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                <CheckCircle2 size={20} />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 font-medium">Completed Submissions</p>
-                <h3 className="text-xl font-bold text-gray-900">{completedMuniCount}</h3>
-                <p className="text-[11px] text-emerald-600 font-medium">Lab Exams Submitted</p>
-              </div>
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs">
+              <p className="text-xs text-gray-500 font-medium">Completed Submissions</p>
+              <h3 className="text-xl font-bold text-gray-900 mt-1">{completedMuniCount}</h3>
+              <p className="text-[11px] text-emerald-600 font-medium mt-0.5">Lab Exams Submitted</p>
             </div>
 
-            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                <Clock size={20} />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 font-medium">Pending Submissions</p>
-                <h3 className="text-xl font-bold text-gray-900">{pendingMuniCount}</h3>
-                <p className="text-[11px] text-amber-600 font-medium">Awaiting Student Upload</p>
-              </div>
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs">
+              <p className="text-xs text-gray-500 font-medium">Pending Submissions</p>
+              <h3 className="text-xl font-bold text-gray-900 mt-1">{pendingMuniCount}</h3>
+              <p className="text-[11px] text-amber-600 font-medium mt-0.5">Awaiting Student Upload</p>
             </div>
           </div>
 
