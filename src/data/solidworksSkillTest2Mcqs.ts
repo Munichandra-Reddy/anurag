@@ -420,5 +420,16 @@ export const getSkillTest2McqsForBatch = (batch?: string): MCQQuestion[] => {
   return SOLIDWORKS_SKILL_TEST_2_SET2_MCQS;
 };
 
+// Skill Test 3: Exchanged question papers between A1 <-> A2 and B1 <-> B2
+export const getSkillTest3McqsForBatch = (batch?: string): MCQQuestion[] => {
+  const clean = (batch || '').toUpperCase().trim();
+  // A1 gets A2's paper (SET 2); B1 gets B2's paper (SET 2)
+  if (clean.includes('B1') || clean.includes('A1') || clean.includes('MORNING')) {
+    return SOLIDWORKS_SKILL_TEST_2_SET2_MCQS;
+  }
+  // A2 gets A1's paper (SET 1); B2 gets B1's paper (SET 1)
+  return SOLIDWORKS_SKILL_TEST_2_SET1_MCQS;
+};
+
 // Default export for backward compatibility
 export const SOLIDWORKS_SKILL_TEST_2_MCQS: MCQQuestion[] = SOLIDWORKS_SKILL_TEST_2_SET2_MCQS;

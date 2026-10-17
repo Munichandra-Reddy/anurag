@@ -7,7 +7,8 @@ import {
   SOLIDWORKS_SKILL_TEST_2_MCQS, 
   SOLIDWORKS_SKILL_TEST_2_SET1_MCQS, 
   SOLIDWORKS_SKILL_TEST_2_SET2_MCQS, 
-  getSkillTest2McqsForBatch 
+  getSkillTest2McqsForBatch,
+  getSkillTest3McqsForBatch
 } from '../data/solidworksSkillTest2Mcqs';
 import { MUNI_STUDENTS, MUNI_A1_STUDENTS, MUNI_A2_STUDENTS, MUNI_B1_STUDENTS, MUNI_B2_STUDENTS } from '../data/students';
 
@@ -95,45 +96,118 @@ const PERMANENT_SKILL_TEST_2_A2: WeeklyExamData = {
   targetBatch: 'A2'
 };
 
+// Skill Test 3 Permanent Configurations (A1, A2, B1, B2)
+// Question paper exchange: A1 gets A2's paper (SET 2), A2 gets A1's paper (SET 1)
+// B1 gets B2's paper (SET 2), B2 gets B1's paper (SET 1)
+const PERMANENT_SKILL_TEST_3_B1: WeeklyExamData = {
+  id: 'skill_test_3_B1',
+  title: 'Skill Test 3',
+  projectTitle: '',
+  portfolioTopic: '',
+  assessmentMode: 'mcq',
+  theoryPdfName: '',
+  theoryQuestions: SOLIDWORKS_SKILL_TEST_2_SET2_MCQS, // Exchanged: B1 gets B2's paper
+  targetBatch: 'B1'
+};
+
+const PERMANENT_SKILL_TEST_3_B2: WeeklyExamData = {
+  id: 'skill_test_3_B2',
+  title: 'Skill Test 3',
+  projectTitle: '',
+  portfolioTopic: '',
+  assessmentMode: 'mcq',
+  theoryPdfName: '',
+  theoryQuestions: SOLIDWORKS_SKILL_TEST_2_SET1_MCQS, // Exchanged: B2 gets B1's paper
+  targetBatch: 'B2'
+};
+
+const PERMANENT_SKILL_TEST_3_A1: WeeklyExamData = {
+  id: 'skill_test_3_A1',
+  title: 'Skill Test 3',
+  projectTitle: '',
+  portfolioTopic: '',
+  assessmentMode: 'mcq',
+  theoryPdfName: '',
+  theoryQuestions: SOLIDWORKS_SKILL_TEST_2_SET2_MCQS, // Exchanged: A1 gets A2's paper
+  targetBatch: 'A1'
+};
+
+const PERMANENT_SKILL_TEST_3_A2: WeeklyExamData = {
+  id: 'skill_test_3_A2',
+  title: 'Skill Test 3',
+  projectTitle: '',
+  portfolioTopic: '',
+  assessmentMode: 'mcq',
+  theoryPdfName: '',
+  theoryQuestions: SOLIDWORKS_SKILL_TEST_2_SET1_MCQS, // Exchanged: A2 gets A1's paper
+  targetBatch: 'A2'
+};
+
 const ensureSkillTest2 = (examList: WeeklyExamData[], emailToCheck: string): WeeklyExamData[] => {
   const muni = isMuniUser(emailToCheck);
   if (!muni) return examList;
 
   const examsKey = getMentorKey('anuragLmsWeeklyExams', emailToCheck);
-  const isRemoved = 
+
+  // Filter out any legacy unbatched 'skill_test_2', 'week1', 'skill_test_3', 'week2' exams to avoid duplicate test cards
+  let updatedList = (examList || []).filter(e => e && e.id !== 'skill_test_2' && e.id !== 'week1' && e.id !== 'skill_test_3' && e.id !== 'week2');
+
+  // --- 1. Skill Test 2 (Batches B1, B2, A1, A2) ---
+  const isRemoved2 = 
     localStorage.getItem('muni_skill_test_2_explicitly_removed') === 'true' ||
     localStorage.getItem(`${examsKey}_removed_skill_test_2`) === 'true' ||
     localStorage.getItem('anuragLmsWeeklyExams_muni@geonixa.com_removed_skill_test_2') === 'true';
 
-  if (isRemoved) return examList;
+  if (!isRemoved2) {
+    const hasBatchExam2 = (batch: string) => updatedList.some(e => 
+      e && (e.id === `skill_test_2_${batch}` || (e.title && e.title.toLowerCase().includes('skill test 2') && e.targetBatch && e.targetBatch.toUpperCase().includes(batch)))
+    );
 
-  // Filter out any legacy unbatched 'skill_test_2' or 'week1' exams to avoid duplicate test cards
-  let updatedList = (examList || []).filter(e => e && e.id !== 'skill_test_2' && e.id !== 'week1');
+    if (!hasBatchExam2('B1') && localStorage.getItem(`${examsKey}_removed_skill_test_2_B1`) !== 'true') {
+      updatedList.push(PERMANENT_SKILL_TEST_2_B1);
+    }
+    if (!hasBatchExam2('B2') && localStorage.getItem(`${examsKey}_removed_skill_test_2_B2`) !== 'true') {
+      updatedList.push(PERMANENT_SKILL_TEST_2_B2);
+    }
+    if (!hasBatchExam2('A1') && localStorage.getItem(`${examsKey}_removed_skill_test_2_A1`) !== 'true') {
+      updatedList.push(PERMANENT_SKILL_TEST_2_A1);
+    }
+    if (!hasBatchExam2('A2') && !hasBatchExam2('All') && localStorage.getItem(`${examsKey}_removed_skill_test_2_A2`) !== 'true') {
+      updatedList.push(PERMANENT_SKILL_TEST_2_A2);
+    }
+  }
 
-  const hasBatchExam = (batch: string) => updatedList.some(e => 
-    e && (e.id === `skill_test_2_${batch}` || (e.title && e.title.toLowerCase().includes('skill test 2') && e.targetBatch && e.targetBatch.toUpperCase().includes(batch)))
-  );
+  // --- 2. Skill Test 3 (Batches B1, B2, A1, A2 with Exchanged Question Papers) ---
+  const isRemoved3 = 
+    localStorage.getItem('muni_skill_test_3_explicitly_removed') === 'true' ||
+    localStorage.getItem(`${examsKey}_removed_skill_test_3`) === 'true' ||
+    localStorage.getItem('anuragLmsWeeklyExams_muni@geonixa.com_removed_skill_test_3') === 'true';
 
-  // Ensure B1, B2, A1, A2 default exams exist if not explicitly removed
-  if (!hasBatchExam('B1') && localStorage.getItem(`${examsKey}_removed_skill_test_2_B1`) !== 'true') {
-    updatedList.push(PERMANENT_SKILL_TEST_2_B1);
-  }
-  if (!hasBatchExam('B2') && localStorage.getItem(`${examsKey}_removed_skill_test_2_B2`) !== 'true') {
-    updatedList.push(PERMANENT_SKILL_TEST_2_B2);
-  }
-  if (!hasBatchExam('A1') && localStorage.getItem(`${examsKey}_removed_skill_test_2_A1`) !== 'true') {
-    updatedList.push(PERMANENT_SKILL_TEST_2_A1);
-  }
-  if (!hasBatchExam('A2') && !hasBatchExam('All') && localStorage.getItem(`${examsKey}_removed_skill_test_2_A2`) !== 'true') {
-    updatedList.push(PERMANENT_SKILL_TEST_2_A2);
+  if (!isRemoved3) {
+    const hasBatchExam3 = (batch: string) => updatedList.some(e => 
+      e && (e.id === `skill_test_3_${batch}` || (e.title && e.title.toLowerCase().includes('skill test 3') && e.targetBatch && e.targetBatch.toUpperCase().includes(batch)))
+    );
+
+    if (!hasBatchExam3('B1') && localStorage.getItem(`${examsKey}_removed_skill_test_3_B1`) !== 'true') {
+      updatedList.push(PERMANENT_SKILL_TEST_3_B1);
+    }
+    if (!hasBatchExam3('B2') && localStorage.getItem(`${examsKey}_removed_skill_test_3_B2`) !== 'true') {
+      updatedList.push(PERMANENT_SKILL_TEST_3_B2);
+    }
+    if (!hasBatchExam3('A1') && localStorage.getItem(`${examsKey}_removed_skill_test_3_A1`) !== 'true') {
+      updatedList.push(PERMANENT_SKILL_TEST_3_A1);
+    }
+    if (!hasBatchExam3('A2') && !hasBatchExam3('All') && localStorage.getItem(`${examsKey}_removed_skill_test_3_A2`) !== 'true') {
+      updatedList.push(PERMANENT_SKILL_TEST_3_A2);
+    }
   }
 
   // Deduplicate Skill Test 2 exams by batch so there is strictly one exam per batch (B1, B2, A1, A2)
-  const nonSkillExams = updatedList.filter(e => !e.id.startsWith('skill_test_2') && !e.title?.toLowerCase().includes('skill test 2'));
-  const skillExams = updatedList.filter(e => e.id.startsWith('skill_test_2') || e.title?.toLowerCase().includes('skill test 2'));
-  const batchSkillMap = new Map<string, WeeklyExamData>();
+  const nonSkill2Exams = updatedList.filter(e => !e.id.startsWith('skill_test_2') && !e.title?.toLowerCase().includes('skill test 2'));
+  const skill2Exams = updatedList.filter(e => e.id.startsWith('skill_test_2') || e.title?.toLowerCase().includes('skill test 2'));
+  const batchSkill2Map = new Map<string, WeeklyExamData>();
 
-  skillExams.forEach(e => {
+  skill2Exams.forEach(e => {
     const rawBatch = (e.targetBatch || e.id.replace('skill_test_2_', '') || 'B1').replace(/batch/gi, '').trim().toUpperCase();
     const cleanB = rawBatch.includes('B1') ? 'B1' : rawBatch.includes('B2') ? 'B2' : rawBatch.includes('A1') ? 'A1' : 'A2';
     const isBatch1 = cleanB === 'B1' || cleanB === 'A1';
@@ -150,21 +224,54 @@ const ensureSkillTest2 = (examList: WeeklyExamData[], emailToCheck: string): Wee
       questions = SOLIDWORKS_SKILL_TEST_2_SET2_MCQS;
     }
 
-    batchSkillMap.set(cleanB, {
+    batchSkill2Map.set(cleanB, {
       ...e,
       id: `skill_test_2_${cleanB}`,
+      title: 'Skill Test 2',
       targetBatch: cleanB,
       theoryQuestions: questions
     });
   });
 
-  return [...Array.from(batchSkillMap.values()), ...nonSkillExams];
+  // Deduplicate Skill Test 3 exams by batch so there is strictly one exam per batch (B1, B2, A1, A2)
+  const nonSkill3Exams = nonSkill2Exams.filter(e => !e.id.startsWith('skill_test_3') && !e.title?.toLowerCase().includes('skill test 3'));
+  const skill3Exams = nonSkill2Exams.filter(e => e.id.startsWith('skill_test_3') || e.title?.toLowerCase().includes('skill test 3'));
+  const batchSkill3Map = new Map<string, WeeklyExamData>();
+
+  skill3Exams.forEach(e => {
+    const rawBatch = (e.targetBatch || e.id.replace('skill_test_3_', '') || 'B1').replace(/batch/gi, '').trim().toUpperCase();
+    const cleanB = rawBatch.includes('B1') ? 'B1' : rawBatch.includes('B2') ? 'B2' : rawBatch.includes('A1') ? 'A1' : 'A2';
+    const isBatch1 = cleanB === 'B1' || cleanB === 'A1';
+    const isBatch2 = cleanB === 'B2' || cleanB === 'A2';
+    
+    let questions = (e.theoryQuestions && e.theoryQuestions.length > 0) 
+      ? e.theoryQuestions 
+      : getSkillTest3McqsForBatch(cleanB);
+
+    // Auto-repair: for Skill Test 3, A1/B1 get SET 2, A2/B2 get SET 1
+    if (isBatch1 && questions[0]?.question?.toLowerCase().includes('sketch')) {
+      questions = SOLIDWORKS_SKILL_TEST_2_SET2_MCQS;
+    } else if (isBatch2 && questions[0]?.question?.toLowerCase().includes('mate')) {
+      questions = SOLIDWORKS_SKILL_TEST_2_SET1_MCQS;
+    }
+
+    batchSkill3Map.set(cleanB, {
+      ...e,
+      id: `skill_test_3_${cleanB}`,
+      title: 'Skill Test 3',
+      targetBatch: cleanB,
+      theoryQuestions: questions
+    });
+  });
+
+  return [...Array.from(batchSkill2Map.values()), ...Array.from(batchSkill3Map.values()), ...nonSkill3Exams];
 };
 
 export const resetStudentSubmissionForExam = async (sEmail: string, examId: string, batch?: string) => {
   const cleanEmail = sEmail.toLowerCase().trim();
   const cleanB = (batch || '').replace(/batch/gi, '').trim().toUpperCase();
   const isSkillTest2 = examId === 'skill_test_2' || examId.startsWith('skill_test_2') || examId === 'week1';
+  const isSkillTest3 = examId === 'skill_test_3' || examId.startsWith('skill_test_3') || examId === 'week2';
 
   const subKey = `weeklyExamSubmissions_${cleanEmail}`;
   let localSub: any = {};
@@ -186,6 +293,15 @@ export const resetStudentSubmissionForExam = async (sEmail: string, examId: stri
     delete mergedSub['skill_test_2_A1'];
     delete mergedSub['skill_test_2_A2'];
     if (cleanB) delete mergedSub[`skill_test_2_${cleanB}`];
+  }
+  if (isSkillTest3) {
+    delete mergedSub['skill_test_3'];
+    delete mergedSub['week2'];
+    delete mergedSub['skill_test_3_B1'];
+    delete mergedSub['skill_test_3_B2'];
+    delete mergedSub['skill_test_3_A1'];
+    delete mergedSub['skill_test_3_A2'];
+    if (cleanB) delete mergedSub[`skill_test_3_${cleanB}`];
   }
 
   try {
@@ -224,6 +340,31 @@ export const resetStudentSubmissionForExam = async (sEmail: string, examId: stri
     }
   }
 
+  if (isSkillTest3) {
+    keysToDelete.push(
+      `weeklyReportSubmission_${cleanEmail}_skill_test_3`,
+      `weeklyReportSubmission_${cleanEmail}_week2`,
+      `weeklyReportSubmission_${cleanEmail}_skill_test_3_B1`,
+      `weeklyReportSubmission_${cleanEmail}_skill_test_3_B2`,
+      `weeklyReportSubmission_${cleanEmail}_skill_test_3_A1`,
+      `weeklyReportSubmission_${cleanEmail}_skill_test_3_A2`,
+      `weeklyReport_${cleanEmail}_skill_test_3`,
+      `weeklyReport_${cleanEmail}_week2`,
+      `weeklyReport_${cleanEmail}_skill_test_3_B1`,
+      `weeklyReport_${cleanEmail}_skill_test_3_B2`,
+      `weeklyReport_${cleanEmail}_skill_test_3_A1`,
+      `weeklyReport_${cleanEmail}_skill_test_3_A2`,
+      `examDraft_${cleanEmail}_skill_test_3`,
+      `examDraft_${cleanEmail}_week2`
+    );
+    if (cleanB) {
+      keysToDelete.push(
+        `weeklyReportSubmission_${cleanEmail}_skill_test_3_${cleanB}`,
+        `weeklyReport_${cleanEmail}_skill_test_3_${cleanB}`
+      );
+    }
+  }
+
   keysToDelete.forEach(k => {
     try { localStorage.removeItem(k); } catch (e) {}
   });
@@ -235,6 +376,9 @@ export const resetStudentSubmissionForExam = async (sEmail: string, examId: stri
     if (isSkillTest2) {
       localStorage.setItem(`reExamGranted_${cleanEmail}_skill_test_2`, now);
     }
+    if (isSkillTest3) {
+      localStorage.setItem(`reExamGranted_${cleanEmail}_skill_test_3`, now);
+    }
   } catch (e) {}
 
   const cloudPromises: Promise<any>[] = [
@@ -245,6 +389,9 @@ export const resetStudentSubmissionForExam = async (sEmail: string, examId: stri
 
   if (isSkillTest2) {
     cloudPromises.push(saveToCloudflare(`reExamGranted_${cleanEmail}_skill_test_2`, { granted: true, timestamp: now }));
+  }
+  if (isSkillTest3) {
+    cloudPromises.push(saveToCloudflare(`reExamGranted_${cleanEmail}_skill_test_3`, { granted: true, timestamp: now }));
   }
 
   keysToDelete.forEach(k => {
@@ -413,6 +560,10 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       if (exam.id.startsWith('skill_test_2') || exam.id === 'week1') {
         localStorage.setItem(`reExamBatch_skill_test_2_${cleanB}`, now);
         await saveToCloudflare(`reExamBatch_skill_test_2_${cleanB}`, { granted: true, batch: cleanB, timestamp: now });
+      }
+      if (exam.id.startsWith('skill_test_3') || exam.id === 'week2') {
+        localStorage.setItem(`reExamBatch_skill_test_3_${cleanB}`, now);
+        await saveToCloudflare(`reExamBatch_skill_test_3_${cleanB}`, { granted: true, batch: cleanB, timestamp: now });
       }
 
       // Reset each student in this batch
@@ -590,27 +741,33 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     e.preventDefault();
 
     const isSkillTest2 = selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni);
+    const isSkillTest3 = selectedWeek === 'skill_test_3' || (selectedWeek === 'week2' && isMuni);
+    const isSkillExam = isSkillTest2 || isSkillTest3;
     const cleanBatchName = (targetBatch && targetBatch !== 'All Batches') 
       ? targetBatch.replace(/batch/gi, '').trim().toUpperCase() 
       : '';
     const examId = isSkillTest2 
       ? (cleanBatchName ? `skill_test_2_${cleanBatchName}` : 'skill_test_2')
+      : isSkillTest3
+      ? (cleanBatchName ? `skill_test_3_${cleanBatchName}` : 'skill_test_3')
       : (targetBatch === 'All Batches' ? selectedWeek : `${selectedWeek}_${targetBatch.replace(/\s+/g, '')}`);
 
     const questionsToUse = isSkillTest2
       ? (theoryQuestions.length > 0 ? theoryQuestions.slice(0, 20) : getSkillTest2McqsForBatch(targetBatch))
+      : isSkillTest3
+      ? (theoryQuestions.length > 0 ? theoryQuestions.slice(0, 20) : getSkillTest3McqsForBatch(targetBatch))
       : (assessmentMode === 'mcq' 
           ? (theoryQuestions.length > 0 ? theoryQuestions.slice(0, questionCount) : SOLIDWORKS_60_MCQS.slice(0, questionCount)) 
           : []);
 
     const newExam: WeeklyExamData = {
       id: examId,
-      title: isSkillTest2 ? 'Skill Test 2' : `${selectedWeek.toUpperCase()} Exam`,
-      projectTitle: isSkillTest2 ? '' : projectTitle,
-      portfolioTopic: isSkillTest2 ? '' : portfolioTopic,
-      assessmentMode: isSkillTest2 ? 'mcq' : assessmentMode,
-      theoryPdfName: (assessmentMode === 'pdf' && !isSkillTest2) ? theoryPdfName : '',
-      theoryPdfDataUrl: (assessmentMode === 'pdf' && !isSkillTest2) ? theoryPdfDataUrl : '',
+      title: isSkillTest2 ? 'Skill Test 2' : isSkillTest3 ? 'Skill Test 3' : `${selectedWeek.toUpperCase()} Exam`,
+      projectTitle: isSkillExam ? '' : projectTitle,
+      portfolioTopic: isSkillExam ? '' : portfolioTopic,
+      assessmentMode: isSkillExam ? 'mcq' : assessmentMode,
+      theoryPdfName: (assessmentMode === 'pdf' && !isSkillExam) ? theoryPdfName : '',
+      theoryPdfDataUrl: (assessmentMode === 'pdf' && !isSkillExam) ? theoryPdfDataUrl : '',
       theoryQuestions: questionsToUse,
       targetBatch
     };
@@ -625,6 +782,16 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           ),
           newExam
         ]
+      : isSkillTest3
+      ? [
+          ...exams.filter(ex => 
+            ex.id !== examId && 
+            ex.id !== 'skill_test_3' && 
+            ex.id !== 'week2' && 
+            !(ex.title?.toLowerCase().includes('skill test 3') && (ex.targetBatch || '').replace(/batch/gi, '').trim().toUpperCase() === cleanBatchName)
+          ),
+          newExam
+        ]
       : [
           ...exams.filter(ex => ex.id !== examId), 
           newExam
@@ -632,10 +799,16 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     setExams(updatedExams);
     
     const examsKey = getMentorKey('anuragLmsWeeklyExams', currentEmail);
-    localStorage.removeItem('muni_skill_test_2_explicitly_removed');
+    if (isSkillTest2) {
+      localStorage.removeItem('muni_skill_test_2_explicitly_removed');
+      saveToCloudflare('muni_skill_test_2_explicitly_removed', { removed: false });
+    }
+    if (isSkillTest3) {
+      localStorage.removeItem('muni_skill_test_3_explicitly_removed');
+      saveToCloudflare('muni_skill_test_3_explicitly_removed', { removed: false });
+    }
     localStorage.removeItem(`${examsKey}_removed_${examId}`);
     localStorage.removeItem(`anuragLmsWeeklyExams_muni@geonixa.com_removed_${examId}`);
-    saveToCloudflare('muni_skill_test_2_explicitly_removed', { removed: false });
     saveToCloudflare(`${examsKey}_removed_${examId}`, { removed: false });
     if (isMuni) saveToCloudflare(`anuragLmsWeeklyExams_muni@geonixa.com_removed_${examId}`, { removed: false });
 
@@ -672,7 +845,15 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       takingExamId.startsWith('week1') ||
       exam.title.toLowerCase().includes('skill test 2');
 
-    if (!isSkillTest2Taking && exam.projectTitle && !studentProjectUrl && !studentProjectPdf) {
+    const isSkillTest3Taking = takingExamId === 'skill_test_3' || 
+      takingExamId === 'week2' ||
+      takingExamId.startsWith('skill_test_3') || 
+      takingExamId.startsWith('week2') ||
+      exam.title.toLowerCase().includes('skill test 3');
+
+    const isSkillExamTaking = isSkillTest2Taking || isSkillTest3Taking;
+
+    if (!isSkillExamTaking && exam.projectTitle && !studentProjectUrl && !studentProjectPdf) {
       alert("Please provide a project URL or PDF");
       return;
     }
@@ -685,6 +866,8 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       const studentBatch = (studentDetails?.batch || exam.targetBatch || '').toString();
       const examQuestionsToSubmit = (exam.theoryQuestions && exam.theoryQuestions.length > 0)
         ? exam.theoryQuestions
+        : isSkillTest3Taking
+        ? getSkillTest3McqsForBatch(exam.targetBatch || studentDetails?.batch)
         : getSkillTest2McqsForBatch(exam.targetBatch || studentDetails?.batch);
 
       const submission: WeeklyExamSubmission = {
@@ -715,6 +898,16 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           }
         }
       }
+      if (isSkillTest3Taking) {
+        newSubmissions['week2'] = submission;
+        newSubmissions['skill_test_3'] = submission;
+        if (studentBatch) {
+          const cleanB = studentBatch.replace(/batch/gi, '').trim().toUpperCase();
+          if (cleanB) {
+            newSubmissions[`skill_test_3_${cleanB}`] = submission;
+          }
+        }
+      }
       setSubmissions(newSubmissions);
       localStorage.setItem(`weeklyExamSubmissions_${effectiveEmail}`, JSON.stringify(newSubmissions));
       await saveToCloudflare(`weeklyExamSubmissions_${effectiveEmail}`, newSubmissions);
@@ -733,19 +926,38 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           await saveToCloudflare(`weeklyReportSubmission_${effectiveEmail}_skill_test_2_${batchName}`, submission);
         }
       }
+      if (isSkillTest3Taking) {
+        localStorage.setItem(`weeklyReportSubmission_${effectiveEmail}_skill_test_3`, JSON.stringify(submission));
+        await saveToCloudflare(`weeklyReportSubmission_${effectiveEmail}_skill_test_3`, submission);
+        localStorage.setItem(`weeklyReportSubmission_${effectiveEmail}_week2`, JSON.stringify(submission));
+        await saveToCloudflare(`weeklyReportSubmission_${effectiveEmail}_week2`, submission);
+        const batchName = (studentDetails?.batch || exam.targetBatch || '').replace(/batch/gi, '').trim().toUpperCase();
+        if (batchName) {
+          localStorage.setItem(`weeklyReportSubmission_${effectiveEmail}_skill_test_3_${batchName}`, JSON.stringify(submission));
+          await saveToCloudflare(`weeklyReportSubmission_${effectiveEmail}_skill_test_3_${batchName}`, submission);
+        }
+      }
 
       // Clear draft & re-exam flags on successful submission
       const draftKey = `examDraft_${effectiveEmail}_${takingExamId}`;
       localStorage.removeItem(draftKey);
       localStorage.removeItem(`reExamGranted_${effectiveEmail}_${takingExamId}`);
-      localStorage.removeItem(`reExamGranted_${effectiveEmail}_skill_test_2`);
+      if (isSkillTest2Taking) localStorage.removeItem(`reExamGranted_${effectiveEmail}_skill_test_2`);
+      if (isSkillTest3Taking) localStorage.removeItem(`reExamGranted_${effectiveEmail}_skill_test_3`);
       await Promise.all([
         saveToCloudflare(draftKey, null),
         saveToCloudflare(`reExamGranted_${effectiveEmail}_${takingExamId}`, null),
-        saveToCloudflare(`reExamGranted_${effectiveEmail}_skill_test_2`, null)
+        isSkillTest2Taking ? saveToCloudflare(`reExamGranted_${effectiveEmail}_skill_test_2`, null) : Promise.resolve(),
+        isSkillTest3Taking ? saveToCloudflare(`reExamGranted_${effectiveEmail}_skill_test_3`, null) : Promise.resolve()
       ]);
 
-      alert(isSkillTest2Taking ? "Skill Test 2 submitted successfully! Your answers have been submitted to your mentor for evaluation." : "Exam submitted successfully!");
+      alert(
+        isSkillTest2Taking 
+          ? "Skill Test 2 submitted successfully! Your answers have been submitted to your mentor for evaluation." 
+          : isSkillTest3Taking
+          ? "Skill Test 3 submitted successfully! Your answers have been submitted to your mentor for evaluation."
+          : "Exam submitted successfully!"
+      );
 
       setTakingExamId(null);
       setStudentProjectUrl('');
@@ -812,7 +1024,14 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     const exam = exams.find(e => e.id === takingExamId);
     if (!exam) return null;
 
-    const isExamSkillTest2 = isMuni && (
+    const isExamSkillTest3 = isMuni && (
+      exam.id === 'week2' || exam.id === 'skill_test_3' || 
+      exam.id.startsWith('week2_') || exam.id.startsWith('skill_test_3_') || 
+      exam.title.toLowerCase().includes('week2') || exam.title.toLowerCase().includes('week 2') ||
+      exam.title.toLowerCase().includes('skill test 3')
+    );
+
+    const isExamSkillTest2 = !isExamSkillTest3 && isMuni && (
       exam.id === 'week1' || exam.id === 'skill_test_2' || 
       exam.id.startsWith('week1_') || exam.id.startsWith('skill_test_2_') || 
       exam.title.toLowerCase().includes('week1') || exam.title.toLowerCase().includes('week 1') ||
@@ -821,7 +1040,9 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
 
     const effectiveQuestions = (exam.theoryQuestions && exam.theoryQuestions.length > 0)
       ? exam.theoryQuestions
-      : (isExamSkillTest2 ? getSkillTest2McqsForBatch(exam.targetBatch || studentDetails?.batch) : []);
+      : (isExamSkillTest3 
+          ? getSkillTest3McqsForBatch(exam.targetBatch || studentDetails?.batch)
+          : (isExamSkillTest2 ? getSkillTest2McqsForBatch(exam.targetBatch || studentDetails?.batch) : []));
 
     return (
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 space-y-8 relative">
@@ -834,13 +1055,13 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
         
         <div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            {isExamSkillTest2 ? 'Skill Test 2' : exam.title}
+            {isExamSkillTest3 ? 'Skill Test 3' : (isExamSkillTest2 ? 'Skill Test 2' : exam.title)}
           </h2>
           <p className="text-gray-500">Complete all sections below and submit your work.</p>
         </div>
 
-        {/* Project Section - Hidden for Skill Test 2 */}
-        {!isExamSkillTest2 && exam.projectTitle && (
+        {/* Project Section - Hidden for Skill Test 2 & Skill Test 3 */}
+        {!(isExamSkillTest2 || isExamSkillTest3) && exam.projectTitle && (
           <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 space-y-4">
             <h3 className="font-bold text-lg text-gray-900 border-b border-gray-200 pb-2">1. Project Submission</h3>
             <p className="text-gray-700 font-medium">{exam.projectTitle}</p>
@@ -881,8 +1102,8 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           </div>
         )}
 
-        {/* Portfolio Section - Hidden for Skill Test 2 */}
-        {!isExamSkillTest2 && exam.portfolioTopic && (
+        {/* Portfolio Section - Hidden for Skill Test 2 & Skill Test 3 */}
+        {!(isExamSkillTest2 || isExamSkillTest3) && exam.portfolioTopic && (
           <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 space-y-4">
             <h3 className="font-bold text-lg text-gray-900 border-b border-gray-200 pb-2">2. Portfolio & Document</h3>
             <p className="text-gray-700 font-medium">{exam.portfolioTopic}</p>
@@ -912,7 +1133,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
         {effectiveQuestions && effectiveQuestions.length > 0 ? (
           <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 space-y-6">
             <h3 className="font-bold text-lg text-gray-900 border-b border-gray-200 pb-2">
-              {isExamSkillTest2 ? `Multiple Choice Questions (${effectiveQuestions.length} Questions)` : `${exam.portfolioTopic ? '3' : '2'}. Multiple Choice Questions (${effectiveQuestions.length} Questions)`}
+              {(isExamSkillTest2 || isExamSkillTest3) ? `Multiple Choice Questions (${effectiveQuestions.length} Questions)` : `${exam.portfolioTopic ? '3' : '2'}. Multiple Choice Questions (${effectiveQuestions.length} Questions)`}
             </h3>
             
             <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2">
@@ -1008,7 +1229,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
               </>
             ) : (
               <>
-                <CheckCircle2 size={20} /> Submit {exam && (exam.id.startsWith('skill_test_2') || exam.id.startsWith('week1') || exam.title.toLowerCase().includes('skill test 2')) ? 'Skill Test 2' : 'Weekly Exam'}
+                <CheckCircle2 size={20} /> Submit {exam && (exam.id.startsWith('skill_test_3') || exam.id.startsWith('week2') || exam.title.toLowerCase().includes('skill test 3')) ? 'Skill Test 3' : (exam && (exam.id.startsWith('skill_test_2') || exam.id.startsWith('week1') || exam.title.toLowerCase().includes('skill test 2')) ? 'Skill Test 2' : 'Weekly Exam')}
               </>
             )}
           </button>
@@ -1037,6 +1258,21 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
               >
                 <Plus size={20} /> {isMuni ? 'Add Skill Test 2 Exam Paper' : 'Add Weekly Exam Paper'}
               </button>
+              {isMuni && (
+                <button 
+                  onClick={() => { 
+                    setSelectedWeek('skill_test_3'); 
+                    const defaultBatch = 'B1';
+                    setTargetBatch(defaultBatch);
+                    setQuestionCount(20);
+                    setTheoryQuestions(getSkillTest3McqsForBatch(defaultBatch));
+                    setIsAdding('weekly'); 
+                  }}
+                  className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-indigo-600 text-indigo-600 font-bold rounded-xl shadow-sm hover:bg-indigo-50 transition-colors"
+                >
+                  <Plus size={20} /> Add Skill Test 3 Exam Paper
+                </button>
+              )}
               <button 
                 onClick={() => { setSelectedWeek('CIE1'); setIsAdding('cie'); }}
                 className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-orange-500 text-orange-500 font-bold rounded-xl shadow-sm hover:bg-orange-50 transition-colors"
@@ -1053,7 +1289,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                 <X size={18} />
               </button>
               
-              <h3 className="text-xl font-bold text-gray-900 mb-6">Configure {isAdding === 'cie' ? 'CIE' : (isMuni ? 'Skill Test 2' : 'Weekly')} Exam</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-6">Configure {isAdding === 'cie' ? 'CIE' : (selectedWeek === 'skill_test_3' || selectedWeek === 'week2' ? 'Skill Test 3' : (isMuni ? 'Skill Test 2' : 'Weekly'))} Exam</h3>
               
               <form onSubmit={handleAddExam} className="space-y-6">
                 <div className="flex flex-col md:flex-row gap-4">
@@ -1064,7 +1300,10 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                       onChange={(e) => {
                         const val = e.target.value;
                         setSelectedWeek(val);
-                        if (val === 'skill_test_2' || (val === 'week1' && isMuni)) {
+                        if (val === 'skill_test_3' || (val === 'week2' && isMuni)) {
+                          setQuestionCount(20);
+                          setTheoryQuestions(getSkillTest3McqsForBatch(targetBatch));
+                        } else if (val === 'skill_test_2' || (val === 'week1' && isMuni)) {
                           setQuestionCount(20);
                           setTheoryQuestions(getSkillTest2McqsForBatch(targetBatch));
                         }
@@ -1081,8 +1320,9 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                           {isMuni ? (
                             <>
                               <option value="skill_test_2">Skill Test 2</option>
-                              {[...Array(11)].map((_, i) => (
-                                <option key={i + 2} value={`week${i + 2}`}>WEEK{i + 2}</option>
+                              <option value="skill_test_3">Skill Test 3</option>
+                              {[...Array(10)].map((_, i) => (
+                                <option key={i + 3} value={`week${i + 3}`}>WEEK{i + 3}</option>
                               ))}
                               <option value="SEM">SEM</option>
                             </>
@@ -1105,7 +1345,10 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                       onChange={(e) => {
                         const newBatch = e.target.value;
                         setTargetBatch(newBatch);
-                        if (selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni)) {
+                        if (selectedWeek === 'skill_test_3' || (selectedWeek === 'week2' && isMuni)) {
+                          setQuestionCount(20);
+                          setTheoryQuestions(getSkillTest3McqsForBatch(newBatch));
+                        } else if (selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni)) {
                           setQuestionCount(20);
                           setTheoryQuestions(getSkillTest2McqsForBatch(newBatch));
                         }
@@ -1123,8 +1366,8 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                   </div>
                 </div>
 
-                {/* 1. Project - Hidden for Skill Test 2 */}
-                {!(selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni)) && (
+                {/* 1. Project - Hidden for Skill Test 2 & Skill Test 3 */}
+                {!(selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni) || selectedWeek === 'skill_test_3' || (selectedWeek === 'week2' && isMuni)) && (
                   <div className="bg-gray-50 p-5 rounded-xl border border-gray-100">
                     <h4 className="font-bold text-gray-900 mb-3 border-b border-gray-200 pb-2">1. Project</h4>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Project Title / Description</label>
@@ -1136,8 +1379,8 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                   </div>
                 )}
 
-                {/* 2. Portfolio & Document - Hidden for Skill Test 2 */}
-                {isAdding === 'weekly' && !(selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni)) && (
+                {/* 2. Portfolio & Document - Hidden for Skill Test 2 & Skill Test 3 */}
+                {isAdding === 'weekly' && !(selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni) || selectedWeek === 'skill_test_3' || (selectedWeek === 'week2' && isMuni)) && (
                   <div className="bg-gray-50 p-5 rounded-xl border border-gray-100">
                     <h4 className="font-bold text-gray-900 mb-3 border-b border-gray-200 pb-2">2. Portfolio & Document</h4>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Portfolio Topic</label>
@@ -1151,13 +1394,15 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
 
                 <div className="bg-gray-50 p-5 rounded-xl border border-gray-100 space-y-4">
                   <h4 className="font-bold text-gray-900 border-b border-gray-200 pb-2">
-                    {(selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni))
-                      ? 'Multiple Choice Questions (20 MCQs)'
-                      : `${isAdding === 'weekly' ? '3' : '2'}. Theory / Multiple Choice Assessment`}
+                    {(selectedWeek === 'skill_test_3' || (selectedWeek === 'week2' && isMuni))
+                      ? 'Multiple Choice Questions (20 MCQs - Skill Test 3)'
+                      : ((selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni))
+                          ? 'Multiple Choice Questions (20 MCQs - Skill Test 2)'
+                          : `${isAdding === 'weekly' ? '3' : '2'}. Theory / Multiple Choice Assessment`)}
                   </h4>
                   
-                  {/* Select Type: MCQs vs Theory PDF (hidden for Skill Test 2 since it is strictly MCQs) */}
-                  {!(selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni)) && (
+                  {/* Select Type: MCQs vs Theory PDF (hidden for Skill Tests since they are strictly MCQs) */}
+                  {!(selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni) || selectedWeek === 'skill_test_3' || (selectedWeek === 'week2' && isMuni)) && (
                     <div className="flex flex-wrap gap-3">
                       <button
                         type="button"
@@ -1184,7 +1429,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                     </div>
                   )}
 
-                  {assessmentMode === 'pdf' && !(selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni)) ? (
+                  {assessmentMode === 'pdf' && !(selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni) || selectedWeek === 'skill_test_3' || (selectedWeek === 'week2' && isMuni)) ? (
                     <div className="mb-4">
                       <label className="block text-sm font-medium text-gray-700 mb-1">Upload Reference PDF</label>
                       <div className="flex items-center gap-3">
@@ -1358,6 +1603,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       <div className="grid grid-cols-1 gap-4">
         {(() => {
           let seenSkillTest2 = false;
+          let seenSkillTest3 = false;
           return exams.filter(exam => {
             if (isMentor) {
               // Mentor filter logic
@@ -1375,7 +1621,14 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
             // Student filter logic
             const cleanEmail = (currentEmail || loggedInEmail || '').toLowerCase().trim();
 
-            const isSkillTest2Exam = isMuni && (
+            const isSkillTest3Exam = isMuni && (
+              exam.id === 'week2' || exam.id === 'skill_test_3' || 
+              exam.id.startsWith('week2_') || exam.id.startsWith('skill_test_3_') || 
+              exam.title.toLowerCase().includes('week2') || exam.title.toLowerCase().includes('week 2') ||
+              exam.title.toLowerCase().includes('skill test 3')
+            );
+
+            const isSkillTest2Exam = !isSkillTest3Exam && isMuni && (
               exam.id === 'week1' || exam.id === 'skill_test_2' || 
               exam.id.startsWith('week1_') || exam.id.startsWith('skill_test_2_') || 
               exam.title.toLowerCase().includes('week1') || exam.title.toLowerCase().includes('week 1') ||
@@ -1397,7 +1650,27 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
             const targetBatchClean = cleanBatch(exam.targetBatch);
             const studentBatchClean = cleanBatch(rawStudentBatch);
 
-            // For Skill Test 2: Strictly match student's batch ONLY (B1 sees B1 only, B2 sees B2 only)
+            // For Skill Test 3: Strictly match student's batch ONLY (A1 sees A1, A2 sees A2, B1 sees B1, B2 sees B2)
+            if (isSkillTest3Exam) {
+              if (!targetBatchClean || targetBatchClean === 'all' || targetBatchClean === 'all batches') {
+                return false;
+              }
+              if (studentBatchClean === 'b1') {
+                return targetBatchClean === 'b1' || exam.id === 'skill_test_3_B1';
+              }
+              if (studentBatchClean === 'b2') {
+                return targetBatchClean === 'b2' || exam.id === 'skill_test_3_B2';
+              }
+              if (studentBatchClean === 'a1' || studentBatchClean === 'morning') {
+                return targetBatchClean === 'a1' || targetBatchClean === 'morning' || exam.id === 'skill_test_3_A1';
+              }
+              if (studentBatchClean === 'a2' || studentBatchClean === 'evening') {
+                return targetBatchClean === 'a2' || targetBatchClean === 'evening' || exam.id === 'skill_test_3_A2';
+              }
+              return false;
+            }
+
+            // For Skill Test 2: Strictly match student's batch ONLY (B1 sees B1 only, B2 sees B2 only, etc)
             if (isSkillTest2Exam) {
               if (!targetBatchClean || targetBatchClean === 'all' || targetBatchClean === 'all batches') {
                 return false;
@@ -1435,8 +1708,20 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
             
             return false;
           }).filter(exam => {
-            // For students, ensure only 1 Skill Test 2 exam is shown to prevent duplicate cards
+            // For students, ensure only 1 Skill Test 2 and 1 Skill Test 3 exam is shown to prevent duplicate cards
             if (isMentor) return true;
+            const isSkillTest3Exam = isMuni && (
+              exam.id === 'week2' || exam.id === 'skill_test_3' || 
+              exam.id.startsWith('week2_') || exam.id.startsWith('skill_test_3_') || 
+              exam.title.toLowerCase().includes('week2') || exam.title.toLowerCase().includes('week 2') ||
+              exam.title.toLowerCase().includes('skill test 3')
+            );
+            if (isSkillTest3Exam) {
+              if (seenSkillTest3) return false;
+              seenSkillTest3 = true;
+              return true;
+            }
+
             const isSkillTest2Exam = isMuni && (
               exam.id === 'week1' || exam.id === 'skill_test_2' || 
               exam.id.startsWith('week1_') || exam.id.startsWith('skill_test_2_') || 
@@ -1446,17 +1731,24 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
             if (isSkillTest2Exam) {
               if (seenSkillTest2) return false;
               seenSkillTest2 = true;
+              return true;
             }
             return true;
           });
         })().map((exam) => {
-          const isExamSkillTest2 = isMuni && (
+          const isExamSkillTest3 = isMuni && (
+            exam.id === 'week2' || exam.id === 'skill_test_3' || 
+            exam.id.startsWith('week2_') || exam.id.startsWith('skill_test_3_') || 
+            exam.title.toLowerCase().includes('week2') || exam.title.toLowerCase().includes('week 2') ||
+            exam.title.toLowerCase().includes('skill test 3')
+          );
+          const isExamSkillTest2 = !isExamSkillTest3 && isMuni && (
             exam.id === 'week1' || exam.id === 'skill_test_2' || 
             exam.id.startsWith('week1_') || exam.id.startsWith('skill_test_2_') || 
             exam.title.toLowerCase().includes('week1') || exam.title.toLowerCase().includes('week 1') ||
             exam.title.toLowerCase().includes('skill test 2')
           );
-          const displayTitle = isExamSkillTest2 ? 'Skill Test 2' : exam.title;
+          const displayTitle = isExamSkillTest3 ? 'Skill Test 3' : (isExamSkillTest2 ? 'Skill Test 2' : exam.title);
 
           return (
             <div key={exam.id} className="bg-white border-l-4 border-l-orange-500 border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -1500,6 +1792,12 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                         setExams(newExams);
 
                         const examsKey = getMentorKey('anuragLmsWeeklyExams', currentEmail);
+                        if (exam.id === 'skill_test_3' || exam.title.toLowerCase().includes('skill test 3')) {
+                          localStorage.setItem('muni_skill_test_3_explicitly_removed', 'true');
+                          localStorage.setItem(`${examsKey}_removed_skill_test_3`, 'true');
+                          localStorage.setItem('anuragLmsWeeklyExams_muni@geonixa.com_removed_skill_test_3', 'true');
+                          saveToCloudflare('muni_skill_test_3_explicitly_removed', { removed: true, removedAt: new Date().toISOString() });
+                        }
                         if (exam.id === 'skill_test_2' || exam.title.toLowerCase().includes('skill test 2')) {
                           localStorage.setItem('muni_skill_test_2_explicitly_removed', 'true');
                           localStorage.setItem(`${examsKey}_removed_skill_test_2`, 'true');
@@ -1591,18 +1889,21 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                   
                   const isReExamGranted = Boolean(
                     localStorage.getItem(`reExamGranted_${studentEmailClean}_${exam.id}`) ||
-                    (isExamSkillTest2 && localStorage.getItem(`reExamGranted_${studentEmailClean}_skill_test_2`)) ||
+                    (isExamSkillTest3 && (localStorage.getItem(`reExamGranted_${studentEmailClean}_skill_test_3`) || localStorage.getItem(`reExamGranted_${studentEmailClean}_week2`))) ||
+                    (isExamSkillTest2 && (localStorage.getItem(`reExamGranted_${studentEmailClean}_skill_test_2`) || localStorage.getItem(`reExamGranted_${studentEmailClean}_week1`))) ||
                     (studentBatchClean && (
                       localStorage.getItem(`reExamBatch_${exam.id}_${studentBatchClean}`) ||
-                      (isExamSkillTest2 && localStorage.getItem(`reExamBatch_skill_test_2_${studentBatchClean}`))
+                      (isExamSkillTest3 && (localStorage.getItem(`reExamBatch_skill_test_3_${studentBatchClean}`) || localStorage.getItem(`reExamBatch_week2_${studentBatchClean}`))) ||
+                      (isExamSkillTest2 && (localStorage.getItem(`reExamBatch_skill_test_2_${studentBatchClean}`) || localStorage.getItem(`reExamBatch_week1_${studentBatchClean}`)))
                     ))
                   );
 
                   const hasSubmitted = !isReExamGranted && (
-                    (submissions[exam.id] || submissions['skill_test_2'] || submissions['week1']) && 
-                    (exam.id === 'skill_test_2' || exam.id.startsWith('skill_test_2') || exam.id === 'week1' 
-                      ? (submissions['skill_test_2'] || submissions['week1'])
-                      : submissions[exam.id])
+                    isExamSkillTest3
+                      ? Boolean(submissions[exam.id] || submissions['skill_test_3'] || submissions['week2'])
+                      : isExamSkillTest2
+                        ? Boolean(submissions[exam.id] || submissions['skill_test_2'] || submissions['week1'])
+                        : Boolean(submissions[exam.id])
                   );
 
                   if (hasSubmitted) {

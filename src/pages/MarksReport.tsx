@@ -18,7 +18,8 @@ const DEFAULT_CONDUCTED_EXAMS: ConductedExam[] = [
   { id: 'graph_exam', title: 'Graph Exam 1', category: 'graph', maxMarks: 20 },
   { id: 'graph_exam_2', title: 'Graph Exam 2', category: 'graph', maxMarks: 20 },
   { id: 'pre_assessment', title: 'Pre Assessment', category: 'pre', maxMarks: 30 },
-  { id: 'skill_test_2', title: 'Skill Test 2', category: 'weekly', maxMarks: 20 }
+  { id: 'skill_test_2', title: 'Skill Test 2', category: 'weekly', maxMarks: 20 },
+  { id: 'skill_test_3', title: 'Skill Test 3', category: 'weekly', maxMarks: 20 }
 ];
 
 const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
@@ -183,7 +184,8 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
         { id: 'graph_exam', title: 'Graph Exam 1', category: 'graph', maxMarks: 20 },
         { id: 'graph_exam_2', title: 'Graph Exam 2', category: 'graph', maxMarks: 20 },
         { id: 'pre_assessment', title: 'Pre Assessment', category: 'pre', maxMarks: 30 },
-        { id: 'skill_test_2', title: 'Skill Test 2', category: 'weekly', maxMarks: 20 }
+        { id: 'skill_test_2', title: 'Skill Test 2', category: 'weekly', maxMarks: 20 },
+        { id: 'skill_test_3', title: 'Skill Test 3', category: 'weekly', maxMarks: 20 }
       ];
 
       // Add any additional exams conducted by the mentor (e.g. CIE1, CIE2, SEM, or future exams)
@@ -191,13 +193,17 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
       weeklyExams.forEach((exam: any) => {
         if (!exam || !exam.id) return;
         const examId = exam.id.trim();
-        // Ignore internal Skill Test 2 variants since we already have the dedicated Skill Test 2 column
+        // Ignore internal Skill Test 2 & 3 variants since we already have the dedicated Skill Test columns
         if (
           examId === 'skill_test_2' || 
           examId.startsWith('skill_test_2_') || 
           examId === 'week1' || 
           examId.startsWith('week1_') || 
-          (exam.title && exam.title.toLowerCase().includes('skill test 2'))
+          examId === 'skill_test_3' || 
+          examId.startsWith('skill_test_3_') || 
+          examId === 'week2' || 
+          examId.startsWith('week2_') || 
+          (exam.title && (exam.title.toLowerCase().includes('skill test 2') || exam.title.toLowerCase().includes('skill test 3')))
         ) {
           return;
         }
@@ -234,7 +240,7 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
         allMarks[sEmail]['pre_assessment'] = (preVal !== undefined && preVal !== null && preVal !== '') ? preVal : '-';
       });
 
-      // (c) Weekly exams (Skill Test 2 and any additional weekly exams)
+      // (c) Weekly exams (Skill Test 2, Skill Test 3, and any additional weekly exams)
       // Fetched in fast parallel chunks of 25 so it completes in ~1 second without freezing the UI
       const otherWeeklyExams = examList.filter(e => e.category === 'weekly');
       const chunkSize = 25;
@@ -282,7 +288,45 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
             allMarks[sEmail]['skill_test_2'] = '-';
           }
 
-          // 2. Pre Assessment fallback (if not in manual marks dict)
+          // 2. Skill Test 3
+          const st3Keys = [
+            `weeklyReport_${sEmail}_skill_test_3`,
+            `weeklyReport_${sEmail}_week2`,
+            student.batch ? `weeklyReport_${sEmail}_skill_test_3_${student.batch}` : null,
+            `weeklyReport_${sEmail}_skill_test_3_B1`,
+            `weeklyReport_${sEmail}_skill_test_3_B2`,
+            `weeklyReport_${sEmail}_skill_test_3_A1`,
+            `weeklyReport_${sEmail}_skill_test_3_A2`
+          ].filter(Boolean) as string[];
+
+          let st3Report: any = null;
+          for (const k of st3Keys) {
+            try {
+              const loc = JSON.parse(localStorage.getItem(k) || 'null');
+              if (loc && (loc.isMentorSubmitted === true || loc.theory !== undefined)) {
+                st3Report = loc;
+                break;
+              }
+            } catch (e) {}
+          }
+
+          if (!st3Report) {
+            for (const k of st3Keys) {
+              const cld = await getFromCloudflare(k);
+              if (cld && (cld.isMentorSubmitted === true || cld.theory !== undefined)) {
+                st3Report = cld;
+                break;
+              }
+            }
+          }
+
+          if (st3Report && (st3Report.isMentorSubmitted === true || !userIsMuni)) {
+            allMarks[sEmail]['skill_test_3'] = st3Report.theory !== undefined ? st3Report.theory : (st3Report.total ?? '-');
+          } else {
+            allMarks[sEmail]['skill_test_3'] = '-';
+          }
+
+          // 3. Pre Assessment fallback (if not in manual marks dict)
           if (allMarks[sEmail]['pre_assessment'] === '-') {
             try {
               const preSub = JSON.parse(localStorage.getItem(`preAssessmentSubmissions_${sEmail}`) || 'null');
@@ -296,9 +340,9 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
             } catch (e) {}
           }
 
-          // 2. Any other custom weekly exams
+          // 4. Any other custom weekly exams
           for (const extraExam of otherWeeklyExams) {
-            if (extraExam.id === 'skill_test_2') continue;
+            if (extraExam.id === 'skill_test_2' || extraExam.id === 'skill_test_3') continue;
 
             let exReport: any = null;
             try {

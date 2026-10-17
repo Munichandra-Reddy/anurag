@@ -6,7 +6,8 @@ import {
   SOLIDWORKS_SKILL_TEST_2_MCQS,
   SOLIDWORKS_SKILL_TEST_2_SET1_MCQS,
   SOLIDWORKS_SKILL_TEST_2_SET2_MCQS,
-  getSkillTest2McqsForBatch
+  getSkillTest2McqsForBatch,
+  getSkillTest3McqsForBatch
 } from '../data/solidworksSkillTest2Mcqs';
 
 interface Student {
@@ -36,10 +37,20 @@ interface WeeklyExamReportProps {
 export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isMentor, loggedInEmail, onBack }) => {
   const currentEmail = loggedInEmail || sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail') || '';
   const isCie = pattern.startsWith('CIE');
-  const isSkillTest2 = pattern === 'skill_test_2' || 
+
+  const isSkillTest3 = pattern === 'skill_test_3' || 
+    pattern.startsWith('skill_test_3') || 
+    pattern.toLowerCase().includes('skill test 3') || 
+    ((pattern === 'week2' || pattern.startsWith('week2')) && isMuniUser(currentEmail));
+
+  const isSkillTest2 = !isSkillTest3 && (
+    pattern === 'skill_test_2' || 
     pattern.startsWith('skill_test_2') || 
     pattern.toLowerCase().includes('skill') || 
-    ((pattern === 'week1' || pattern.startsWith('week1')) && isMuniUser(currentEmail));
+    ((pattern === 'week1' || pattern.startsWith('week1')) && isMuniUser(currentEmail))
+  );
+
+  const isSkillTest = isSkillTest2 || isSkillTest3;
 
   const [students, setStudents] = useState<Student[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -82,7 +93,11 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
 
       let exam = exams.find((e: any) => e.id === pattern);
       if (!exam) {
-        if (pattern === 'skill_test_2') {
+        if (pattern === 'skill_test_3') {
+          exam = exams.find((e: any) => e.id === 'week2' || e.id.startsWith('skill_test_3') || e.id.startsWith('week2'));
+        } else if (pattern === 'week2') {
+          exam = exams.find((e: any) => e.id === 'skill_test_3' || e.id.startsWith('week2') || e.id.startsWith('skill_test_3'));
+        } else if (pattern === 'skill_test_2') {
           exam = exams.find((e: any) => e.id === 'week1' || e.id.startsWith('skill_test_2') || e.id.startsWith('week1'));
         } else if (pattern === 'week1') {
           exam = exams.find((e: any) => e.id === 'skill_test_2' || e.id.startsWith('week1') || e.id.startsWith('skill_test_2'));
@@ -101,14 +116,33 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         const student = [...localStudents, ...safeArray(cloudStudents)].find(s => matchesStudentEmail(s?.email, currentEmail));
         
         if (student && student.batch) {
-          exam = exams.find((e: any) => (e.id.startsWith(`${pattern}_`) || (pattern === 'skill_test_2' && e.id.startsWith('week1_')) || (pattern === 'week1' && e.id.startsWith('skill_test_2_'))) && e.targetBatch === student.batch);
+          if (isSkillTest3) {
+            exam = exams.find((e: any) => (e.id.startsWith('skill_test_3_') || e.id.startsWith('week2_') || e.id === 'skill_test_3' || e.id === 'week2') && e.targetBatch === student.batch);
+          } else if (isSkillTest2) {
+            exam = exams.find((e: any) => (e.id.startsWith('skill_test_2_') || e.id.startsWith('week1_') || e.id === 'skill_test_2' || e.id === 'week1') && e.targetBatch === student.batch);
+          } else {
+            exam = exams.find((e: any) => e.id.startsWith(`${pattern}_`) && e.targetBatch === student.batch);
+          }
         }
         if (!exam) {
-          exam = exams.find((e: any) => e.id.startsWith(`${pattern}_`) || (pattern === 'skill_test_2' && e.id.startsWith('week1_')) || (pattern === 'week1' && e.id.startsWith('skill_test_2_')));
+          if (isSkillTest3) {
+            exam = exams.find((e: any) => e.id.startsWith('skill_test_3_') || e.id.startsWith('week2_') || e.id === 'skill_test_3' || e.id === 'week2');
+          } else if (isSkillTest2) {
+            exam = exams.find((e: any) => e.id.startsWith('skill_test_2_') || e.id.startsWith('week1_') || e.id === 'skill_test_2' || e.id === 'week1');
+          } else {
+            exam = exams.find((e: any) => e.id.startsWith(`${pattern}_`));
+          }
         }
       }
 
-      if (!exam && isSkillTest2) {
+      if (!exam && isSkillTest3) {
+        exam = {
+          id: 'skill_test_3',
+          title: 'Skill Test 3',
+          theoryQuestions: SOLIDWORKS_SKILL_TEST_2_SET2_MCQS,
+          targetBatch: 'B1'
+        };
+      } else if (!exam && isSkillTest2) {
         exam = {
           id: 'skill_test_2',
           title: 'Skill Test 2',
@@ -120,12 +154,22 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
       setTargetExam(exam);
     };
     loadExam();
-  }, [pattern, isMentor, currentEmail]);
+  }, [pattern, isMentor, currentEmail, isSkillTest3, isSkillTest2]);
 
   // Helper to get the correct questions for a student based on batch and submission
   const getQuestionsForStudent = (student: Student | null, submission: any) => {
     if (submission && submission.theoryQuestions && Array.isArray(submission.theoryQuestions) && submission.theoryQuestions.length > 0) {
       return submission.theoryQuestions;
+    }
+    if (isSkillTest3) {
+      const studentBatch = (student?.batch || '').replace(/batch/gi, '').trim().toUpperCase();
+      // Skill Test 3 Question Paper Exchange:
+      // A1 and B1 (Morning) get SET 2 (exchanged with A2/B2)
+      // A2 and B2 (Evening) get SET 1 (exchanged with A1/B1)
+      if (studentBatch.includes('A2') || studentBatch.includes('B2') || studentBatch.includes('EVENING')) {
+        return SOLIDWORKS_SKILL_TEST_2_SET1_MCQS;
+      }
+      return SOLIDWORKS_SKILL_TEST_2_SET2_MCQS;
     }
     if (!isSkillTest2) {
       return (targetExam?.theoryQuestions && targetExam.theoryQuestions.length > 0) ? targetExam.theoryQuestions : [];
@@ -191,9 +235,11 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         let cloudReport = await getFromCloudflare(reportKey);
         let localReport = JSON.parse(localStorage.getItem(reportKey) || 'null');
         
-        // If not found by exact pattern, check aliases (skill_test_2 <-> week1)
+        // If not found by exact pattern, check aliases (skill_test_3 <-> week2, skill_test_2 <-> week1)
         if (!cloudReport && !localReport) {
-          const altPattern = pattern === 'skill_test_2' ? 'week1' : (pattern === 'week1' ? 'skill_test_2' : null);
+          const altPattern = isSkillTest3
+            ? (pattern === 'skill_test_3' ? 'week2' : (pattern === 'week2' ? 'skill_test_3' : null))
+            : (pattern === 'skill_test_2' ? 'week1' : (pattern === 'week1' ? 'skill_test_2' : null));
           if (altPattern) {
             const altKey = `weeklyReport_${studentEmail}_${altPattern}`;
             localReport = JSON.parse(localStorage.getItem(altKey) || 'null');
@@ -201,10 +247,14 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
           }
         }
 
-        // If not found by exact pattern (e.g. week1), try looking for a batch-specific report (e.g. week1_Morning)
+        // If not found by exact pattern (e.g. week2 or week1), try looking for a batch-specific report
         if (!cloudReport && !localReport) {
           const allKeys = Object.keys(localStorage);
-          const matchedKey = allKeys.find(k => k.startsWith(`weeklyReport_${studentEmail}_${pattern}_`) || (pattern === 'skill_test_2' && k.startsWith(`weeklyReport_${studentEmail}_week1_`)));
+          const matchedKey = allKeys.find(k => 
+            k.startsWith(`weeklyReport_${studentEmail}_${pattern}_`) || 
+            (isSkillTest3 && (k.startsWith(`weeklyReport_${studentEmail}_skill_test_3_`) || k.startsWith(`weeklyReport_${studentEmail}_week2_`))) ||
+            (isSkillTest2 && (k.startsWith(`weeklyReport_${studentEmail}_skill_test_2_`) || k.startsWith(`weeklyReport_${studentEmail}_week1_`)))
+          );
           if (matchedKey) {
             localReport = JSON.parse(localStorage.getItem(matchedKey) || 'null');
             cloudReport = await getFromCloudflare(matchedKey);
@@ -213,8 +263,8 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
 
         const finalReport = cloudReport || localReport;
         if (finalReport) {
-          // For Skill Test 2, only show report to student if mentor has submitted it
-          if (isSkillTest2) {
+          // For Skill Tests, only show report to student if mentor has submitted it
+          if (isSkillTest) {
             if (finalReport.isMentorSubmitted === true) {
               setStudentReport(finalReport as any);
             } else {
@@ -229,7 +279,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
       };
       loadReport();
     }
-  }, [isMentor, loggedInEmail, pattern]);
+  }, [isMentor, loggedInEmail, pattern, isSkillTest, isSkillTest3, isSkillTest2]);
 
   // When mentor selects a student, try to load existing marks or drafts
   useEffect(() => {
@@ -239,7 +289,9 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
       const loadReport = async () => {
         const key = `weeklyReport_${selectedStudent.email}_${pattern}`;
         const draftKey = `weeklyReportDraft_${selectedStudent.email}_${pattern}`;
-        const altPattern = pattern === 'skill_test_2' ? 'week1' : (pattern === 'week1' ? 'skill_test_2' : null);
+        const altPattern = isSkillTest3
+          ? (pattern === 'skill_test_3' ? 'week2' : (pattern === 'week2' ? 'skill_test_3' : null))
+          : (pattern === 'skill_test_2' ? 'week1' : (pattern === 'week1' ? 'skill_test_2' : null));
         
         let localReport = JSON.parse(localStorage.getItem(key) || 'null');
         let draftReport = JSON.parse(localStorage.getItem(draftKey) || 'null');
@@ -309,7 +361,16 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         let cloudSubmissionData = await getFromCloudflare(submissionKey);
 
         if (!localSubmissionData && !cloudSubmissionData) {
-          const possibleKeys = [
+          const possibleKeys = isSkillTest3 ? [
+            `weeklyReportSubmission_${sEmail}_skill_test_3`,
+            `weeklyReportSubmission_${sEmail}_week2`,
+            `weeklyReportSubmission_${sEmail}_${pattern}_${selectedStudent.batch || ''}`,
+            `weeklyReportSubmission_${sEmail}_skill_test_3_${selectedStudent.batch || ''}`,
+            `weeklyReportSubmission_${sEmail}_skill_test_3_A1`,
+            `weeklyReportSubmission_${sEmail}_skill_test_3_A2`,
+            `weeklyReportSubmission_${sEmail}_skill_test_3_B1`,
+            `weeklyReportSubmission_${sEmail}_skill_test_3_B2`
+          ] : [
             `weeklyReportSubmission_${sEmail}_skill_test_2`,
             `weeklyReportSubmission_${sEmail}_week1`,
             `weeklyReportSubmission_${sEmail}_${pattern}_${selectedStudent.batch || ''}`,
@@ -335,12 +396,23 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
           const localMap = JSON.parse(localStorage.getItem(mapKey) || '{}');
           const cloudMap = await getFromCloudflare(mapKey) || {};
           const fullMap = { ...(localMap || {}), ...(cloudMap || {}) };
-          if (fullMap[pattern] || fullMap['skill_test_2'] || fullMap['week1']) {
-            cloudSubmissionData = fullMap[pattern] || fullMap['skill_test_2'] || fullMap['week1'];
+          if (isSkillTest3) {
+            if (fullMap[pattern] || fullMap['skill_test_3'] || fullMap['week2']) {
+              cloudSubmissionData = fullMap[pattern] || fullMap['skill_test_3'] || fullMap['week2'];
+            } else {
+              const matchedEntry = Object.entries(fullMap).find(([k]) => k.startsWith('skill_test_3') || k.startsWith('week2'));
+              if (matchedEntry) {
+                cloudSubmissionData = matchedEntry[1];
+              }
+            }
           } else {
-            const matchedEntry = Object.entries(fullMap).find(([k]) => k.startsWith('skill_test_2') || k.startsWith('week1') || k.includes('skill'));
-            if (matchedEntry) {
-              cloudSubmissionData = matchedEntry[1];
+            if (fullMap[pattern] || fullMap['skill_test_2'] || fullMap['week1']) {
+              cloudSubmissionData = fullMap[pattern] || fullMap['skill_test_2'] || fullMap['week1'];
+            } else {
+              const matchedEntry = Object.entries(fullMap).find(([k]) => k.startsWith('skill_test_2') || k.startsWith('week1') || k.includes('skill'));
+              if (matchedEntry) {
+                cloudSubmissionData = matchedEntry[1];
+              }
             }
           }
         }
@@ -356,12 +428,11 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
             return acc + (finalSubmission.theoryAnswers[idx] === q.answerIndex ? 1 : 0);
           }, 0);
           const total = questions.length;
-          const maxMark = isSkillTest2 ? 20 : (isCie ? 10 : 5);
-          const autoScore = isSkillTest2 ? correctCount : Math.round((correctCount / total) * maxMark);
+          const maxMark = isSkillTest ? 20 : (isCie ? 10 : 5);
+          const autoScore = isSkillTest ? correctCount : Math.round((correctCount / total) * maxMark);
 
-          // For Skill Test 2: If report has not yet been submitted by mentor or was stuck on 6 from the old bug, update to the true autoScore
-          if (isSkillTest2) {
-            if (!loadedMarks.isMentorSubmitted || (loadedMarks.theory === 6 && autoScore !== 6) || !loadedMarks.theory) {
+          if (isSkillTest) {
+            if (!loadedMarks.isMentorSubmitted || !loadedMarks.theory || (isSkillTest2 && loadedMarks.theory === 6 && autoScore !== 6)) {
               loadedMarks.theory = autoScore;
             }
             loadedMarks.project = 0;
@@ -386,7 +457,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
     } else {
       setIsLoaded(false);
     }
-  }, [isMentor, selectedStudent, pattern]);
+  }, [isMentor, selectedStudent, pattern, isSkillTest, isSkillTest3, isSkillTest2]);
 
   // Load all student submission statuses asynchronously
   useEffect(() => {
@@ -394,7 +465,9 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
       const loadStatuses = async () => {
         const newStatuses: Record<string, { isCompleted: boolean, hasSubmitted: boolean }> = {};
         
-        const altPattern = pattern === 'skill_test_2' ? 'week1' : (pattern === 'week1' ? 'skill_test_2' : null);
+        const altPattern = isSkillTest3
+          ? (pattern === 'skill_test_3' ? 'week2' : (pattern === 'week2' ? 'skill_test_3' : null))
+          : (pattern === 'skill_test_2' ? 'week1' : (pattern === 'week1' ? 'skill_test_2' : null));
         const promises = students.map(async (student) => {
           let report: any = null;
           try {
@@ -402,7 +475,9 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
             if (!report && altPattern) {
               report = JSON.parse(localStorage.getItem(`weeklyReport_${student.email}_${altPattern}`) || 'null');
             }
-            if (!report && isSkillTest2 && student.batch) {
+            if (!report && isSkillTest3 && student.batch) {
+              report = JSON.parse(localStorage.getItem(`weeklyReport_${student.email}_skill_test_3_${student.batch}`) || 'null');
+            } else if (!report && isSkillTest2 && student.batch) {
               report = JSON.parse(localStorage.getItem(`weeklyReport_${student.email}_skill_test_2_${student.batch}`) || 'null');
             }
           } catch (e) {}
@@ -412,7 +487,9 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
             if (!report && altPattern) {
               report = await getFromCloudflare(`weeklyReport_${student.email}_${altPattern}`);
             }
-            if (!report && isSkillTest2 && student.batch) {
+            if (!report && isSkillTest3 && student.batch) {
+              report = await getFromCloudflare(`weeklyReport_${student.email}_skill_test_3_${student.batch}`);
+            } else if (!report && isSkillTest2 && student.batch) {
               report = await getFromCloudflare(`weeklyReport_${student.email}_skill_test_2_${student.batch}`);
             }
           }
@@ -422,7 +499,22 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
           if (!hasSubmitted && altPattern) {
             hasSubmitted = localStorage.getItem(`weeklyReportSubmission_${sEmail}_${altPattern}`) !== null;
           }
-          if (!hasSubmitted && isSkillTest2) {
+          if (!hasSubmitted && isSkillTest3) {
+            const possibleSubKeys = [
+              `weeklyReportSubmission_${sEmail}_skill_test_3`,
+              `weeklyReportSubmission_${sEmail}_week2`,
+              `weeklyReportSubmission_${sEmail}_skill_test_3_B1`,
+              `weeklyReportSubmission_${sEmail}_skill_test_3_B2`,
+              `weeklyReportSubmission_${sEmail}_skill_test_3_A1`,
+              `weeklyReportSubmission_${sEmail}_skill_test_3_A2`
+            ];
+            for (const pKey of possibleSubKeys) {
+              if (localStorage.getItem(pKey) !== null) {
+                hasSubmitted = true;
+                break;
+              }
+            }
+          } else if (!hasSubmitted && isSkillTest2) {
             const possibleSubKeys = [
               `weeklyReportSubmission_${sEmail}_skill_test_2`,
               `weeklyReportSubmission_${sEmail}_week1`,
@@ -446,7 +538,16 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
               const altCloud = await getFromCloudflare(`weeklyReportSubmission_${sEmail}_${altPattern}`);
               if (altCloud) hasSubmitted = true;
             }
-            if (!hasSubmitted && isSkillTest2) {
+            if (!hasSubmitted && isSkillTest3) {
+              const cloudSubSkill = await getFromCloudflare(`weeklyReportSubmission_${sEmail}_skill_test_3`)
+                || await getFromCloudflare(`weeklyReportSubmission_${sEmail}_week2`)
+                || await getFromCloudflare(`weeklyReportSubmission_${sEmail}_skill_test_3_B1`)
+                || await getFromCloudflare(`weeklyReportSubmission_${sEmail}_skill_test_3_B2`)
+                || await getFromCloudflare(`weeklyReportSubmission_${sEmail}_skill_test_3_A1`)
+                || await getFromCloudflare(`weeklyReportSubmission_${sEmail}_skill_test_3_A2`)
+                || (student.batch ? await getFromCloudflare(`weeklyReportSubmission_${sEmail}_skill_test_3_${student.batch}`) : null);
+              if (cloudSubSkill) hasSubmitted = true;
+            } else if (!hasSubmitted && isSkillTest2) {
               const cloudSubSkill = await getFromCloudflare(`weeklyReportSubmission_${sEmail}_skill_test_2`)
                 || await getFromCloudflare(`weeklyReportSubmission_${sEmail}_week1`)
                 || await getFromCloudflare(`weeklyReportSubmission_${sEmail}_skill_test_2_B1`)
@@ -458,29 +559,44 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
             }
             if (!hasSubmitted) {
               const cloudSubMap = await getFromCloudflare(`weeklyExamSubmissions_${sEmail}`);
-              if (cloudSubMap && (
-                cloudSubMap[pattern] || (altPattern && cloudSubMap[altPattern]) || 
-                cloudSubMap['skill_test_2'] || cloudSubMap['week1'] ||
-                cloudSubMap['skill_test_2_B1'] || cloudSubMap['skill_test_2_B2'] ||
-                cloudSubMap['skill_test_2_A1'] || cloudSubMap['skill_test_2_A2'] ||
-                (student.batch && cloudSubMap[`skill_test_2_${student.batch}`])
-              )) {
-                hasSubmitted = true;
+              if (cloudSubMap && isSkillTest3) {
+                if (cloudSubMap[pattern] || (altPattern && cloudSubMap[altPattern]) || 
+                    cloudSubMap['skill_test_3'] || cloudSubMap['week2'] ||
+                    cloudSubMap['skill_test_3_B1'] || cloudSubMap['skill_test_3_B2'] ||
+                    cloudSubMap['skill_test_3_A1'] || cloudSubMap['skill_test_3_A2'] ||
+                    (student.batch && cloudSubMap[`skill_test_3_${student.batch}`])) {
+                  hasSubmitted = true;
+                }
+              } else if (cloudSubMap && isSkillTest2) {
+                if (cloudSubMap[pattern] || (altPattern && cloudSubMap[altPattern]) || 
+                    cloudSubMap['skill_test_2'] || cloudSubMap['week1'] ||
+                    cloudSubMap['skill_test_2_B1'] || cloudSubMap['skill_test_2_B2'] ||
+                    cloudSubMap['skill_test_2_A1'] || cloudSubMap['skill_test_2_A2'] ||
+                    (student.batch && cloudSubMap[`skill_test_2_${student.batch}`])) {
+                  hasSubmitted = true;
+                }
               }
             }
             if (!hasSubmitted) {
               const subMap = JSON.parse(localStorage.getItem(`weeklyExamSubmissions_${sEmail}`) || '{}');
-              if (subMap[pattern] || (altPattern && subMap[altPattern]) || subMap['skill_test_2'] || subMap['week1'] ||
-                  subMap['skill_test_2_B1'] || subMap['skill_test_2_B2'] || subMap['skill_test_2_A1'] || subMap['skill_test_2_A2']) {
-                hasSubmitted = true;
+              if (isSkillTest3) {
+                if (subMap[pattern] || (altPattern && subMap[altPattern]) || subMap['skill_test_3'] || subMap['week2'] ||
+                    subMap['skill_test_3_B1'] || subMap['skill_test_3_B2'] || subMap['skill_test_3_A1'] || subMap['skill_test_3_A2']) {
+                  hasSubmitted = true;
+                }
+              } else if (isSkillTest2) {
+                if (subMap[pattern] || (altPattern && subMap[altPattern]) || subMap['skill_test_2'] || subMap['week1'] ||
+                    subMap['skill_test_2_B1'] || subMap['skill_test_2_B2'] || subMap['skill_test_2_A1'] || subMap['skill_test_2_A2']) {
+                  hasSubmitted = true;
+                }
               }
             }
           }
 
-          // For Skill Test 2, isCompleted is ONLY true if the mentor explicitly clicked "Send Report to Student"!
+          // For Skill Tests, isCompleted is ONLY true if the mentor explicitly clicked "Send Report to Student"!
           let isCompleted = false;
           if (report) {
-            if (isSkillTest2) {
+            if (isSkillTest) {
               isCompleted = report.isMentorSubmitted === true;
             } else {
               isCompleted = true;
@@ -550,7 +666,19 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
     localStorage.setItem(key, JSON.stringify(reportData));
     await saveToCloudflare(key, reportData);
 
-    if (pattern === 'skill_test_2' || isSkillTest2) {
+    if (pattern === 'skill_test_3' || isSkillTest3) {
+      const altKey = `weeklyReport_${sEmail}_week2`;
+      localStorage.setItem(altKey, JSON.stringify(reportData));
+      await saveToCloudflare(altKey, reportData);
+      const skillKey = `weeklyReport_${sEmail}_skill_test_3`;
+      localStorage.setItem(skillKey, JSON.stringify(reportData));
+      await saveToCloudflare(skillKey, reportData);
+      if (selectedStudent.batch) {
+        const batchKey = `weeklyReport_${sEmail}_skill_test_3_${selectedStudent.batch}`;
+        localStorage.setItem(batchKey, JSON.stringify(reportData));
+        await saveToCloudflare(batchKey, reportData);
+      }
+    } else if (pattern === 'skill_test_2' || isSkillTest2) {
       const altKey = `weeklyReport_${sEmail}_week1`;
       localStorage.setItem(altKey, JSON.stringify(reportData));
       await saveToCloudflare(altKey, reportData);
@@ -583,7 +711,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
 
   const handleGrantStudentReExam = async () => {
     if (!selectedStudent) return;
-    const confirmMsg = `Grant Re-Exam for ${selectedStudent.name} (${selectedStudent.email}) on "${isSkillTest2 ? 'Skill Test 2' : pattern}"?\n\nThis will reset their existing submission and allow them to take the exam again immediately.`;
+    const confirmMsg = `Grant Re-Exam for ${selectedStudent.name} (${selectedStudent.email}) on "${isSkillTest3 ? 'Skill Test 3' : (isSkillTest2 ? 'Skill Test 2' : pattern)}"?\n\nThis will reset their existing submission and allow them to take the exam again immediately.`;
     if (!window.confirm(confirmMsg)) return;
 
     try {
@@ -608,7 +736,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
 
   if (!isMentor) {
     // Student View
-    const displayPatternName = isSkillTest2 ? 'Skill Test 2' : pattern;
+    const displayPatternName = isSkillTest3 ? 'Skill Test 3' : (isSkillTest2 ? 'Skill Test 2' : pattern);
     return (
       <div className="w-full max-w-3xl mx-auto space-y-6 pb-12">
         <div className="flex items-center gap-3 text-gray-900 font-bold text-2xl mb-8">
@@ -619,7 +747,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         {studentReport ? (
           <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
             <div className="space-y-4 text-lg">
-              {isSkillTest2 ? (
+              {isSkillTest ? (
                 <div className="flex justify-between items-center border-b border-gray-100 pb-3">
                   <span className="font-medium text-gray-700">Multiple Choice Questions (20 MCQs)</span>
                   <span className="font-bold text-primary">{studentReport.theory} / 20</span>
@@ -653,7 +781,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
               <div className="flex justify-between items-center pt-4">
                 <span className="font-black text-gray-900 text-xl">Total Score</span>
                 <span className="font-black text-primary text-2xl">
-                  {isSkillTest2 
+                  {isSkillTest 
                     ? `${Number(studentReport.theory)} / 20`
                     : `${Number(studentReport.project) + (isCie ? 0 : Number(studentReport.portfolio)) + Number(studentReport.theory) + Number(studentReport.attendance) + Number(studentReport.mentor)} / ${isCie ? 50 : 20}`}
                 </span>
@@ -725,7 +853,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
       )}
       <div className="flex items-center gap-3 text-gray-900 font-bold text-2xl mb-6">
         <FileText className="text-orange-500" size={28} /> 
-        {isSkillTest2 ? 'Skill Test 2' : pattern} Evaluation
+        {isSkillTest3 ? 'Skill Test 3' : (isSkillTest2 ? 'Skill Test 2' : pattern)} Evaluation
       </div>
 
       {!selectedStudent && (
@@ -823,7 +951,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                             type="button"
                             onClick={async (e) => {
                               e.stopPropagation();
-                              if (window.confirm(`Grant Re-Exam for ${student.name} on "${isSkillTest2 ? 'Skill Test 2' : pattern}"?`)) {
+                              if (window.confirm(`Grant Re-Exam for ${student.name} on "${isSkillTest3 ? 'Skill Test 3' : (isSkillTest2 ? 'Skill Test 2' : pattern)}"?`)) {
                                 await resetStudentSubmissionForExam((student.email || '').toLowerCase().trim(), pattern, student.batch || '');
                                 setSubmissionStatuses(prev => ({
                                   ...prev,
@@ -869,7 +997,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
               <h4 className="font-bold text-blue-900 border-b border-blue-200 pb-2">Student Submission Details</h4>
               
               {/* Project line */}
-              {!isSkillTest2 && (
+              {!isSkillTest && (
                 <div className="flex items-center flex-wrap gap-4 justify-between border-b border-blue-100/50 pb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-blue-800">Project: </span>
@@ -910,7 +1038,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
               )}
 
               {/* Portfolio line */}
-              {!isSkillTest2 && !isCie && (
+              {!isSkillTest && !isCie && (
                 <div className="flex items-center flex-wrap gap-4 justify-between border-b border-blue-100/50 pb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-blue-800">Portfolio PDF: </span>
@@ -944,7 +1072,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                 </div>
               )}
 
-              {!isSkillTest2 && (
+              {!isSkillTest && (
                 <div className="flex items-center flex-wrap gap-4 justify-between border-b border-blue-100/50 pb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-gray-700">Question PDF: </span>
@@ -968,8 +1096,8 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
               <div className="flex flex-col gap-3 border-b border-blue-100/50 pb-4">
                 <div className="flex items-center flex-wrap gap-4 justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-blue-800">{isSkillTest2 ? 'Skill Test 2 (20 MCQs): ' : 'Theory Answers PDF: '}</span>
-                    {!isSkillTest2 && (studentSubmission.theoryAnswerPdfName ? (
+                    <span className="text-sm font-bold text-blue-800">{isSkillTest3 ? 'Skill Test 3 (20 MCQs): ' : (isSkillTest2 ? 'Skill Test 2 (20 MCQs): ' : 'Theory Answers PDF: ')}</span>
+                    {!isSkillTest && (studentSubmission.theoryAnswerPdfName ? (
                       <>
                         <span className="text-sm text-blue-600">{studentSubmission.theoryAnswerPdfName}</span>
                         {studentSubmission.theoryAnswerPdfDataUrl && (
@@ -985,7 +1113,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                   
                   <div className="flex items-center gap-2">
                     <input 
-                      type="number" min="0" max={isSkillTest2 ? "20" : (isCie ? "10" : "5")} placeholder="Marks" 
+                      type="number" min="0" max={isSkillTest ? "20" : (isCie ? "10" : "5")} placeholder="Marks" 
                       value={theoryEvalInput} 
                       onChange={e => setTheoryEvalInput(e.target.value)} 
                       className="w-16 px-2 py-1 text-sm border border-blue-200 rounded focus:outline-none focus:border-blue-400" 
@@ -993,7 +1121,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                     <button 
                       onClick={() => {
                         const val = Number(theoryEvalInput);
-                        if (isSkillTest2) {
+                        if (isSkillTest) {
                           setMarks({ project: 0, portfolio: 0, attendance: 0, mentor: 0, theory: val });
                         } else {
                           setMarks({...marks, theory: val});
@@ -1006,7 +1134,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                   </div>
                 </div>
                 
-                {!isSkillTest2 && (studentSubmission as any).theoryTextAnswer && (
+                {!isSkillTest && (studentSubmission as any).theoryTextAnswer && (
                   <div className="mt-2 p-4 bg-gray-50 border border-gray-200 rounded-xl">
                     <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Typed Answer:</h4>
                     <p className="text-sm text-gray-800 whitespace-pre-wrap">{(studentSubmission as any).theoryTextAnswer}</p>
@@ -1022,8 +1150,8 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                     return acc + (studentSubmission.theoryAnswers[idx] === q.answerIndex ? 1 : 0);
                   }, 0);
                   const total = questions.length;
-                  const maxMark = isSkillTest2 ? 20 : (isCie ? 10 : 5);
-                  const calculatedMark = isSkillTest2 ? correctCount : Math.round((correctCount / total) * maxMark);
+                  const maxMark = isSkillTest ? 20 : (isCie ? 10 : 5);
+                  const calculatedMark = isSkillTest ? correctCount : Math.round((correctCount / total) * maxMark);
 
                   return (
                     <div className="space-y-3 mt-2">
@@ -1050,7 +1178,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                             type="button"
                             onClick={() => {
                               setTheoryEvalInput(String(calculatedMark));
-                              if (isSkillTest2) {
+                              if (isSkillTest) {
                                 setMarks({ project: 0, portfolio: 0, attendance: 0, mentor: 0, theory: calculatedMark });
                               } else {
                                 setMarks(prev => ({ ...prev, theory: calculatedMark }));
@@ -1118,7 +1246,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
               </div>
 
               {/* Attendance line */}
-              {!isSkillTest2 && (
+              {!isSkillTest && (
                 <div className="flex items-center flex-wrap gap-4 justify-between border-b border-blue-100/50 pb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-blue-800">{isCie ? '6 weeks Average' : 'Attendance'}: </span>
@@ -1142,7 +1270,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
               )}
 
               {/* Mentor line */}
-              {!isSkillTest2 && (
+              {!isSkillTest && (
                 <div className="flex items-center flex-wrap gap-4 justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-blue-800">{isCie ? 'Viva' : 'Mentor Evaluation'}: </span>
@@ -1175,7 +1303,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
           )}
 
           <div className="space-y-6 max-w-2xl">
-            {isSkillTest2 ? (
+            {isSkillTest ? (
               <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-primary/20">
                 <div>
                   <label className="font-bold text-gray-800 block text-base">Multiple Choice Questions</label>
@@ -1201,47 +1329,47 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                   <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
                     <label className="font-medium text-gray-700">Portfolio & Document (Max 5)</label>
                     <input 
-                      type="number" min="0" max="5" 
-                      value={marks.portfolio} onChange={(e) => setMarks({...marks, portfolio: Number(e.target.value)})}
-                      className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-center focus:outline-none focus:border-primary"
-                    />
-                  </div>
-                )}
-                <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
-                  <label className="font-medium text-gray-700">Theory Assignment (Max {isCie ? 10 : 5})</label>
-                  <input 
-                    type="number" min="0" max={isCie ? 10 : 5} 
-                    value={marks.theory} onChange={(e) => setMarks({...marks, theory: Number(e.target.value)})}
+                    type="number" min="0" max="5" 
+                    value={marks.portfolio} onChange={(e) => setMarks({...marks, portfolio: Number(e.target.value)})}
                     className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-center focus:outline-none focus:border-primary"
                   />
                 </div>
-                <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
-                  <label className="font-medium text-gray-700">{isCie ? 'Viva' : 'Mentor'} (Max {isCie ? 5 : 3})</label>
-                  <input 
-                    type="number" min="0" max={isCie ? 5 : 3} 
-                    value={marks.mentor} onChange={(e) => setMarks({...marks, mentor: Number(e.target.value)})}
-                    className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-center focus:outline-none focus:border-primary"
-                  />
-                </div>
-                <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
-                  <label className="font-medium text-gray-700">{isCie ? '6 weeks Average' : 'Attendance'} (Max {isCie ? 20 : 2})</label>
-                  <input 
-                    type="number" min="0" max={isCie ? 20 : 2} 
-                    value={marks.attendance} onChange={(e) => setMarks({...marks, attendance: Number(e.target.value)})}
-                    className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-center focus:outline-none focus:border-primary"
-                  />
-                </div>
-              </>
-            )}
-            
-            <div className="flex items-center justify-between p-4 border-t-2 border-gray-100">
-              <span className="font-bold text-gray-900 text-lg">Total Score</span>
-              <span className="font-black text-primary text-2xl">
-                {isSkillTest2 
-                  ? `${Number(marks.theory)} / 20` 
-                  : `${Number(marks.project) + (isCie ? 0 : Number(marks.portfolio)) + Number(marks.theory) + Number(marks.attendance) + Number(marks.mentor)} / ${isCie ? 50 : 20}`}
-              </span>
-            </div>
+              )}
+              <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
+                <label className="font-medium text-gray-700">Theory Assignment (Max {isCie ? 10 : 5})</label>
+                <input 
+                  type="number" min="0" max={isCie ? 10 : 5} 
+                  value={marks.theory} onChange={(e) => setMarks({...marks, theory: Number(e.target.value)})}
+                  className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-center focus:outline-none focus:border-primary"
+                />
+              </div>
+              <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
+                <label className="font-medium text-gray-700">{isCie ? 'Viva' : 'Mentor'} (Max {isCie ? 5 : 3})</label>
+                <input 
+                  type="number" min="0" max={isCie ? 5 : 3} 
+                  value={marks.mentor} onChange={(e) => setMarks({...marks, mentor: Number(e.target.value)})}
+                  className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-center focus:outline-none focus:border-primary"
+                />
+              </div>
+              <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
+                <label className="font-medium text-gray-700">{isCie ? '6 weeks Average' : 'Attendance'} (Max {isCie ? 20 : 2})</label>
+                <input 
+                  type="number" min="0" max={isCie ? 20 : 2} 
+                  value={marks.attendance} onChange={(e) => setMarks({...marks, attendance: Number(e.target.value)})}
+                  className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-center focus:outline-none focus:border-primary"
+                />
+              </div>
+            </>
+          )}
+          
+          <div className="flex items-center justify-between p-4 border-t-2 border-gray-100">
+            <span className="font-bold text-gray-900 text-lg">Total Score</span>
+            <span className="font-black text-primary text-2xl">
+              {isSkillTest 
+                ? `${Number(marks.theory)} / 20` 
+                : `${Number(marks.project) + (isCie ? 0 : Number(marks.portfolio)) + Number(marks.theory) + Number(marks.attendance) + Number(marks.mentor)} / ${isCie ? 50 : 20}`}
+            </span>
+          </div>
 
             <div className="flex justify-end gap-3 pt-4">
               <button 
