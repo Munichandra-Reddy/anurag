@@ -1493,9 +1493,6 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                             )}
                           </select>
                         </div>
-                        <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded font-bold">
-                          🔒 Answers saved in mentor portal only (Hidden from students)
-                        </span>
                       </div>
 
                       <div className="max-h-[450px] overflow-y-auto space-y-4 pr-2">
