@@ -21,7 +21,7 @@ interface Batch {
 const ChatSupport: React.FC = () => {
   const location = useLocation();
   const isMentor = location.pathname.includes('/mentor-dashboard');
-  const loggedInEmail = sessionStorage.getItem('loggedInEmail') || '';
+  const loggedInEmail = (sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail') || '').toLowerCase().trim();
   
   const [registeredStudents, setRegisteredStudents] = useState<any[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
@@ -35,7 +35,7 @@ const ChatSupport: React.FC = () => {
   const [studentActiveTab, setStudentActiveTab] = useState<'batch' | 'mentor'>('batch');
 
   // Mentor state
-  const [mentorActiveType, setMentorActiveType] = useState<'batch' | 'personal'>('batch');
+  const [mentorActiveType, setMentorActiveType] = useState<'batch' | 'personal'>('personal');
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [selectedStudentEmail, setSelectedStudentEmail] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -59,9 +59,16 @@ const ChatSupport: React.FC = () => {
         const localStudents = JSON.parse(localStorage.getItem(studentsKey) || '[]');
         const allStudentsMap = new Map();
         [...localStudents, ...(studentsData || [])].forEach(s => {
-          if (s && s.email) allStudentsMap.set(s.email, s);
+          if (s && s.email) allStudentsMap.set(s.email.toLowerCase().trim(), s);
         });
-        setRegisteredStudents(Array.from(allStudentsMap.values()));
+        const studentList = Array.from(allStudentsMap.values());
+        setRegisteredStudents(studentList);
+
+        // Auto-select first student if mentor has none selected
+        if (isMentor && studentList.length > 0 && !selectedStudentEmail) {
+          const firstWithMsg = studentList.find(s => personalChatsData?.[s.email]?.length > 0);
+          setSelectedStudentEmail(firstWithMsg ? firstWithMsg.email : studentList[0].email);
+        }
 
         // Merge Batches
         const localBatches = JSON.parse(localStorage.getItem(batchKey) || '[]');
@@ -90,14 +97,14 @@ const ChatSupport: React.FC = () => {
         setPersonalChats({ ...localPersonalChats, ...(personalChatsData || {}) });
 
       } catch (error) {
-        console.error("Failed to load data from Cloudflare", error);
+        console.error("Failed to load chat data:", error);
       } finally {
         setIsLoading(false);
       }
     };
     
     loadData();
-  }, []);
+  }, [isMentor]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -108,7 +115,7 @@ const ChatSupport: React.FC = () => {
   }, [groupChats, personalChats, selectedBatchId, selectedStudentEmail, studentActiveTab, mentorActiveType]);
 
   const myBatch = !isMentor 
-    ? batches.find(b => b.memberEmails.includes(loggedInEmail)) 
+    ? batches.find(b => b.memberEmails && b.memberEmails.map(e => e.toLowerCase().trim()).includes(loggedInEmail)) 
     : null;
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -119,15 +126,16 @@ const ChatSupport: React.FC = () => {
     if (isMentor) {
       senderName = 'Mentor';
     } else {
-      const student = registeredStudents.find(s => s.email === loggedInEmail);
+      const student = registeredStudents.find(s => s.email.toLowerCase().trim() === loggedInEmail);
       if (student) senderName = student.name;
+      else senderName = loggedInEmail.split('@')[0];
     }
 
     const newMsg: ChatMessage = {
       sender: isMentor ? 'mentor' : 'student',
       senderEmail: loggedInEmail,
       senderName: senderName,
-      text: newMessage,
+      text: newMessage.trim(),
       timestamp: new Date().toISOString()
     };
 
@@ -153,8 +161,9 @@ const ChatSupport: React.FC = () => {
         localStorage.setItem('anuragLmsGroupChats', JSON.stringify(updated));
         await saveToCloudflare('anuragLmsGroupChats', updated);
       } else if (mentorActiveType === 'personal' && selectedStudentEmail) {
-        const pChat = personalChats[selectedStudentEmail] || [];
-        const updated = { ...personalChats, [selectedStudentEmail]: [...pChat, newMsg] };
+        const cleanTarget = selectedStudentEmail.toLowerCase().trim();
+        const pChat = personalChats[cleanTarget] || [];
+        const updated = { ...personalChats, [cleanTarget]: [...pChat, newMsg] };
         setPersonalChats(updated);
         localStorage.setItem('anuragLmsChats', JSON.stringify(updated));
         await saveToCloudflare('anuragLmsChats', updated);
@@ -166,14 +175,14 @@ const ChatSupport: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="w-full h-[calc(100vh-8rem)] flex items-center justify-center">
+      <div className="w-full h-full min-h-[400px] flex items-center justify-center bg-white">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
   // -------------------------------------------------------------
-  // STUDENT VIEW
+  // STUDENT VIEW (FULL SCREEN)
   // -------------------------------------------------------------
   if (!isMentor) {
     const activeChat = studentActiveTab === 'batch' 
@@ -181,45 +190,60 @@ const ChatSupport: React.FC = () => {
       : (personalChats[loggedInEmail] || []);
     
     return (
-      <div className="w-full max-w-6xl mx-auto space-y-6 pb-12 h-[calc(100vh-8rem)] flex flex-col">
-        <div className="flex items-center gap-3 text-gray-900 font-bold text-2xl shrink-0">
-          <MessageSquare className="text-primary" size={28} /> 
-          Chat Support
+      <div className="w-full h-full flex flex-col bg-white overflow-hidden">
+        {/* Top Slim Header */}
+        <div className="h-14 px-6 border-b border-gray-200 bg-white flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2.5 text-gray-900 font-bold text-base">
+            <MessageSquare className="text-primary" size={20} /> 
+            <span>Chat Support</span>
+          </div>
+          <span className="text-xs text-gray-500 font-medium">Student Portal Messaging</span>
         </div>
         
-        <div className="flex-1 bg-white rounded-2xl border border-gray-200 shadow-sm flex overflow-hidden">
-          {/* Sidebar */}
-          <div className="w-1/3 border-r border-gray-100 flex flex-col">
-            <div className="p-4 border-b border-gray-100 bg-gray-50">
-              <h3 className="font-bold text-gray-900">Conversations</h3>
+        {/* Full Screen Split Layout */}
+        <div className="flex-1 flex overflow-hidden w-full h-[calc(100%-3.5rem)]">
+          {/* Left Conversations Sidebar */}
+          <div className="w-80 md:w-88 border-r border-gray-200 flex flex-col bg-white shrink-0 h-full">
+            <div className="p-3.5 border-b border-gray-200 bg-gray-50/70">
+              <h3 className="font-bold text-gray-700 text-xs uppercase tracking-wider">Conversations</h3>
             </div>
-            <div className="flex-1 overflow-y-auto">
+
+            <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
               {/* Batch Chat Button */}
               {myBatch && (
                 <button
                   onClick={() => setStudentActiveTab('batch')}
-                  className={`w-full text-left p-4 border-b border-gray-50 hover:bg-orange-50 transition-colors flex items-center gap-3 ${studentActiveTab === 'batch' ? 'bg-orange-50/50' : ''}`}
+                  className={`w-full text-left p-3.5 hover:bg-gray-50 transition-colors flex items-center gap-3 cursor-pointer ${
+                    studentActiveTab === 'batch' ? 'bg-primary/5 border-l-4 border-l-primary' : ''
+                  }`}
                 >
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Users size={18} className="text-primary" />
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-primary">
+                    <Users size={18} />
                   </div>
-                  <div className="flex-1 overflow-hidden">
-                    <h4 className={`font-bold text-sm truncate ${studentActiveTab === 'batch' ? 'text-primary' : 'text-gray-900'}`}>{myBatch.batchNumber} Group Chat</h4>
+                  <div className="flex-1 overflow-hidden min-w-0">
+                    <h4 className={`font-semibold text-sm truncate ${studentActiveTab === 'batch' ? 'text-primary' : 'text-gray-900'}`}>
+                      {myBatch.batchNumber} Group Chat
+                    </h4>
                     <p className="text-xs text-gray-500 truncate mt-0.5">Chat with mentor & batch</p>
                   </div>
                   <ChevronRight size={16} className={studentActiveTab === 'batch' ? 'text-primary' : 'text-gray-300'} />
                 </button>
               )}
-              {/* Personal Mentor Chat Button */}
+
+              {/* Direct Mentor Chat Button */}
               <button
                 onClick={() => setStudentActiveTab('mentor')}
-                className={`w-full text-left p-4 border-b border-gray-50 hover:bg-orange-50 transition-colors flex items-center gap-3 ${studentActiveTab === 'mentor' ? 'bg-orange-50/50' : ''}`}
+                className={`w-full text-left p-3.5 hover:bg-gray-50 transition-colors flex items-center gap-3 cursor-pointer ${
+                  studentActiveTab === 'mentor' ? 'bg-primary/5 border-l-4 border-l-primary' : ''
+                }`}
               >
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <User size={18} className="text-primary" />
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-primary">
+                  <User size={18} />
                 </div>
-                <div className="flex-1 overflow-hidden">
-                  <h4 className={`font-bold text-sm truncate ${studentActiveTab === 'mentor' ? 'text-primary' : 'text-gray-900'}`}>Direct Message</h4>
+                <div className="flex-1 overflow-hidden min-w-0">
+                  <h4 className={`font-semibold text-sm truncate ${studentActiveTab === 'mentor' ? 'text-primary' : 'text-gray-900'}`}>
+                    Direct Message
+                  </h4>
                   <p className="text-xs text-gray-500 truncate mt-0.5">Chat directly with Mentor</p>
                 </div>
                 <ChevronRight size={16} className={studentActiveTab === 'mentor' ? 'text-primary' : 'text-gray-300'} />
@@ -227,51 +251,60 @@ const ChatSupport: React.FC = () => {
             </div>
           </div>
           
-          {/* Main Chat Area */}
-          <div className="flex-1 flex flex-col bg-[#f8f9fa]">
+          {/* Main Active Chat Area */}
+          <div className="flex-1 flex flex-col h-full bg-[#f8f9fa] overflow-hidden">
             {studentActiveTab === 'batch' && !myBatch ? (
-               <div className="h-full flex flex-col items-center justify-center text-center p-12">
-                 <Users size={64} className="text-gray-300 mb-4" />
-                 <h2 className="text-xl font-bold text-gray-900 mb-2">No Batch Assigned</h2>
-                 <p className="text-gray-500 max-w-md">You need to be assigned to a project batch by your mentor before you can use the group chat support.</p>
+              <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-3">
+                <Users size={48} className="text-gray-300 mx-auto" />
+                <h3 className="text-base font-semibold text-gray-800">No Batch Assigned Yet</h3>
+                <p className="text-xs text-gray-500 max-w-sm">
+                  You are not assigned to a project batch yet. You can chat directly with your course mentor using the Direct Message tab.
+                </p>
               </div>
             ) : (
               <>
-                <div className="p-4 border-b border-gray-100 bg-white flex items-center gap-3 shrink-0">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold">
-                    {studentActiveTab === 'batch' ? <Users size={20} className="text-primary" /> : <User size={20} className="text-primary" />}
+                {/* Active Chat Header */}
+                <div className="h-16 px-6 border-b border-gray-200 bg-white flex items-center gap-3 shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary shrink-0">
+                    {studentActiveTab === 'batch' ? <Users size={19} /> : <User size={19} />}
                   </div>
                   <div>
-                    <h3 className="font-bold text-gray-900">
-                      {studentActiveTab === 'batch' ? `${myBatch?.batchNumber} Group Chat` : 'Mentor Support'}
+                    <h3 className="font-bold text-gray-900 text-sm">
+                      {studentActiveTab === 'batch' ? `${myBatch?.batchNumber} Group Chat` : 'Course Mentor'}
                     </h3>
-                    <p className="text-xs text-green-600 font-medium flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-green-500 inline-block"></span> 
-                      {studentActiveTab === 'batch' ? `Mentor & ${myBatch?.memberEmails.length} Students` : 'Online'}
+                    <p className="text-xs text-emerald-600 font-medium flex items-center gap-1.5 mt-0.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span> 
+                      {studentActiveTab === 'batch' ? `Mentor & ${myBatch?.memberEmails?.length || 0} Students` : 'Support Active'}
                     </p>
                   </div>
                 </div>
                 
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {/* Messages Feed */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-3">
                   {activeChat.length === 0 && (
-                    <div className="h-full flex flex-col items-center justify-center text-gray-500">
-                      <MessageSquare size={48} className="text-gray-300 mb-4" />
-                      <p>No messages yet. Start the conversation!</p>
+                    <div className="h-full flex flex-col items-center justify-center text-gray-400 p-8 text-center space-y-2">
+                      <MessageSquare size={40} className="text-gray-300 mx-auto" />
+                      <p className="text-sm font-medium text-gray-600">No messages yet</p>
+                      <p className="text-xs text-gray-400">Type a message below to start the conversation.</p>
                     </div>
                   )}
                   
                   {activeChat.map((msg, idx) => {
-                    const isMe = msg.senderEmail === loggedInEmail;
+                    const isMe = msg.senderEmail.toLowerCase().trim() === loggedInEmail;
                     return (
-                      <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-4`}>
-                        <div className={`max-w-[70%] p-3 rounded-2xl ${
+                      <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[70%] sm:max-w-[60%] p-3.5 rounded-lg shadow-2xs ${
                           isMe 
-                            ? 'bg-primary text-white rounded-br-sm' 
-                            : (msg.sender === 'mentor' ? 'bg-orange-100 border border-orange-200 text-orange-900 rounded-bl-sm shadow-sm' : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm shadow-sm')
+                            ? 'bg-primary text-white rounded-tr-none' 
+                            : 'bg-white border border-gray-200 text-gray-800 rounded-tl-none'
                         }`}>
-                          {!isMe && <p className={`text-xs font-bold mb-1 opacity-70 ${msg.sender === 'mentor' ? 'text-orange-900' : 'text-primary'}`}>{msg.senderName}</p>}
-                          <p className="text-sm">{msg.text}</p>
-                          <p className={`text-[10px] mt-1 text-right ${isMe ? 'text-white/70' : 'text-gray-400'}`}>
+                          {!isMe && (
+                            <p className="text-xs font-bold mb-1 text-primary">
+                              {msg.senderName}
+                            </p>
+                          )}
+                          <p className="text-sm leading-relaxed">{msg.text}</p>
+                          <p className={`text-[10px] mt-1.5 text-right font-mono ${isMe ? 'text-white/80' : 'text-gray-400'}`}>
                             {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </p>
                         </div>
@@ -281,21 +314,23 @@ const ChatSupport: React.FC = () => {
                   <div ref={messagesEndRef} />
                 </div>
                 
-                <div className="p-4 bg-white border-t border-gray-100 shrink-0">
-                  <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+                {/* Input Bar */}
+                <div className="p-4 bg-white border-t border-gray-200 shrink-0">
+                  <form onSubmit={handleSendMessage} className="flex items-center gap-2.5 max-w-5xl mx-auto">
                     <input 
                       type="text"
                       value={newMessage}
                       onChange={e => setNewMessage(e.target.value)}
                       placeholder={studentActiveTab === 'batch' ? "Message your batch..." : "Message your mentor..."}
-                      className="flex-1 p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm"
+                      className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm text-gray-900"
                     />
                     <button 
                       type="submit"
                       disabled={!newMessage.trim()}
-                      className="w-12 h-12 rounded-xl bg-primary text-white flex items-center justify-center hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                      className="px-5 py-2.5 rounded-lg bg-primary hover:bg-primary-dark text-white font-medium text-sm flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0 shadow-xs cursor-pointer"
                     >
-                      <Send size={20} className="ml-1" />
+                      <span>Send</span>
+                      <Send size={15} />
                     </button>
                   </form>
                 </div>
@@ -308,156 +343,196 @@ const ChatSupport: React.FC = () => {
   }
 
   // -------------------------------------------------------------
-  // MENTOR VIEW
+  // MENTOR VIEW (FULL SCREEN)
   // -------------------------------------------------------------
   let activeChat: ChatMessage[] = [];
   if (mentorActiveType === 'batch' && selectedBatchId) {
     activeChat = groupChats[selectedBatchId] || [];
   } else if (mentorActiveType === 'personal' && selectedStudentEmail) {
-    activeChat = personalChats[selectedStudentEmail] || [];
+    activeChat = personalChats[selectedStudentEmail.toLowerCase().trim()] || [];
   }
 
   const selectedBatchObj = mentorActiveType === 'batch' ? batches.find(b => b.id === selectedBatchId) : null;
-  const selectedStudentObj = mentorActiveType === 'personal' ? registeredStudents.find(s => s.email === selectedStudentEmail) : null;
+  const selectedStudentObj = mentorActiveType === 'personal' ? registeredStudents.find(s => s.email.toLowerCase().trim() === selectedStudentEmail?.toLowerCase().trim()) : null;
 
   const filteredBatches = batches.filter(b => 
     (b.batchNumber || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
   
   const filteredStudents = registeredStudents.filter(s => 
-    s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    s.email.toLowerCase().includes(searchQuery.toLowerCase())
+    (s.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+    (s.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (s.roll || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-6 pb-12 h-[calc(100vh-8rem)] flex flex-col">
-      <div className="flex items-center gap-3 text-gray-900 font-bold text-2xl shrink-0">
-        <MessageSquare className="text-primary" size={28} /> 
-        Student Chat Support
+    <div className="w-full h-full flex flex-col bg-white overflow-hidden">
+      {/* Top Header Bar */}
+      <div className="h-14 px-6 border-b border-gray-200 bg-white flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2.5 text-gray-900 font-bold text-base">
+          <MessageSquare className="text-primary" size={20} /> 
+          <span>Student Chat Support</span>
+        </div>
+        <span className="text-xs text-gray-500 font-medium">Mentor Communications Center</span>
       </div>
       
-      <div className="flex-1 bg-white rounded-2xl border border-gray-200 shadow-sm flex overflow-hidden">
-        {/* Sidebar */}
-        <div className="w-1/3 border-r border-gray-100 flex flex-col">
-          <div className="p-4 border-b border-gray-100 bg-white shrink-0">
+      {/* Full Screen Split Layout */}
+      <div className="flex-1 flex overflow-hidden w-full h-[calc(100%-3.5rem)]">
+        {/* Left Conversations Sidebar */}
+        <div className="w-80 md:w-96 border-r border-gray-200 flex flex-col bg-white shrink-0 h-full">
+          {/* Search Box */}
+          <div className="p-3 border-b border-gray-200 bg-white shrink-0">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={15} />
               <input 
                 type="text"
-                placeholder="Search batches or students..."
+                placeholder="Search batches, names, or roll numbers..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm"
+                className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-xs text-gray-900"
               />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto">
-            {/* Batch Chats Section */}
-            <div className="p-4 border-b border-gray-100 bg-gray-50 sticky top-0 z-10">
-              <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wider">Project Batches</h3>
-            </div>
-            {filteredBatches.length === 0 && (
-              <div className="p-4 text-center text-gray-500 text-sm">No batches found.</div>
-            )}
-            {filteredBatches.map(batch => {
-              const lastMsg = groupChats[batch.id]?.[groupChats[batch.id].length - 1];
-              const isSelected = mentorActiveType === 'batch' && selectedBatchId === batch.id;
-              
-              return (
-                <button
-                  key={batch.id}
-                  onClick={() => { setMentorActiveType('batch'); setSelectedBatchId(batch.id); }}
-                  className={`w-full text-left p-4 border-b border-gray-50 hover:bg-orange-50 transition-colors flex items-center gap-3 ${isSelected ? 'bg-orange-50/50' : ''}`}
-                >
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Users size={18} className="text-primary" />
-                  </div>
-                  <div className="flex-1 overflow-hidden">
-                    <h4 className={`font-bold text-sm truncate ${isSelected ? 'text-primary' : 'text-gray-900'}`}>{batch.batchNumber || 'Unnamed Batch'}</h4>
-                    <p className="text-xs text-gray-500 truncate mt-0.5">
-                      {lastMsg ? `${lastMsg.senderName}: ${lastMsg.text}` : `${batch.memberEmails.length} Students`}
-                    </p>
-                  </div>
-                  <ChevronRight size={16} className={isSelected ? 'text-primary' : 'text-gray-300'} />
-                </button>
-              )
-            })}
 
+          {/* Conversations Scroll Area */}
+          <div className="flex-1 overflow-y-auto">
             {/* Direct Messages Section */}
-            <div className="p-4 border-b border-gray-100 bg-gray-50 sticky top-0 z-10 mt-2">
-              <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wider">Direct Messages</h3>
+            <div className="px-4 py-2 bg-gray-50/80 border-b border-gray-200 sticky top-0 z-10 flex items-center justify-between">
+              <h3 className="font-bold text-gray-700 text-[11px] uppercase tracking-wider">Direct Messages</h3>
+              <span className="text-[10px] text-gray-400 font-mono">{filteredStudents.length} Students</span>
             </div>
-            {filteredStudents.length === 0 && (
-              <div className="p-4 text-center text-gray-500 text-sm">No students found.</div>
+
+            {filteredStudents.length === 0 ? (
+              <div className="p-4 text-center text-gray-400 text-xs">No students found matching search.</div>
+            ) : (
+              filteredStudents.map(student => {
+                const email = student.email.toLowerCase().trim();
+                const studentMsgs = personalChats[email] || [];
+                const lastMsg = studentMsgs[studentMsgs.length - 1];
+                const isSelected = mentorActiveType === 'personal' && selectedStudentEmail?.toLowerCase().trim() === email;
+                
+                return (
+                  <button
+                    key={email}
+                    onClick={() => { setMentorActiveType('personal'); setSelectedStudentEmail(email); }}
+                    className={`w-full text-left p-3.5 border-b border-gray-100 hover:bg-gray-50 transition-colors flex items-center gap-3 cursor-pointer ${
+                      isSelected ? 'bg-primary/5 border-l-4 border-l-primary' : ''
+                    }`}
+                  >
+                    <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0 text-gray-700 font-bold text-xs uppercase">
+                      {student.name ? student.name.charAt(0) : 'S'}
+                    </div>
+                    <div className="flex-1 overflow-hidden min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <h4 className={`font-semibold text-xs truncate ${isSelected ? 'text-primary' : 'text-gray-900'}`}>
+                          {student.name}
+                        </h4>
+                        {student.batch && (
+                          <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-gray-100 text-gray-600 border border-gray-200 shrink-0">
+                            {student.batch}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-gray-500 truncate mt-0.5">
+                        {lastMsg ? lastMsg.text : <span className="text-gray-400 italic">No messages yet</span>}
+                      </p>
+                    </div>
+                    <ChevronRight size={14} className={isSelected ? 'text-primary' : 'text-gray-300'} />
+                  </button>
+                );
+              })
             )}
-            {/* We show all students or just those who messaged. Showing all lets mentor initiate. */}
-            {filteredStudents.map(student => {
-              const email = student.email;
-              const lastMsg = personalChats[email]?.[personalChats[email].length - 1];
-              const isSelected = mentorActiveType === 'personal' && selectedStudentEmail === email;
-              
-              return (
-                <button
-                  key={email}
-                  onClick={() => { setMentorActiveType('personal'); setSelectedStudentEmail(email); }}
-                  className={`w-full text-left p-4 border-b border-gray-50 hover:bg-orange-50 transition-colors flex items-center gap-3 ${isSelected ? 'bg-orange-50/50' : ''}`}
-                >
-                  <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
-                    <User size={18} className="text-gray-500" />
-                  </div>
-                  <div className="flex-1 overflow-hidden">
-                    <h4 className={`font-bold text-sm truncate ${isSelected ? 'text-primary' : 'text-gray-900'}`}>{student.name}</h4>
-                    <p className="text-xs text-gray-500 truncate mt-0.5">
-                      {lastMsg ? lastMsg.text : 'Click to chat'}
-                    </p>
-                  </div>
-                  <ChevronRight size={16} className={isSelected ? 'text-primary' : 'text-gray-300'} />
-                </button>
-              )
-            })}
+
+            {/* Batch Chats Section */}
+            <div className="px-4 py-2 bg-gray-50/80 border-b border-gray-200 border-t sticky top-0 z-10 flex items-center justify-between mt-2">
+              <h3 className="font-bold text-gray-700 text-[11px] uppercase tracking-wider">Project Batches</h3>
+              <span className="text-[10px] text-gray-400 font-mono">{filteredBatches.length}</span>
+            </div>
+
+            {filteredBatches.length === 0 ? (
+              <div className="p-4 text-center text-gray-400 text-xs">No batches found.</div>
+            ) : (
+              filteredBatches.map(batch => {
+                const batchMsgs = groupChats[batch.id] || [];
+                const lastMsg = batchMsgs[batchMsgs.length - 1];
+                const isSelected = mentorActiveType === 'batch' && selectedBatchId === batch.id;
+                
+                return (
+                  <button
+                    key={batch.id}
+                    onClick={() => { setMentorActiveType('batch'); setSelectedBatchId(batch.id); }}
+                    className={`w-full text-left p-3.5 border-b border-gray-100 hover:bg-gray-50 transition-colors flex items-center gap-3 cursor-pointer ${
+                      isSelected ? 'bg-primary/5 border-l-4 border-l-primary' : ''
+                    }`}
+                  >
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-primary">
+                      <Users size={18} />
+                    </div>
+                    <div className="flex-1 overflow-hidden min-w-0">
+                      <h4 className={`font-semibold text-xs truncate ${isSelected ? 'text-primary' : 'text-gray-900'}`}>
+                        {batch.batchNumber || 'Unnamed Batch'}
+                      </h4>
+                      <p className="text-[11px] text-gray-500 truncate mt-0.5">
+                        {lastMsg ? `${lastMsg.senderName}: ${lastMsg.text}` : `${batch.memberEmails?.length || 0} Students`}
+                      </p>
+                    </div>
+                    <ChevronRight size={14} className={isSelected ? 'text-primary' : 'text-gray-300'} />
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
         
-        {/* Main: Active Chat */}
-        <div className="flex-1 flex flex-col bg-[#f8f9fa]">
-          {(mentorActiveType === 'batch' && selectedBatchId && selectedBatchObj) || (mentorActiveType === 'personal' && selectedStudentEmail && selectedStudentObj) ? (
+        {/* Main Active Chat Area */}
+        <div className="flex-1 flex flex-col h-full bg-[#f8f9fa] overflow-hidden">
+          {(mentorActiveType === 'batch' && selectedBatchId && selectedBatchObj) || (mentorActiveType === 'personal' && selectedStudentEmail) ? (
             <>
-              <div className="p-4 border-b border-gray-100 bg-white flex items-center gap-3 shrink-0">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
-                  {mentorActiveType === 'batch' ? <Users size={20} /> : <User size={20} />}
+              {/* Active Conversation Header */}
+              <div className="h-16 px-6 border-b border-gray-200 bg-white flex items-center gap-3 shrink-0">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary shrink-0">
+                  {mentorActiveType === 'batch' ? <Users size={19} /> : <User size={19} />}
                 </div>
-                <div>
-                  <h3 className="font-bold text-gray-900">
-                    {mentorActiveType === 'batch' ? selectedBatchObj?.batchNumber : selectedStudentObj?.name}
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-gray-900 text-sm truncate">
+                    {mentorActiveType === 'batch' 
+                      ? selectedBatchObj?.batchNumber 
+                      : (selectedStudentObj?.name || selectedStudentEmail)}
                   </h3>
-                  <p className="text-xs text-gray-500">
-                    {mentorActiveType === 'batch' ? `${selectedBatchObj?.memberEmails.length} Students` : selectedStudentEmail}
+                  <p className="text-xs text-gray-500 truncate mt-0.5 font-mono">
+                    {mentorActiveType === 'batch' 
+                      ? `${selectedBatchObj?.memberEmails?.length || 0} Batch Members` 
+                      : `${selectedStudentEmail} ${selectedStudentObj?.roll ? `(${selectedStudentObj.roll})` : ''}`}
                   </p>
                 </div>
               </div>
               
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Messages Feed */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-3">
                 {activeChat.length === 0 && (
-                  <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                    <MessageSquare size={48} className="mb-4 opacity-50" />
-                    <p>Start chatting with {mentorActiveType === 'batch' ? selectedBatchObj?.batchNumber : selectedStudentObj?.name}</p>
+                  <div className="h-full flex flex-col items-center justify-center text-gray-400 p-8 text-center space-y-2">
+                    <MessageSquare size={40} className="text-gray-300 mx-auto" />
+                    <p className="text-sm font-medium text-gray-600">No messages in this conversation yet</p>
+                    <p className="text-xs text-gray-400">Send a message below to start communicating.</p>
                   </div>
                 )}
                 
                 {activeChat.map((msg, idx) => {
-                  const isMe = msg.senderEmail === loggedInEmail || (isMentor && msg.sender === 'mentor');
+                  const isMe = msg.senderEmail.toLowerCase().trim() === loggedInEmail || msg.sender === 'mentor';
                   return (
-                    <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-4`}>
-                      <div className={`max-w-[70%] p-3 rounded-2xl ${
+                    <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[70%] sm:max-w-[60%] p-3.5 rounded-lg shadow-2xs ${
                         isMe 
-                          ? 'bg-primary text-white rounded-br-sm' 
-                          : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm shadow-sm'
+                          ? 'bg-primary text-white rounded-tr-none' 
+                          : 'bg-white border border-gray-200 text-gray-800 rounded-tl-none'
                       }`}>
-                        {!isMe && mentorActiveType === 'batch' && (
-                          <p className="text-xs font-bold mb-1 opacity-70 text-primary">{msg.senderName}</p>
+                        {!isMe && (
+                          <p className="text-xs font-bold mb-1 text-primary">
+                            {msg.senderName}
+                          </p>
                         )}
-                        <p className="text-sm">{msg.text}</p>
-                        <p className={`text-[10px] mt-1 text-right ${isMe ? 'text-white/70' : 'text-gray-400'}`}>
+                        <p className="text-sm leading-relaxed">{msg.text}</p>
+                        <p className={`text-[10px] mt-1.5 text-right font-mono ${isMe ? 'text-white/80' : 'text-gray-400'}`}>
                           {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
@@ -467,29 +542,34 @@ const ChatSupport: React.FC = () => {
                 <div ref={messagesEndRef} />
               </div>
               
-              <div className="p-4 bg-white border-t border-gray-100 shrink-0">
-                <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+              {/* Message Input Box */}
+              <div className="p-4 bg-white border-t border-gray-200 shrink-0">
+                <form onSubmit={handleSendMessage} className="flex items-center gap-2.5 max-w-5xl mx-auto">
                   <input 
                     type="text"
                     value={newMessage}
                     onChange={e => setNewMessage(e.target.value)}
-                    placeholder={`Message ${mentorActiveType === 'batch' ? selectedBatchObj?.batchNumber : selectedStudentObj?.name}...`}
-                    className="flex-1 p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm"
+                    placeholder={`Message ${mentorActiveType === 'batch' ? selectedBatchObj?.batchNumber : (selectedStudentObj?.name || 'student')}...`}
+                    className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm text-gray-900"
                   />
                   <button 
                     type="submit"
                     disabled={!newMessage.trim()}
-                    className="w-12 h-12 rounded-xl bg-primary text-white flex items-center justify-center hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                    className="px-5 py-2.5 rounded-lg bg-primary hover:bg-primary-dark text-white font-medium text-sm flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0 shadow-xs cursor-pointer"
                   >
-                    <Send size={20} className="ml-1" />
+                    <span>Send</span>
+                    <Send size={15} />
                   </button>
                 </form>
               </div>
             </>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-gray-400">
-              <MessageSquare size={64} className="mb-4 opacity-50" />
-              <p className="font-medium">Select a conversation to start chatting</p>
+            <div className="h-full flex flex-col items-center justify-center text-gray-400 p-8 text-center space-y-3">
+              <MessageSquare size={48} className="text-gray-300 mx-auto" />
+              <h3 className="text-base font-semibold text-gray-700">Select a Conversation</h3>
+              <p className="text-xs text-gray-500 max-w-sm">
+                Choose a student or project batch from the left list to view message history and send messages.
+              </p>
             </div>
           )}
         </div>

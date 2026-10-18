@@ -177,10 +177,19 @@ const MentorDashboardLayout: React.FC = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto relative z-0">
-        <div className="max-w-[1200px] mx-auto p-4 md:p-8">
+      <main className={cn(
+        "flex-1 relative z-0",
+        location.pathname.includes('/chat-support') 
+          ? "h-full overflow-hidden flex flex-col p-0" 
+          : "overflow-y-auto"
+      )}>
+        {location.pathname.includes('/chat-support') ? (
           <Outlet />
-        </div>
+        ) : (
+          <div className="max-w-[1200px] mx-auto p-4 md:p-8">
+            <Outlet />
+          </div>
+        )}
       </main>
     </div>
   );
