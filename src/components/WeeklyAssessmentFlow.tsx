@@ -11,6 +11,7 @@ import {
   getSkillTest3McqsForBatch
 } from '../data/solidworksSkillTest2Mcqs';
 import { MUNI_STUDENTS, MUNI_A1_STUDENTS, MUNI_A2_STUDENTS, MUNI_B1_STUDENTS, MUNI_B2_STUDENTS } from '../data/students';
+import { extractTextFromPdf, parseMcqQuestionsAndAnswers } from '../utils/pdfMcqExtractor';
 
 interface TheoryQuestion {
   question: string;
@@ -533,6 +534,14 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
   const [targetBatch, setTargetBatch] = useState('A2');
   const [projectBatches, setProjectBatches] = useState<any[]>([]);
 
+  // PDF Question Paper Upload & Parsing State
+  const [isParsingPdf, setIsParsingPdf] = useState<boolean>(false);
+  const [pdfUploadSuccessMsg, setPdfUploadSuccessMsg] = useState<string>('');
+  const [pdfUploadErrorMsg, setPdfUploadErrorMsg] = useState<string>('');
+  const [showPasteModal, setShowPasteModal] = useState<boolean>(false);
+  const [pasteText, setPasteText] = useState<string>('');
+  const [isCustomPaperUploaded, setIsCustomPaperUploaded] = useState<boolean>(false);
+
   // Student-wise conduct state
   const [conductStudentMode, setConductStudentMode] = useState<'all' | 'specific'>('all');
   const [targetStudentEmails, setTargetStudentEmails] = useState<string[]>([]);
@@ -850,6 +859,72 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     studentTheoryPdf, studentTheoryPdfDataUrl
   ]);
 
+  const handlePdfQuestionUpload = async (file: File) => {
+    if (!file) return;
+    setIsParsingPdf(true);
+    setPdfUploadSuccessMsg('');
+    setPdfUploadErrorMsg('');
+
+    try {
+      setTheoryPdfName(file.name);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setTheoryPdfDataUrl(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+
+      const extractedText = await extractTextFromPdf(file);
+      if (!extractedText || extractedText.trim().length === 0) {
+        setPdfUploadErrorMsg('Could not extract text from this PDF. Please ensure the PDF contains readable text, or use the "Paste Text" option.');
+        setIsParsingPdf(false);
+        return;
+      }
+
+      const parsedQuestions = parseMcqQuestionsAndAnswers(extractedText);
+      if (!parsedQuestions || parsedQuestions.length === 0) {
+        setPdfUploadErrorMsg('No MCQ questions detected in this PDF. Format: 1. Question... A) ... B) ... C) ... D) ... Answer: B. You can also paste text directly.');
+        setIsParsingPdf(false);
+        return;
+      }
+
+      setTheoryQuestions(parsedQuestions);
+      setQuestionCount(parsedQuestions.length);
+      setIsCustomPaperUploaded(true);
+      const withAnswersCount = parsedQuestions.filter(q => q.answerIndex >= 0).length;
+      setPdfUploadSuccessMsg(
+        `✓ Extracted ${parsedQuestions.length} questions (${withAnswersCount} with answer keys) from "${file.name}". Questions and options are populated below!`
+      );
+    } catch (err: any) {
+      console.error('Error parsing PDF question paper:', err);
+      setPdfUploadErrorMsg(err?.message || 'Failed to extract questions from PDF.');
+    } finally {
+      setIsParsingPdf(false);
+    }
+  };
+
+  const handlePasteQuestionsSubmit = () => {
+    if (!pasteText.trim()) return;
+    try {
+      const parsedQuestions = parseMcqQuestionsAndAnswers(pasteText);
+      if (!parsedQuestions || parsedQuestions.length === 0) {
+        setPdfUploadErrorMsg('No MCQ questions detected in pasted text. Format: 1. Question... A) ... B) ... C) ... D) ... Answer: B');
+        return;
+      }
+      setTheoryQuestions(parsedQuestions);
+      setQuestionCount(parsedQuestions.length);
+      setIsCustomPaperUploaded(true);
+      const withAnswersCount = parsedQuestions.filter(q => q.answerIndex >= 0).length;
+      setPdfUploadSuccessMsg(
+        `✓ Extracted ${parsedQuestions.length} questions (${withAnswersCount} with answer keys) from text. Questions and options are populated below!`
+      );
+      setShowPasteModal(false);
+      setPasteText('');
+      setPdfUploadErrorMsg('');
+    } catch (err: any) {
+      setPdfUploadErrorMsg(err?.message || 'Failed to parse text.');
+    }
+  };
+
   const handleAddExam = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -890,12 +965,14 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       }
     }
 
-    const questionsToUse = isSkillTest2
-      ? (theoryQuestions.length > 0 ? theoryQuestions.slice(0, 20) : getSkillTest2McqsForBatch(targetBatch))
+    const questionsToUse = (isCustomPaperUploaded || theoryQuestions.length > 0)
+      ? theoryQuestions.slice(0, questionCount > 0 ? questionCount : theoryQuestions.length)
+      : isSkillTest2
+      ? getSkillTest2McqsForBatch(targetBatch)
       : isSkillTest3
-      ? (theoryQuestions.length > 0 ? theoryQuestions.slice(0, 20) : getSkillTest3McqsForBatch(targetBatch))
+      ? getSkillTest3McqsForBatch(targetBatch)
       : (isSkillTest4 || isSkillTest5)
-      ? (theoryQuestions.length > 0 ? theoryQuestions.slice(0, 20) : SOLIDWORKS_60_MCQS.slice(0, 20))
+      ? SOLIDWORKS_60_MCQS.slice(0, 20)
       : (assessmentMode === 'mcq' 
           ? (theoryQuestions.length > 0 ? theoryQuestions.slice(0, questionCount) : SOLIDWORKS_60_MCQS.slice(0, questionCount)) 
           : []);
@@ -906,8 +983,8 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       projectTitle: isSkillExam ? '' : projectTitle,
       portfolioTopic: isSkillExam ? '' : portfolioTopic,
       assessmentMode: isSkillExam ? 'mcq' : assessmentMode,
-      theoryPdfName: (assessmentMode === 'pdf' && !isSkillExam) ? theoryPdfName : '',
-      theoryPdfDataUrl: (assessmentMode === 'pdf' && !isSkillExam) ? theoryPdfDataUrl : '',
+      theoryPdfName: theoryPdfName || '',
+      theoryPdfDataUrl: theoryPdfDataUrl || '',
       theoryQuestions: questionsToUse,
       targetBatch,
       targetStudentEmails: (conductStudentMode === 'specific' && targetStudentEmails.length > 0) ? targetStudentEmails : undefined,
@@ -1000,6 +1077,11 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     setConductStudentMode('all');
     setTargetStudentEmails([]);
     setStudentSearchQuery('');
+    setIsCustomPaperUploaded(false);
+    setPdfUploadSuccessMsg('');
+    setPdfUploadErrorMsg('');
+    setShowPasteModal(false);
+    setPasteText('');
   };
 
   const handleStudentSubmit = async () => {
@@ -1596,18 +1678,20 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                       onChange={(e) => {
                         const val = e.target.value;
                         setSelectedWeek(val);
-                        if (val === 'skill_test_5' || (val === 'week4' && isMuni)) {
-                          setQuestionCount(20);
-                          setTheoryQuestions(SOLIDWORKS_60_MCQS.slice(0, 20));
-                        } else if (val === 'skill_test_4' || (val === 'week3' && isMuni)) {
-                          setQuestionCount(20);
-                          setTheoryQuestions(SOLIDWORKS_60_MCQS.slice(0, 20));
-                        } else if (val === 'skill_test_3' || (val === 'week2' && isMuni)) {
-                          setQuestionCount(20);
-                          setTheoryQuestions(getSkillTest3McqsForBatch(targetBatch));
-                        } else if (val === 'skill_test_2' || (val === 'week1' && isMuni)) {
-                          setQuestionCount(20);
-                          setTheoryQuestions(getSkillTest2McqsForBatch(targetBatch));
+                        if (!isCustomPaperUploaded) {
+                          if (val === 'skill_test_5' || (val === 'week4' && isMuni)) {
+                            setQuestionCount(20);
+                            setTheoryQuestions(SOLIDWORKS_60_MCQS.slice(0, 20));
+                          } else if (val === 'skill_test_4' || (val === 'week3' && isMuni)) {
+                            setQuestionCount(20);
+                            setTheoryQuestions(SOLIDWORKS_60_MCQS.slice(0, 20));
+                          } else if (val === 'skill_test_3' || (val === 'week2' && isMuni)) {
+                            setQuestionCount(20);
+                            setTheoryQuestions(getSkillTest3McqsForBatch(targetBatch));
+                          } else if (val === 'skill_test_2' || (val === 'week1' && isMuni)) {
+                            setQuestionCount(20);
+                            setTheoryQuestions(getSkillTest2McqsForBatch(targetBatch));
+                          }
                         }
                       }}
                       className="w-full px-3.5 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-xs font-medium shadow-xs"
@@ -1651,18 +1735,20 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                         const newBatch = e.target.value;
                         setTargetBatch(newBatch);
                         setTargetStudentEmails([]);
-                        if (selectedWeek === 'skill_test_5' || (selectedWeek === 'week4' && isMuni)) {
-                          setQuestionCount(20);
-                          setTheoryQuestions(SOLIDWORKS_60_MCQS.slice(0, 20));
-                        } else if (selectedWeek === 'skill_test_4' || (selectedWeek === 'week3' && isMuni)) {
-                          setQuestionCount(20);
-                          setTheoryQuestions(SOLIDWORKS_60_MCQS.slice(0, 20));
-                        } else if (selectedWeek === 'skill_test_3' || (selectedWeek === 'week2' && isMuni)) {
-                          setQuestionCount(20);
-                          setTheoryQuestions(getSkillTest3McqsForBatch(newBatch));
-                        } else if (selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni)) {
-                          setQuestionCount(20);
-                          setTheoryQuestions(getSkillTest2McqsForBatch(newBatch));
+                        if (!isCustomPaperUploaded) {
+                          if (selectedWeek === 'skill_test_5' || (selectedWeek === 'week4' && isMuni)) {
+                            setQuestionCount(20);
+                            setTheoryQuestions(SOLIDWORKS_60_MCQS.slice(0, 20));
+                          } else if (selectedWeek === 'skill_test_4' || (selectedWeek === 'week3' && isMuni)) {
+                            setQuestionCount(20);
+                            setTheoryQuestions(SOLIDWORKS_60_MCQS.slice(0, 20));
+                          } else if (selectedWeek === 'skill_test_3' || (selectedWeek === 'week2' && isMuni)) {
+                            setQuestionCount(20);
+                            setTheoryQuestions(getSkillTest3McqsForBatch(newBatch));
+                          } else if (selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni)) {
+                            setQuestionCount(20);
+                            setTheoryQuestions(getSkillTest2McqsForBatch(newBatch));
+                          }
                         }
                       }}
                       className="w-full px-3.5 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-xs font-medium shadow-xs"
@@ -1944,6 +2030,132 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                     </div>
                   ) : (
                     <div className="space-y-4">
+                      {/* PDF / Text MCQ Question Paper Auto-Extraction Card */}
+                      <div className="bg-gray-50/70 p-4 rounded-xl border border-gray-200 shadow-2xs space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex items-start gap-2.5">
+                            <FileText size={18} className="text-primary shrink-0 mt-0.5" />
+                            <div>
+                              <h5 className="text-xs font-bold text-gray-900 uppercase tracking-wide">
+                                Upload Question Paper PDF (Auto-Extract Questions & Answers)
+                              </h5>
+                              <p className="text-[11px] text-gray-500">
+                                Upload a question paper PDF with answers. Questions and answer keys will automatically display below without typing.
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-xs font-semibold shadow-xs cursor-pointer transition-colors ${isParsingPdf ? 'opacity-70 pointer-events-none' : ''}`}>
+                              {isParsingPdf ? (
+                                <>
+                                  <Loader2 size={13} className="animate-spin" />
+                                  <span>Extracting...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Upload size={13} />
+                                  <span>Choose PDF Paper</span>
+                                </>
+                              )}
+                              <input 
+                                type="file" 
+                                accept=".pdf,.txt"
+                                className="hidden" 
+                                disabled={isParsingPdf}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    handlePdfQuestionUpload(file);
+                                    e.target.value = '';
+                                  }
+                                }} 
+                              />
+                            </label>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowPasteModal(!showPasteModal);
+                                setPdfUploadErrorMsg('');
+                              }}
+                              className="px-2.5 py-1.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                            >
+                              {showPasteModal ? 'Hide Paste' : 'Paste Text'}
+                            </button>
+
+                            {isCustomPaperUploaded && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const base = (isMuni || selectedWeek === 'skill_test_2') 
+                                    ? getSkillTest2McqsForBatch(targetBatch) 
+                                    : SOLIDWORKS_60_MCQS;
+                                  setTheoryQuestions(base);
+                                  setQuestionCount(isMuni ? 20 : 60);
+                                  setIsCustomPaperUploaded(false);
+                                  setPdfUploadSuccessMsg('Reset to standard questions.');
+                                  setTimeout(() => setPdfUploadSuccessMsg(''), 3000);
+                                }}
+                                className="text-xs text-gray-500 hover:text-red-600 underline font-medium px-1 cursor-pointer"
+                                title="Reset to standard questions"
+                              >
+                                Reset
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Fallback Paste Box */}
+                        {showPasteModal && (
+                          <div className="p-3 bg-white border border-gray-200 rounded-lg space-y-2 mt-2">
+                            <label className="block text-[11px] font-semibold text-gray-700">
+                              Paste Questions and Answer Key Text
+                            </label>
+                            <textarea
+                              rows={5}
+                              value={pasteText}
+                              onChange={(e) => setPasteText(e.target.value)}
+                              placeholder={"1. Which feature is used to create a 3D solid from a 2D sketch?\nA) Extruded Boss/Base\nB) Revolved Boss/Base\nC) Swept Boss/Base\nD) Lofted Boss/Base\nAnswer: A\n\n2. Next question..."}
+                              className="w-full p-2.5 text-xs font-mono border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                            />
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setShowPasteModal(false)}
+                                className="px-3 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handlePasteQuestionsSubmit}
+                                className="px-3.5 py-1 text-xs font-semibold text-white bg-primary hover:bg-primary-dark rounded shadow-xs cursor-pointer"
+                              >
+                                Parse Questions
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Success Feedback Banner */}
+                        {pdfUploadSuccessMsg && (
+                          <div className="flex items-center gap-2 p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-md text-xs font-medium">
+                            <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
+                            <span>{pdfUploadSuccessMsg}</span>
+                          </div>
+                        )}
+
+                        {/* Error Feedback Banner */}
+                        {pdfUploadErrorMsg && (
+                          <div className="flex items-center gap-2 p-2.5 bg-red-50 border border-red-200 text-red-700 rounded-md text-xs font-medium">
+                            <AlertCircle size={15} className="text-red-500 shrink-0" />
+                            <span>{pdfUploadErrorMsg}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Question Count Selector & Status */}
                       <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200">
                         <div className="flex items-center gap-2 text-sm font-bold text-gray-800">
                           Total Questions: 
@@ -1964,9 +2176,12 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                             }}
                             className="ml-2 border border-gray-300 rounded px-2 py-1 bg-gray-50 font-semibold"
                           >
+                            {![10, 20, 40, 60].includes(questionCount) && (
+                              <option value={questionCount}>{questionCount} MCQs (Extracted from PDF)</option>
+                            )}
                             {isMuni ? (
                               <>
-                                <option value={20}>20 MCQs (Standard for Skill Test 2)</option>
+                                <option value={20}>20 MCQs (Standard for Skill Test)</option>
                                 <option value={60}>60 MCQs</option>
                                 <option value={40}>40 MCQs</option>
                                 <option value={10}>10 MCQs</option>
@@ -1981,6 +2196,9 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                             )}
                           </select>
                         </div>
+                        <span className="text-xs text-gray-500">
+                          Displaying {Math.min(questionCount, theoryQuestions.length)} questions with answer keys
+                        </span>
                       </div>
 
                       <div className="max-h-[450px] overflow-y-auto space-y-4 pr-2">
