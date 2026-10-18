@@ -28,6 +28,9 @@ interface WeeklyExamData {
   theoryPdfDataUrl?: string;
   theoryQuestions: TheoryQuestion[];
   targetBatch?: string;
+  targetStudentEmails?: string[];
+  targetStudentName?: string;
+  conductMode?: 'batch' | 'student';
 }
 
 interface WeeklyExamSubmission {
@@ -516,6 +519,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
   // Filter state
   const [filterExam, setFilterExam] = useState('');
   const [filterBatch, setFilterBatch] = useState('All');
+  const [filterStudent, setFilterStudent] = useState('');
   
   // Mentor form state
   const [selectedWeek, setSelectedWeek] = useState(isMuni ? 'skill_test_2' : 'week1');
@@ -528,6 +532,11 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
   const [theoryQuestions, setTheoryQuestions] = useState<TheoryQuestion[]>(isMuni ? SOLIDWORKS_SKILL_TEST_2_MCQS : SOLIDWORKS_60_MCQS);
   const [targetBatch, setTargetBatch] = useState('A2');
   const [projectBatches, setProjectBatches] = useState<any[]>([]);
+
+  // Student-wise conduct state
+  const [conductStudentMode, setConductStudentMode] = useState<'all' | 'specific'>('all');
+  const [targetStudentEmails, setTargetStudentEmails] = useState<string[]>([]);
+  const [studentSearchQuery, setStudentSearchQuery] = useState('');
 
   // Student form state
   const [takingExamId, setTakingExamId] = useState<string | null>(null);
@@ -588,6 +597,20 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
              (cleanTarget === 'a2' && studentBatch === 'evening');
     });
   };
+
+  const studentsInCurrentBatch = React.useMemo(() => {
+    return getStudentsForBatch(targetBatch);
+  }, [targetBatch, isMuni, exams]);
+
+  const filteredStudentsList = React.useMemo(() => {
+    const q = studentSearchQuery.toLowerCase().trim();
+    if (!q) return studentsInCurrentBatch;
+    return studentsInCurrentBatch.filter(s => 
+      (s.name && s.name.toLowerCase().includes(q)) ||
+      (s.roll && s.roll.toLowerCase().includes(q)) ||
+      (s.email && s.email.toLowerCase().includes(q))
+    );
+  }, [studentsInCurrentBatch, studentSearchQuery]);
 
   const handleOpenReExamModal = (exam: WeeklyExamData) => {
     setReExamModalExam(exam);
@@ -830,6 +853,11 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
   const handleAddExam = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (conductStudentMode === 'specific' && targetStudentEmails.length === 0) {
+      alert("Please select at least one student to conduct the exam student-wise, or select 'All Students in Batch'.");
+      return;
+    }
+
     const isSkillTest2 = selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni);
     const isSkillTest3 = selectedWeek === 'skill_test_3' || (selectedWeek === 'week2' && isMuni);
     const isSkillTest4 = selectedWeek === 'skill_test_4' || (selectedWeek === 'week3' && isMuni);
@@ -838,7 +866,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     const cleanBatchName = (targetBatch && targetBatch !== 'All Batches') 
       ? targetBatch.replace(/batch/gi, '').trim().toUpperCase() 
       : '';
-    const examId = isSkillTest2 
+    let examId = isSkillTest2 
       ? (cleanBatchName ? `skill_test_2_${cleanBatchName}` : 'skill_test_2')
       : isSkillTest3
       ? (cleanBatchName ? `skill_test_3_${cleanBatchName}` : 'skill_test_3')
@@ -847,6 +875,20 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       : isSkillTest5
       ? (cleanBatchName ? `skill_test_5_${cleanBatchName}` : 'skill_test_5')
       : (targetBatch === 'All Batches' ? selectedWeek : `${selectedWeek}_${targetBatch.replace(/\s+/g, '')}`);
+
+    let targetStudentName = '';
+    if (conductStudentMode === 'specific' && targetStudentEmails.length > 0) {
+      if (targetStudentEmails.length === 1) {
+        const singleEmail = targetStudentEmails[0];
+        const studentObj = studentsInCurrentBatch.find(s => s.email.toLowerCase().trim() === singleEmail.toLowerCase().trim());
+        targetStudentName = studentObj ? `${studentObj.name}${studentObj.roll ? ` (${studentObj.roll})` : ''}` : singleEmail.split('@')[0];
+        const studentPrefix = singleEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, '_');
+        examId = `${examId}_student_${studentPrefix}_${Date.now().toString().slice(-4)}`;
+      } else {
+        targetStudentName = `${targetStudentEmails.length} Students`;
+        examId = `${examId}_students_${Date.now().toString().slice(-4)}`;
+      }
+    }
 
     const questionsToUse = isSkillTest2
       ? (theoryQuestions.length > 0 ? theoryQuestions.slice(0, 20) : getSkillTest2McqsForBatch(targetBatch))
@@ -867,53 +909,58 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       theoryPdfName: (assessmentMode === 'pdf' && !isSkillExam) ? theoryPdfName : '',
       theoryPdfDataUrl: (assessmentMode === 'pdf' && !isSkillExam) ? theoryPdfDataUrl : '',
       theoryQuestions: questionsToUse,
-      targetBatch
+      targetBatch,
+      targetStudentEmails: (conductStudentMode === 'specific' && targetStudentEmails.length > 0) ? targetStudentEmails : undefined,
+      targetStudentName: (conductStudentMode === 'specific' && targetStudentEmails.length > 0) ? targetStudentName : undefined,
+      conductMode: conductStudentMode === 'specific' ? 'student' : 'batch'
     };
 
-    const updatedExams = isSkillTest2
-      ? [
-          ...exams.filter(ex => 
-            ex.id !== examId && 
-            ex.id !== 'skill_test_2' && 
-            ex.id !== 'week1' && 
-            !(ex.title?.toLowerCase().includes('skill test 2') && (ex.targetBatch || '').replace(/batch/gi, '').trim().toUpperCase() === cleanBatchName)
-          ),
-          newExam
-        ]
-      : isSkillTest3
-      ? [
-          ...exams.filter(ex => 
-            ex.id !== examId && 
-            ex.id !== 'skill_test_3' && 
-            ex.id !== 'week2' && 
-            !(ex.title?.toLowerCase().includes('skill test 3') && (ex.targetBatch || '').replace(/batch/gi, '').trim().toUpperCase() === cleanBatchName)
-          ),
-          newExam
-        ]
-      : isSkillTest4
-      ? [
-          ...exams.filter(ex => 
-            ex.id !== examId && 
-            ex.id !== 'skill_test_4' && 
-            ex.id !== 'week3' && 
-            !(ex.title?.toLowerCase().includes('skill test 4') && (ex.targetBatch || '').replace(/batch/gi, '').trim().toUpperCase() === cleanBatchName)
-          ),
-          newExam
-        ]
-      : isSkillTest5
-      ? [
-          ...exams.filter(ex => 
-            ex.id !== examId && 
-            ex.id !== 'skill_test_5' && 
-            ex.id !== 'week4' && 
-            !(ex.title?.toLowerCase().includes('skill test 5') && (ex.targetBatch || '').replace(/batch/gi, '').trim().toUpperCase() === cleanBatchName)
-          ),
-          newExam
-        ]
-      : [
-          ...exams.filter(ex => ex.id !== examId), 
-          newExam
-        ];
+    const updatedExams = (conductStudentMode === 'specific')
+      ? [...exams.filter(ex => ex.id !== examId), newExam]
+      : (isSkillTest2
+        ? [
+            ...exams.filter(ex => 
+              ex.id !== examId && 
+              ex.id !== 'skill_test_2' && 
+              ex.id !== 'week1' && 
+              !(ex.title?.toLowerCase().includes('skill test 2') && (ex.targetBatch || '').replace(/batch/gi, '').trim().toUpperCase() === cleanBatchName && (!ex.targetStudentEmails || ex.targetStudentEmails.length === 0))
+            ),
+            newExam
+          ]
+        : isSkillTest3
+        ? [
+            ...exams.filter(ex => 
+              ex.id !== examId && 
+              ex.id !== 'skill_test_3' && 
+              ex.id !== 'week2' && 
+              !(ex.title?.toLowerCase().includes('skill test 3') && (ex.targetBatch || '').replace(/batch/gi, '').trim().toUpperCase() === cleanBatchName && (!ex.targetStudentEmails || ex.targetStudentEmails.length === 0))
+            ),
+            newExam
+          ]
+        : isSkillTest4
+        ? [
+            ...exams.filter(ex => 
+              ex.id !== examId && 
+              ex.id !== 'skill_test_4' && 
+              ex.id !== 'week3' && 
+              !(ex.title?.toLowerCase().includes('skill test 4') && (ex.targetBatch || '').replace(/batch/gi, '').trim().toUpperCase() === cleanBatchName && (!ex.targetStudentEmails || ex.targetStudentEmails.length === 0))
+            ),
+            newExam
+          ]
+        : isSkillTest5
+        ? [
+            ...exams.filter(ex => 
+              ex.id !== examId && 
+              ex.id !== 'skill_test_5' && 
+              ex.id !== 'week4' && 
+              !(ex.title?.toLowerCase().includes('skill test 5') && (ex.targetBatch || '').replace(/batch/gi, '').trim().toUpperCase() === cleanBatchName && (!ex.targetStudentEmails || ex.targetStudentEmails.length === 0))
+            ),
+            newExam
+          ]
+        : [
+            ...exams.filter(ex => ex.id !== examId), 
+            newExam
+          ]);
     setExams(updatedExams);
     
     const examsKey = getMentorKey('anuragLmsWeeklyExams', currentEmail);
@@ -950,6 +997,9 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     setQuestionCount(20);
     setTheoryQuestions(getSkillTest2McqsForBatch('B1'));
     setTargetBatch('B1');
+    setConductStudentMode('all');
+    setTargetStudentEmails([]);
+    setStudentSearchQuery('');
   };
 
   const handleStudentSubmit = async () => {
@@ -1448,6 +1498,9 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                   setSelectedWeek(isMuni ? 'skill_test_2' : 'week1'); 
                   const defaultBatch = 'B1';
                   setTargetBatch(defaultBatch);
+                  setConductStudentMode('all');
+                  setTargetStudentEmails([]);
+                  setStudentSearchQuery('');
                   setQuestionCount(20);
                   setTheoryQuestions(isMuni ? getSkillTest2McqsForBatch(defaultBatch) : SOLIDWORKS_60_MCQS);
                   setIsAdding('weekly'); 
@@ -1462,6 +1515,9 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                     setSelectedWeek('skill_test_3'); 
                     const defaultBatch = 'B1';
                     setTargetBatch(defaultBatch);
+                    setConductStudentMode('all');
+                    setTargetStudentEmails([]);
+                    setStudentSearchQuery('');
                     setQuestionCount(20);
                     setTheoryQuestions(getSkillTest3McqsForBatch(defaultBatch));
                     setIsAdding('weekly'); 
@@ -1477,6 +1533,9 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                     setSelectedWeek('skill_test_4'); 
                     const defaultBatch = 'B1';
                     setTargetBatch(defaultBatch);
+                    setConductStudentMode('all');
+                    setTargetStudentEmails([]);
+                    setStudentSearchQuery('');
                     setQuestionCount(20);
                     setTheoryQuestions(SOLIDWORKS_60_MCQS.slice(0, 20));
                     setIsAdding('weekly'); 
@@ -1492,6 +1551,9 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                     setSelectedWeek('skill_test_5'); 
                     const defaultBatch = 'B1';
                     setTargetBatch(defaultBatch);
+                    setConductStudentMode('all');
+                    setTargetStudentEmails([]);
+                    setStudentSearchQuery('');
                     setQuestionCount(20);
                     setTheoryQuestions(SOLIDWORKS_60_MCQS.slice(0, 20));
                     setIsAdding('weekly'); 
@@ -1502,7 +1564,13 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                 </button>
               )}
               <button 
-                onClick={() => { setSelectedWeek('CIE1'); setIsAdding('cie'); }}
+                onClick={() => { 
+                  setSelectedWeek('CIE1'); 
+                  setConductStudentMode('all');
+                  setTargetStudentEmails([]);
+                  setStudentSearchQuery('');
+                  setIsAdding('cie'); 
+                }}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-gray-300 hover:border-primary hover:text-primary text-gray-700 text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
               >
                 <Plus size={15} /> Add CIE Exam Paper
@@ -1520,8 +1588,8 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
               <h3 className="text-xl font-bold text-gray-900 mb-6">Configure {isAdding === 'cie' ? 'CIE' : (selectedWeek === 'skill_test_5' || selectedWeek === 'week4' ? 'Skill Test 5' : (selectedWeek === 'skill_test_4' || selectedWeek === 'week3' ? 'Skill Test 4' : (selectedWeek === 'skill_test_3' || selectedWeek === 'week2' ? 'Skill Test 3' : (isMuni ? 'Skill Test 2' : 'Weekly'))))} Exam</h3>
               
               <form onSubmit={handleAddExam} className="space-y-6">
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">Select Exam</label>
                     <select 
                       value={selectedWeek} 
@@ -1574,13 +1642,15 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                       )}
                     </select>
                   </div>
-                  <div className="flex-1">
+
+                  <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">Target Batch</label>
                     <select 
                       value={targetBatch} 
                       onChange={(e) => {
                         const newBatch = e.target.value;
                         setTargetBatch(newBatch);
+                        setTargetStudentEmails([]);
                         if (selectedWeek === 'skill_test_5' || (selectedWeek === 'week4' && isMuni)) {
                           setQuestionCount(20);
                           setTheoryQuestions(SOLIDWORKS_60_MCQS.slice(0, 20));
@@ -1606,7 +1676,179 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                       ))}
                     </select>
                   </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-semibold text-gray-700">Conduct For (Student Filter)</label>
+                      {conductStudentMode === 'specific' && targetStudentEmails.length > 0 && (
+                        <span className="text-[10px] font-bold text-primary">
+                          {targetStudentEmails.length} Selected
+                        </span>
+                      )}
+                    </div>
+                    <select 
+                      value={conductStudentMode === 'all' ? 'ALL' : (targetStudentEmails.length === 1 ? targetStudentEmails[0] : 'CUSTOM')}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === 'ALL') {
+                          setConductStudentMode('all');
+                          setTargetStudentEmails([]);
+                        } else if (val === 'CUSTOM') {
+                          setConductStudentMode('specific');
+                        } else {
+                          setConductStudentMode('specific');
+                          setTargetStudentEmails([val]);
+                        }
+                      }}
+                      className="w-full px-3.5 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-xs font-medium shadow-xs"
+                    >
+                      <option value="ALL">All Students in {targetBatch} (Default)</option>
+                      <option value="CUSTOM">Select Specific Students (Multi-Select)...</option>
+                      {studentsInCurrentBatch.length > 0 && (
+                        <optgroup label={`Individual Students in ${targetBatch} (${studentsInCurrentBatch.length})`}>
+                          {studentsInCurrentBatch.map(s => (
+                            <option key={s.email} value={s.email}>
+                              {s.roll ? `[${s.roll}] ` : ''}{s.name} ({s.email})
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                    </select>
+                  </div>
                 </div>
+
+                {/* Student-Wise Filter & Selection Panel */}
+                {conductStudentMode === 'specific' && (
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3.5 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-200 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <User size={15} className="text-primary" />
+                        <span className="text-xs font-bold text-gray-900">
+                          Conducting Exam Student-Wise ({targetStudentEmails.length} of {studentsInCurrentBatch.length} Students Selected)
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const allEmails = studentsInCurrentBatch.map(s => s.email.toLowerCase().trim());
+                            setTargetStudentEmails(allEmails);
+                          }}
+                          className="text-primary hover:underline font-semibold cursor-pointer text-[11px]"
+                        >
+                          Select All ({studentsInCurrentBatch.length})
+                        </button>
+                        <span className="text-gray-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => setTargetStudentEmails([])}
+                          className="text-gray-500 hover:text-red-600 font-semibold cursor-pointer text-[11px]"
+                        >
+                          Clear Selection
+                        </button>
+                        <span className="text-gray-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setConductStudentMode('all');
+                            setTargetStudentEmails([]);
+                          }}
+                          className="text-gray-500 hover:text-gray-900 font-semibold cursor-pointer text-[11px]"
+                        >
+                          Cancel Student-Wise
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Search student */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={13} />
+                      <input
+                        type="text"
+                        placeholder="Search student by name, roll no, or email to conduct exam..."
+                        value={studentSearchQuery}
+                        onChange={(e) => setStudentSearchQuery(e.target.value)}
+                        className="w-full pl-8 pr-3 py-1.5 bg-white border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary shadow-xs"
+                      />
+                    </div>
+
+                    {/* Selected Badges (if any) */}
+                    {targetStudentEmails.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto pt-1">
+                        {targetStudentEmails.map(email => {
+                          const s = studentsInCurrentBatch.find(st => st.email.toLowerCase().trim() === email.toLowerCase().trim());
+                          return (
+                            <span 
+                              key={email}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 bg-white border border-gray-300 text-gray-800 text-[11px] font-medium rounded shadow-2xs"
+                            >
+                              <span>{s?.name || email.split('@')[0]}</span>
+                              {s?.roll && <span className="text-gray-400 font-mono text-[10px]">({s.roll})</span>}
+                              <button
+                                type="button"
+                                onClick={() => setTargetStudentEmails(prev => prev.filter(e => e.toLowerCase().trim() !== email.toLowerCase().trim()))}
+                                className="text-gray-400 hover:text-red-500 ml-0.5 cursor-pointer"
+                              >
+                                <X size={11} />
+                              </button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Scrollable Student List */}
+                    <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-md bg-white divide-y divide-gray-100">
+                      {filteredStudentsList.length === 0 ? (
+                        <div className="p-4 text-center text-xs text-gray-400 italic">
+                          No students found matching "{studentSearchQuery}".
+                        </div>
+                      ) : (
+                        filteredStudentsList.map(student => {
+                          const sEmail = (student.email || '').toLowerCase().trim();
+                          const isChecked = targetStudentEmails.some(e => e.toLowerCase().trim() === sEmail);
+                          return (
+                            <label
+                              key={sEmail}
+                              className={`flex items-center justify-between p-2 text-xs hover:bg-gray-50/80 cursor-pointer transition-colors ${
+                                isChecked ? 'bg-primary/5' : ''
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setTargetStudentEmails(prev => [...prev, sEmail]);
+                                    } else {
+                                      setTargetStudentEmails(prev => prev.filter(em => em.toLowerCase().trim() !== sEmail));
+                                    }
+                                  }}
+                                  className="accent-primary rounded text-primary focus:ring-primary h-3.5 w-3.5 cursor-pointer"
+                                />
+                                <div className="truncate">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-semibold text-gray-900 truncate">{student.name}</span>
+                                    {student.roll && (
+                                      <span className="px-1 py-0.2 text-[10px] font-mono bg-gray-100 text-gray-600 rounded border border-gray-200">
+                                        {student.roll}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[10px] text-gray-400 truncate block">{sEmail}</span>
+                                </div>
+                              </div>
+                              <span className="text-[10px] font-semibold text-gray-500 px-1.5 py-0.5 bg-gray-100 rounded border border-gray-200 shrink-0">
+                                Batch {student.batch || targetBatch}
+                              </span>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* 1. Project - Hidden for Skill Test 2, 3, 4, 5 */}
                 {!(selectedWeek === 'skill_test_2' || (selectedWeek === 'week1' && isMuni) || selectedWeek === 'skill_test_3' || (selectedWeek === 'week2' && isMuni) || selectedWeek === 'skill_test_4' || (selectedWeek === 'week3' && isMuni) || selectedWeek === 'skill_test_5' || (selectedWeek === 'week4' && isMuni)) && (
@@ -1807,7 +2049,9 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                     type="submit"
                     className="px-5 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg font-medium text-xs transition-colors shadow-xs"
                   >
-                    Publish Weekly Exam
+                    {conductStudentMode === 'specific' && targetStudentEmails.length > 0 
+                      ? `Publish & Conduct for ${targetStudentEmails.length} Student${targetStudentEmails.length > 1 ? 's' : ''}` 
+                      : 'Publish Weekly Exam'}
                   </button>
                 </div>
               </form>
@@ -1839,6 +2083,16 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
               <option key={b.id} value={b.batchNumber}>{b.batchNumber}</option>
             ))}
           </select>
+          <div className="relative flex-1 md:w-60">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={13} />
+            <input 
+              type="text" 
+              placeholder="Filter by Student (Name, Roll, Email)..." 
+              value={filterStudent}
+              onChange={(e) => setFilterStudent(e.target.value)}
+              className="w-full pl-8 pr-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-xs shadow-xs"
+            />
+          </div>
         </div>
       )}
 
@@ -1849,7 +2103,12 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           let seenSkillTest3 = false;
           let seenSkillTest4 = false;
           let seenSkillTest5 = false;
-          return exams.filter(exam => {
+          const sortedExams = [...exams].sort((a, b) => {
+            const aSpecific = (a.targetStudentEmails && a.targetStudentEmails.length > 0) ? 1 : 0;
+            const bSpecific = (b.targetStudentEmails && b.targetStudentEmails.length > 0) ? 1 : 0;
+            return bSpecific - aSpecific;
+          });
+          return sortedExams.filter(exam => {
             if (isMentor) {
               // Mentor filter logic
               if (filterExam.trim() && !exam.title.toLowerCase().includes(filterExam.toLowerCase()) && !exam.id.toLowerCase().includes(filterExam.toLowerCase())) {
@@ -1861,10 +2120,29 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                    if (!exam.targetBatch.includes(filterBatch) && !filterBatch.includes(exam.targetBatch)) return false;
                 }
               }
+              if (filterStudent.trim()) {
+                const sQuery = filterStudent.toLowerCase().trim();
+                const matchesTargetName = exam.targetStudentName && exam.targetStudentName.toLowerCase().includes(sQuery);
+                const matchesTargetEmail = exam.targetStudentEmails && exam.targetStudentEmails.some(e => e.toLowerCase().includes(sQuery));
+                const studentInBatch = getStudentsForBatch(exam.targetBatch || '').some(s => 
+                  (s.name && s.name.toLowerCase().includes(sQuery)) ||
+                  (s.roll && s.roll.toLowerCase().includes(sQuery)) ||
+                  (s.email && s.email.toLowerCase().includes(sQuery))
+                );
+                if (!matchesTargetName && !matchesTargetEmail && !studentInBatch) {
+                  return false;
+                }
+              }
               return true;
             }
             // Student filter logic
             const cleanEmail = (currentEmail || loggedInEmail || '').toLowerCase().trim();
+
+            // If exam was specifically conducted student-wise, only show to the targeted student(s)
+            if (exam.targetStudentEmails && exam.targetStudentEmails.length > 0) {
+              const isTargetedToMe = exam.targetStudentEmails.some(e => matchesStudentEmail(e, cleanEmail));
+              if (!isTargetedToMe) return false;
+            }
 
             const isSkillTest5Exam = isMuni && (
               exam.id === 'week4' || exam.id === 'skill_test_5' || 
@@ -2048,11 +2326,23 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           return (
             <div key={exam.id} className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:border-gray-300 transition-colors">
               <div>
-                <div className="flex items-center gap-2.5 mb-1">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <h3 className="font-bold text-base text-gray-900">{displayTitle}</h3>
                   {isMentor && exam.targetBatch && exam.targetBatch !== 'All Batches' && (
                     <span className="px-2 py-0.5 bg-gray-100 text-gray-700 border border-gray-200 text-xs font-semibold rounded-md">
                       {exam.targetBatch}
+                    </span>
+                  )}
+                  {isMentor && exam.targetStudentEmails && exam.targetStudentEmails.length > 0 && (
+                    <span className="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 text-xs font-semibold rounded-md flex items-center gap-1">
+                      <User size={11} />
+                      {exam.targetStudentName || `${exam.targetStudentEmails.length} Students`}
+                    </span>
+                  )}
+                  {isMentor && (!exam.targetStudentEmails || exam.targetStudentEmails.length === 0) && (
+                    <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold rounded-md flex items-center gap-1">
+                      <Users size={11} />
+                      Entire Batch
                     </span>
                   )}
                 </div>
