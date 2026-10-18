@@ -8,6 +8,7 @@ export interface ParsedMcq {
 
 /**
  * Extracts plain text from an uploaded PDF file using PDF.js via CDN,
+ * preserving line breaks based on text position (Y-coordinate),
  * with pure-JS stream text extraction fallbacks.
  */
 export const extractTextFromPdf = async (file: File): Promise<string> => {
@@ -49,8 +50,46 @@ export const extractTextFromPdf = async (file: File): Promise<string> => {
       for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
         const page = await pdfDoc.getPage(pageNum);
         const textContent = await page.getTextContent();
-        const pageStrings = textContent.items.map((item: any) => item.str || '');
-        fullText += pageStrings.join(' ') + '\n';
+        
+        let lastY: number | null = null;
+        let pageLines: string[] = [];
+        let currentLine = '';
+
+        for (const item of (textContent.items as any[])) {
+          if (!item) continue;
+          const str = item.str || '';
+          const currentY = item.transform ? item.transform[5] : null;
+
+          // If vertical position changes significantly (> 3 points), it's a new line!
+          if (lastY !== null && currentY !== null && Math.abs(currentY - lastY) > 3) {
+            if (currentLine.trim()) {
+              pageLines.push(currentLine.trim());
+            }
+            currentLine = str;
+          } else {
+            if (currentLine && !currentLine.endsWith(' ') && str && !str.startsWith(' ')) {
+              currentLine += ' ';
+            }
+            currentLine += str;
+          }
+
+          if (item.hasEOL) {
+            if (currentLine.trim()) {
+              pageLines.push(currentLine.trim());
+            }
+            currentLine = '';
+          }
+
+          if (currentY !== null) {
+            lastY = currentY;
+          }
+        }
+
+        if (currentLine.trim()) {
+          pageLines.push(currentLine.trim());
+        }
+
+        fullText += pageLines.join('\n') + '\n\n';
       }
 
       if (fullText.trim().length > 20) {
@@ -88,7 +127,7 @@ export const extractTextFromPdf = async (file: File): Promise<string> => {
     }
 
     if (textChunks.length > 0) {
-      return textChunks.join(' ');
+      return textChunks.join('\n');
     }
   } catch (fallbackErr) {
     console.warn("Fallback raw parser encountered an issue:", fallbackErr);
@@ -112,7 +151,18 @@ export const parseMcqQuestionsAndAnswers = (text: string): ParsedMcq[] => {
     .replace(/[\u201C\u201D]/g, '"')
     .replace(/[ \t]+/g, ' ');
 
-  // 1. Extract Answer Key section if present at the end of the text
+  // 1. Pre-process to separate compact items on the same line:
+  // e.g. "A) 9 B) 10" -> "A) 9\nB) 10"
+  normalized = normalized.replace(/([^\n])\s+(?=\(?([B-Db-d])\)?[.\:\-]?\s+)/g, '$1\n');
+  normalized = normalized.replace(/([^\n])\s+(?=\(?([A-Da-d])\)?[.\:\-]?\s+)/g, '$1\n');
+
+  // e.g. "Answer: C 2. How many..." -> "Answer: C\n2. How many..."
+  normalized = normalized.replace(/([^\n])\s+(?=(?:Q(?:uestion)?\s*)?\d+[\.\)\:\-]\s+)/gi, '$1\n');
+
+  // e.g. "D) 12 Answer: C" -> "D) 12\nAnswer: C"
+  normalized = normalized.replace(/([^\n])\s+(?=(?:Answer|Ans|Correct(?:\s*Option|\s*Answer)?|Key)[\s\:\-\=]+(?:Option\s*)?[A-Da-d])/gi, '$1\n');
+
+  // 2. Extract Answer Key section if present at the end of the text
   const answerKeyMap = new Map<number, number>();
   const answerKeyHeaderRegex = /(?:Answer\s*Key|Answers|Answer\s*Sheet|Key\s*Answers|Key)[\s\:\-]+([\s\S]*)$/i;
   const answerKeyMatch = normalized.match(answerKeyHeaderRegex);
@@ -132,13 +182,13 @@ export const parseMcqQuestionsAndAnswers = (text: string): ParsedMcq[] => {
     }
   }
 
-  // 2. Line-by-line processing
+  // 3. Line-by-line processing
   const lines = normalized.split('\n');
   const questions: ParsedMcq[] = [];
 
   // Regex patterns
   const qStartRegex = /^\s*(?:Q(?:uestion)?\s*)?(\d+)[\.\)\:\-]\s*(.*)$/i;
-  const optStartRegex = /^\s*(?:\(?([A-Da-d])\)?[.\:\-]?|\[([A-Da-d])\])\s+(.*)$/;
+  const optStartRegex = /^\s*(?:\(?([A-Da-d])\)?[.\:\-]?|\[([A-Da-d])\])\s*(.*)$/;
   const inlineAnsRegex = /(?:Answer|Ans|Correct(?:\s*Option|\s*Answer)?|Key)[\s\:\-\=]+(?:Option\s*)?([A-Da-d])/i;
 
   let currentQNum = 0;
@@ -146,6 +196,7 @@ export const parseMcqQuestionsAndAnswers = (text: string): ParsedMcq[] => {
   let currentOptions: { letter: string; text: string }[] = [];
   let currentInlineAns = -1;
   let inQuestion = false;
+  let hasAnswer = false;
 
   const saveCurrentQuestion = () => {
     if (currentQText.trim().length > 0 && currentOptions.length >= 2) {
@@ -189,15 +240,21 @@ export const parseMcqQuestionsAndAnswers = (text: string): ParsedMcq[] => {
       break;
     }
 
-    // Check if line is inline answer
+    // Ignore page headers / footers (e.g. "Cricket Objective Questions • Page 1", "Page 1 of 3")
+    if (/^(?:page\s*\d+|\d+\s*of\s*\d+|.*•\s*page\s*\d+.*|\d+\s+.*objective\s+questions.*)$/i.test(line)) {
+      continue;
+    }
+
+    // Check if line is inline answer (e.g. "Answer: C", "Ans: (B)")
     const ansMatch = line.match(inlineAnsRegex);
     if (ansMatch && inQuestion) {
       const letter = ansMatch[1].toUpperCase();
       currentInlineAns = letter.charCodeAt(0) - 65;
+      hasAnswer = true;
       continue;
     }
 
-    // Check if line is a question start
+    // Check if line is a question start (e.g. "1. How many...", "Q2: What is...")
     const qMatch = line.match(qStartRegex);
     if (qMatch && !line.match(optStartRegex)) {
       if (inQuestion) {
@@ -208,35 +265,21 @@ export const parseMcqQuestionsAndAnswers = (text: string): ParsedMcq[] => {
       currentOptions = [];
       currentInlineAns = -1;
       inQuestion = true;
+      hasAnswer = false;
 
       // Check if question text has inline answer
       const qAnsMatch = currentQText.match(inlineAnsRegex);
       if (qAnsMatch) {
         currentInlineAns = qAnsMatch[1].toUpperCase().charCodeAt(0) - 65;
         currentQText = currentQText.replace(inlineAnsRegex, '').trim();
-      }
-
-      // Check if options are inline on the same line
-      const inlineOptRegex = /(?:\s+|^)(?:\(?([A-Da-d])\)?[.\:\-]?|\[([A-Da-d])\])\s+([^A-Da-d\(\)\[\]\n]+)/g;
-      const inlineOpts: { letter: string; text: string }[] = [];
-      let iom;
-      while ((iom = inlineOptRegex.exec(currentQText)) !== null) {
-        const ltr = (iom[1] || iom[2]).toUpperCase();
-        inlineOpts.push({ letter: ltr, text: iom[3].trim() });
-      }
-      if (inlineOpts.length >= 2) {
-        const firstOptIndex = currentQText.search(/(?:\(?([A-Da-d])\)?[.\:\-]?|\[([A-Da-d])\])/);
-        if (firstOptIndex > 0) {
-          currentQText = currentQText.substring(0, firstOptIndex).trim();
-        }
-        currentOptions = inlineOpts;
+        hasAnswer = true;
       }
       continue;
     }
 
-    // Check if line is an option: A), B), C), D)
+    // Check if line is an option: A), B), C), D) or (A), (B), (C), (D)
     const optMatch = line.match(optStartRegex);
-    if (optMatch && inQuestion) {
+    if (optMatch && inQuestion && !hasAnswer) {
       const letter = (optMatch[1] || optMatch[2]).toUpperCase();
       let optText = optMatch[3].trim();
 
@@ -248,7 +291,7 @@ export const parseMcqQuestionsAndAnswers = (text: string): ParsedMcq[] => {
         optText = optText.replace(/\s*[\(\[]?(?:correct(?:\s*answer)?|ans|answer|\*)[\)\]]?\s*$/i, '').trim();
       }
 
-      // Check for two options on one line: e.g. "A) Op1   B) Op2"
+      // Check for two options on one line: e.g. "A) 9   B) 10" or "C) 11   D) 12"
       const multiOptRegex = /(?:\(?([B-Db-d])\)?[.\:\-]?|\[([B-Db-d])\])\s+(.*)/;
       const multiMatch = optText.match(multiOptRegex);
       if (multiMatch) {
@@ -263,7 +306,7 @@ export const parseMcqQuestionsAndAnswers = (text: string): ParsedMcq[] => {
     }
 
     // Continuation line
-    if (inQuestion) {
+    if (inQuestion && !hasAnswer) {
       if (currentOptions.length > 0) {
         currentOptions[currentOptions.length - 1].text += ' ' + line;
       } else {
@@ -276,7 +319,7 @@ export const parseMcqQuestionsAndAnswers = (text: string): ParsedMcq[] => {
     saveCurrentQuestion();
   }
 
-  // Fallback whole-text block matching if line-by-line missed questions
+  // 4. Fallback whole-text block matching if line-by-line missed questions
   if (questions.length === 0) {
     const blockRegex = /(?:^|\n)\s*(?:Q(?:uestion)?\s*)?(\d+)[\.\)\:\-]\s*([\s\S]*?)(?=(?:\n\s*(?:Q(?:uestion)?\s*)?\d+[\.\)\:\-]\s*)|$)/gi;
     let bm;
