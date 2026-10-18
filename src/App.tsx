@@ -17,6 +17,7 @@ import TopPerformer from './pages/TopPerformer';
 import AttendanceReport from './pages/AttendanceReport';
 import MarksReport from './pages/MarksReport';
 import GraphExam from './pages/GraphExam';
+import MentorDashboardOverview from './pages/MentorDashboardOverview';
 
 function App() {
   return (
@@ -42,7 +43,8 @@ function App() {
 
         {/* Mentor Dashboard */}
         <Route path="/mentor-dashboard" element={<MentorDashboardLayout />}>
-          <Route index element={<Attendance />} />
+          <Route index element={<MentorDashboardOverview />} />
+          <Route path="attendance" element={<Attendance />} />
           <Route path="students" element={<MentorStudents />} />
           <Route path="content" element={<CourseContent />} />
           <Route path="classes" element={<Classes />} />

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { 
-  ClipboardCheck, BookOpen, Video, 
+  LayoutDashboard, ClipboardCheck, BookOpen, Video, 
   Key, FileText, LogOut, Users, Award, MessageSquare, BarChart, Menu, X, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { cn } from '../utils/cn';
@@ -31,7 +31,8 @@ const MentorDashboardLayout: React.FC = () => {
   }, [location.pathname]);
 
   const menuItems = [
-    { title: 'Attendance', icon: <ClipboardCheck size={20} />, path: '/mentor-dashboard' },
+    { title: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/mentor-dashboard' },
+    { title: 'Attendance', icon: <ClipboardCheck size={20} />, path: '/mentor-dashboard/attendance' },
     { title: 'Students', icon: <Users size={20} />, path: '/mentor-dashboard/students' },
     { title: 'Course Content Upload', icon: <BookOpen size={20} />, path: '/mentor-dashboard/content' },
     { title: 'Classes Schedule', icon: <Video size={20} />, path: '/mentor-dashboard/classes' },
