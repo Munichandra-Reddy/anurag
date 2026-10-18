@@ -845,11 +845,6 @@ const GraphExam: React.FC = () => {
               Lab Exam
             </span>
           </div>
-          <p className="text-gray-500 text-sm mt-1">
-            {isMentorView 
-              ? `View and manage ${currentConfig.title} lab answer submissions for Muni Mentor students.` 
-              : `Upload your question answer (Screenshot or PDF) for ${currentConfig.title}.`}
-          </p>
         </div>
 
         {/* Professional Exam Switcher Tabs */}
@@ -936,20 +931,17 @@ const GraphExam: React.FC = () => {
         <div className="space-y-6">
           <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-gray-100">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2.5">
-                  <h2 className="text-lg font-bold text-gray-900">{currentConfig.title}</h2>
-                  {isMyExamCompleted ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      <CheckCircle2 size={13} /> Completed
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
-                      <Clock size={13} /> Pending
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-gray-500">Format: Select Question Number & Upload Screenshot or PDF Answer</p>
+              <div className="flex items-center gap-2.5">
+                <h2 className="text-lg font-bold text-gray-900">{currentConfig.title}</h2>
+                {isMyExamCompleted ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <CheckCircle2 size={13} /> Completed
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                    <Clock size={13} /> Pending
+                  </span>
+                )}
               </div>
 
               {!isMyExamCompleted ? (
