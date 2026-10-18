@@ -181,11 +181,13 @@ const DashboardLayout: React.FC = () => {
                   {isAssessmentsExpanded && (
                     <div className="pl-11 pr-3 py-2 flex flex-col gap-2.5 mt-1 border-l-2 border-primary/20 ml-5">
                       {['weekly Exam Pattern', 'CIE Exam Pattern', 'SEM Exam Pattern', 'Pre Assessment Pattern', 'week1', 'week2', 'week3', 'week4', 'week5', 'week6', 'CIE1', 'week7', 'week8', 'week9', 'week10', 'week11', 'week12', 'CIE2', 'SEM'].map((subItem, idx) => {
-                        const isSkillTest2 = isMuniStudent && subItem === 'week1';
-                        const isSkillTest3 = isMuniStudent && subItem === 'week2';
-                        const displayLabel = isSkillTest2 ? 'Skill Test 2' : isSkillTest3 ? 'Skill Test 3' : subItem;
-                        const targetPattern = isSkillTest2 ? 'skill_test_2' : isSkillTest3 ? 'skill_test_3' : subItem;
-                        const isSubActive = location.search.includes(encodeURIComponent(targetPattern)) || location.search.includes(targetPattern);
+                        const isSkillTest2 = (isMuniStudent || isMuniUser(userEmail)) && subItem === 'week1';
+                        const isSkillTest3 = (isMuniStudent || isMuniUser(userEmail)) && subItem === 'week2';
+                        const isSkillTest4 = (isMuniStudent || isMuniUser(userEmail)) && subItem === 'week3';
+                        const isSkillTest5 = (isMuniStudent || isMuniUser(userEmail)) && subItem === 'week4';
+                        const displayLabel = isSkillTest2 ? 'Skill Test 2' : isSkillTest3 ? 'Skill Test 3' : isSkillTest4 ? 'Skill Test 4' : isSkillTest5 ? 'Skill Test 5' : subItem;
+                        const targetPattern = isSkillTest2 ? 'skill_test_2' : isSkillTest3 ? 'skill_test_3' : isSkillTest4 ? 'skill_test_4' : isSkillTest5 ? 'skill_test_5' : subItem;
+                        const isSubActive = location.search.includes(encodeURIComponent(targetPattern)) || location.search.includes(targetPattern) || (isSkillTest4 && location.search.includes('week3')) || (isSkillTest5 && location.search.includes('week4'));
                         return (
                           <button 
                             key={idx} 

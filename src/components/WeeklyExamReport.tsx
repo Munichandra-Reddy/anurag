@@ -38,19 +38,33 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
   const currentEmail = loggedInEmail || sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail') || '';
   const isCie = pattern.startsWith('CIE');
 
-  const isSkillTest3 = pattern === 'skill_test_3' || 
+  const isSkillTest5 = pattern === 'skill_test_5' || 
+    pattern.startsWith('skill_test_5') || 
+    pattern.toLowerCase().includes('skill test 5') || 
+    ((pattern === 'week4' || pattern.startsWith('week4')) && isMuniUser(currentEmail));
+
+  const isSkillTest4 = !isSkillTest5 && (
+    pattern === 'skill_test_4' || 
+    pattern.startsWith('skill_test_4') || 
+    pattern.toLowerCase().includes('skill test 4') || 
+    ((pattern === 'week3' || pattern.startsWith('week3')) && isMuniUser(currentEmail))
+  );
+
+  const isSkillTest3 = !isSkillTest5 && !isSkillTest4 && (
+    pattern === 'skill_test_3' || 
     pattern.startsWith('skill_test_3') || 
     pattern.toLowerCase().includes('skill test 3') || 
-    ((pattern === 'week2' || pattern.startsWith('week2')) && isMuniUser(currentEmail));
+    ((pattern === 'week2' || pattern.startsWith('week2')) && isMuniUser(currentEmail))
+  );
 
-  const isSkillTest2 = !isSkillTest3 && (
+  const isSkillTest2 = !isSkillTest5 && !isSkillTest4 && !isSkillTest3 && (
     pattern === 'skill_test_2' || 
     pattern.startsWith('skill_test_2') || 
     pattern.toLowerCase().includes('skill') || 
     ((pattern === 'week1' || pattern.startsWith('week1')) && isMuniUser(currentEmail))
   );
 
-  const isSkillTest = isSkillTest2 || isSkillTest3;
+  const isSkillTest = isSkillTest2 || isSkillTest3 || isSkillTest4 || isSkillTest5;
 
   const [students, setStudents] = useState<Student[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -93,7 +107,15 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
 
       let exam = exams.find((e: any) => e.id === pattern);
       if (!exam) {
-        if (pattern === 'skill_test_3') {
+        if (pattern === 'skill_test_5') {
+          exam = exams.find((e: any) => e.id === 'week4' || e.id.startsWith('skill_test_5') || e.id.startsWith('week4'));
+        } else if (pattern === 'week4') {
+          exam = exams.find((e: any) => e.id === 'skill_test_5' || e.id.startsWith('week4') || e.id.startsWith('skill_test_5'));
+        } else if (pattern === 'skill_test_4') {
+          exam = exams.find((e: any) => e.id === 'week3' || e.id.startsWith('skill_test_4') || e.id.startsWith('week3'));
+        } else if (pattern === 'week3') {
+          exam = exams.find((e: any) => e.id === 'skill_test_4' || e.id.startsWith('week3') || e.id.startsWith('skill_test_4'));
+        } else if (pattern === 'skill_test_3') {
           exam = exams.find((e: any) => e.id === 'week2' || e.id.startsWith('skill_test_3') || e.id.startsWith('week2'));
         } else if (pattern === 'week2') {
           exam = exams.find((e: any) => e.id === 'skill_test_3' || e.id.startsWith('week2') || e.id.startsWith('skill_test_3'));
@@ -116,7 +138,11 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         const student = [...localStudents, ...safeArray(cloudStudents)].find(s => matchesStudentEmail(s?.email, currentEmail));
         
         if (student && student.batch) {
-          if (isSkillTest3) {
+          if (isSkillTest5) {
+            exam = exams.find((e: any) => (e.id.startsWith('skill_test_5_') || e.id.startsWith('week4_') || e.id === 'skill_test_5' || e.id === 'week4') && e.targetBatch === student.batch);
+          } else if (isSkillTest4) {
+            exam = exams.find((e: any) => (e.id.startsWith('skill_test_4_') || e.id.startsWith('week3_') || e.id === 'skill_test_4' || e.id === 'week3') && e.targetBatch === student.batch);
+          } else if (isSkillTest3) {
             exam = exams.find((e: any) => (e.id.startsWith('skill_test_3_') || e.id.startsWith('week2_') || e.id === 'skill_test_3' || e.id === 'week2') && e.targetBatch === student.batch);
           } else if (isSkillTest2) {
             exam = exams.find((e: any) => (e.id.startsWith('skill_test_2_') || e.id.startsWith('week1_') || e.id === 'skill_test_2' || e.id === 'week1') && e.targetBatch === student.batch);
@@ -125,7 +151,11 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
           }
         }
         if (!exam) {
-          if (isSkillTest3) {
+          if (isSkillTest5) {
+            exam = exams.find((e: any) => e.id.startsWith('skill_test_5_') || e.id.startsWith('week4_') || e.id === 'skill_test_5' || e.id === 'week4');
+          } else if (isSkillTest4) {
+            exam = exams.find((e: any) => e.id.startsWith('skill_test_4_') || e.id.startsWith('week3_') || e.id === 'skill_test_4' || e.id === 'week3');
+          } else if (isSkillTest3) {
             exam = exams.find((e: any) => e.id.startsWith('skill_test_3_') || e.id.startsWith('week2_') || e.id === 'skill_test_3' || e.id === 'week2');
           } else if (isSkillTest2) {
             exam = exams.find((e: any) => e.id.startsWith('skill_test_2_') || e.id.startsWith('week1_') || e.id === 'skill_test_2' || e.id === 'week1');
@@ -154,7 +184,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
       setTargetExam(exam);
     };
     loadExam();
-  }, [pattern, isMentor, currentEmail, isSkillTest3, isSkillTest2]);
+  }, [pattern, isMentor, currentEmail, isSkillTest5, isSkillTest4, isSkillTest3, isSkillTest2]);
 
   // Helper to get the correct questions for a student based on batch and submission
   const getQuestionsForStudent = (student: Student | null, submission: any) => {
@@ -235,11 +265,15 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         let cloudReport = await getFromCloudflare(reportKey);
         let localReport = JSON.parse(localStorage.getItem(reportKey) || 'null');
         
-        // If not found by exact pattern, check aliases (skill_test_3 <-> week2, skill_test_2 <-> week1)
+        // If not found by exact pattern, check aliases (skill_test_5 <-> week4, skill_test_4 <-> week3, skill_test_3 <-> week2, skill_test_2 <-> week1)
         if (!cloudReport && !localReport) {
-          const altPattern = isSkillTest3
-            ? (pattern === 'skill_test_3' ? 'week2' : (pattern === 'week2' ? 'skill_test_3' : null))
-            : (pattern === 'skill_test_2' ? 'week1' : (pattern === 'week1' ? 'skill_test_2' : null));
+          const altPattern = isSkillTest5
+            ? (pattern === 'skill_test_5' ? 'week4' : (pattern === 'week4' ? 'skill_test_5' : null))
+            : (isSkillTest4
+              ? (pattern === 'skill_test_4' ? 'week3' : (pattern === 'week3' ? 'skill_test_4' : null))
+              : (isSkillTest3
+                ? (pattern === 'skill_test_3' ? 'week2' : (pattern === 'week2' ? 'skill_test_3' : null))
+                : (pattern === 'skill_test_2' ? 'week1' : (pattern === 'week1' ? 'skill_test_2' : null))));
           if (altPattern) {
             const altKey = `weeklyReport_${studentEmail}_${altPattern}`;
             localReport = JSON.parse(localStorage.getItem(altKey) || 'null');
@@ -247,11 +281,13 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
           }
         }
 
-        // If not found by exact pattern (e.g. week2 or week1), try looking for a batch-specific report
+        // If not found by exact pattern, try looking for a batch-specific report
         if (!cloudReport && !localReport) {
           const allKeys = Object.keys(localStorage);
           const matchedKey = allKeys.find(k => 
             k.startsWith(`weeklyReport_${studentEmail}_${pattern}_`) || 
+            (isSkillTest5 && (k.startsWith(`weeklyReport_${studentEmail}_skill_test_5_`) || k.startsWith(`weeklyReport_${studentEmail}_week4_`))) ||
+            (isSkillTest4 && (k.startsWith(`weeklyReport_${studentEmail}_skill_test_4_`) || k.startsWith(`weeklyReport_${studentEmail}_week3_`))) ||
             (isSkillTest3 && (k.startsWith(`weeklyReport_${studentEmail}_skill_test_3_`) || k.startsWith(`weeklyReport_${studentEmail}_week2_`))) ||
             (isSkillTest2 && (k.startsWith(`weeklyReport_${studentEmail}_skill_test_2_`) || k.startsWith(`weeklyReport_${studentEmail}_week1_`)))
           );
@@ -279,7 +315,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
       };
       loadReport();
     }
-  }, [isMentor, loggedInEmail, pattern, isSkillTest, isSkillTest3, isSkillTest2]);
+  }, [isMentor, loggedInEmail, pattern, isSkillTest, isSkillTest5, isSkillTest4, isSkillTest3, isSkillTest2]);
 
   // When mentor selects a student, try to load existing marks or drafts
   useEffect(() => {
@@ -289,9 +325,13 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
       const loadReport = async () => {
         const key = `weeklyReport_${selectedStudent.email}_${pattern}`;
         const draftKey = `weeklyReportDraft_${selectedStudent.email}_${pattern}`;
-        const altPattern = isSkillTest3
-          ? (pattern === 'skill_test_3' ? 'week2' : (pattern === 'week2' ? 'skill_test_3' : null))
-          : (pattern === 'skill_test_2' ? 'week1' : (pattern === 'week1' ? 'skill_test_2' : null));
+        const altPattern = isSkillTest5
+          ? (pattern === 'skill_test_5' ? 'week4' : (pattern === 'week4' ? 'skill_test_5' : null))
+          : (isSkillTest4
+            ? (pattern === 'skill_test_4' ? 'week3' : (pattern === 'week3' ? 'skill_test_4' : null))
+            : (isSkillTest3
+              ? (pattern === 'skill_test_3' ? 'week2' : (pattern === 'week2' ? 'skill_test_3' : null))
+              : (pattern === 'skill_test_2' ? 'week1' : (pattern === 'week1' ? 'skill_test_2' : null))));
         
         let localReport = JSON.parse(localStorage.getItem(key) || 'null');
         let draftReport = JSON.parse(localStorage.getItem(draftKey) || 'null');
@@ -361,7 +401,25 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         let cloudSubmissionData = await getFromCloudflare(submissionKey);
 
         if (!localSubmissionData && !cloudSubmissionData) {
-          const possibleKeys = isSkillTest3 ? [
+          const possibleKeys = isSkillTest5 ? [
+            `weeklyReportSubmission_${sEmail}_skill_test_5`,
+            `weeklyReportSubmission_${sEmail}_week4`,
+            `weeklyReportSubmission_${sEmail}_${pattern}_${selectedStudent.batch || ''}`,
+            `weeklyReportSubmission_${sEmail}_skill_test_5_${selectedStudent.batch || ''}`,
+            `weeklyReportSubmission_${sEmail}_skill_test_5_A1`,
+            `weeklyReportSubmission_${sEmail}_skill_test_5_A2`,
+            `weeklyReportSubmission_${sEmail}_skill_test_5_B1`,
+            `weeklyReportSubmission_${sEmail}_skill_test_5_B2`
+          ] : (isSkillTest4 ? [
+            `weeklyReportSubmission_${sEmail}_skill_test_4`,
+            `weeklyReportSubmission_${sEmail}_week3`,
+            `weeklyReportSubmission_${sEmail}_${pattern}_${selectedStudent.batch || ''}`,
+            `weeklyReportSubmission_${sEmail}_skill_test_4_${selectedStudent.batch || ''}`,
+            `weeklyReportSubmission_${sEmail}_skill_test_4_A1`,
+            `weeklyReportSubmission_${sEmail}_skill_test_4_A2`,
+            `weeklyReportSubmission_${sEmail}_skill_test_4_B1`,
+            `weeklyReportSubmission_${sEmail}_skill_test_4_B2`
+          ] : (isSkillTest3 ? [
             `weeklyReportSubmission_${sEmail}_skill_test_3`,
             `weeklyReportSubmission_${sEmail}_week2`,
             `weeklyReportSubmission_${sEmail}_${pattern}_${selectedStudent.batch || ''}`,
@@ -379,7 +437,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
             `weeklyReportSubmission_${sEmail}_skill_test_2_A2`,
             `weeklyReportSubmission_${sEmail}_skill_test_2_B1`,
             `weeklyReportSubmission_${sEmail}_skill_test_2_B2`
-          ];
+          ]));
           for (const pKey of possibleKeys) {
             const loc = JSON.parse(localStorage.getItem(pKey) || 'null');
             const cld = await getFromCloudflare(pKey);
@@ -396,7 +454,25 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
           const localMap = JSON.parse(localStorage.getItem(mapKey) || '{}');
           const cloudMap = await getFromCloudflare(mapKey) || {};
           const fullMap = { ...(localMap || {}), ...(cloudMap || {}) };
-          if (isSkillTest3) {
+          if (isSkillTest5) {
+            if (fullMap[pattern] || fullMap['skill_test_5'] || fullMap['week4']) {
+              cloudSubmissionData = fullMap[pattern] || fullMap['skill_test_5'] || fullMap['week4'];
+            } else {
+              const matchedEntry = Object.entries(fullMap).find(([k]) => k.startsWith('skill_test_5') || k.startsWith('week4'));
+              if (matchedEntry) {
+                cloudSubmissionData = matchedEntry[1];
+              }
+            }
+          } else if (isSkillTest4) {
+            if (fullMap[pattern] || fullMap['skill_test_4'] || fullMap['week3']) {
+              cloudSubmissionData = fullMap[pattern] || fullMap['skill_test_4'] || fullMap['week3'];
+            } else {
+              const matchedEntry = Object.entries(fullMap).find(([k]) => k.startsWith('skill_test_4') || k.startsWith('week3'));
+              if (matchedEntry) {
+                cloudSubmissionData = matchedEntry[1];
+              }
+            }
+          } else if (isSkillTest3) {
             if (fullMap[pattern] || fullMap['skill_test_3'] || fullMap['week2']) {
               cloudSubmissionData = fullMap[pattern] || fullMap['skill_test_3'] || fullMap['week2'];
             } else {
@@ -457,7 +533,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
     } else {
       setIsLoaded(false);
     }
-  }, [isMentor, selectedStudent, pattern, isSkillTest, isSkillTest3, isSkillTest2]);
+  }, [isMentor, selectedStudent, pattern, isSkillTest, isSkillTest5, isSkillTest4, isSkillTest3, isSkillTest2]);
 
   // Load all student submission statuses asynchronously
   useEffect(() => {
@@ -465,9 +541,13 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
       const loadStatuses = async () => {
         const newStatuses: Record<string, { isCompleted: boolean, hasSubmitted: boolean }> = {};
         
-        const altPattern = isSkillTest3
-          ? (pattern === 'skill_test_3' ? 'week2' : (pattern === 'week2' ? 'skill_test_3' : null))
-          : (pattern === 'skill_test_2' ? 'week1' : (pattern === 'week1' ? 'skill_test_2' : null));
+        const altPattern = isSkillTest5
+          ? (pattern === 'skill_test_5' ? 'week4' : (pattern === 'week4' ? 'skill_test_5' : null))
+          : (isSkillTest4
+            ? (pattern === 'skill_test_4' ? 'week3' : (pattern === 'week3' ? 'skill_test_4' : null))
+            : (isSkillTest3
+              ? (pattern === 'skill_test_3' ? 'week2' : (pattern === 'week2' ? 'skill_test_3' : null))
+              : (pattern === 'skill_test_2' ? 'week1' : (pattern === 'week1' ? 'skill_test_2' : null))));
         const promises = students.map(async (student) => {
           let report: any = null;
           try {
@@ -475,7 +555,11 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
             if (!report && altPattern) {
               report = JSON.parse(localStorage.getItem(`weeklyReport_${student.email}_${altPattern}`) || 'null');
             }
-            if (!report && isSkillTest3 && student.batch) {
+            if (!report && isSkillTest5 && student.batch) {
+              report = JSON.parse(localStorage.getItem(`weeklyReport_${student.email}_skill_test_5_${student.batch}`) || 'null');
+            } else if (!report && isSkillTest4 && student.batch) {
+              report = JSON.parse(localStorage.getItem(`weeklyReport_${student.email}_skill_test_4_${student.batch}`) || 'null');
+            } else if (!report && isSkillTest3 && student.batch) {
               report = JSON.parse(localStorage.getItem(`weeklyReport_${student.email}_skill_test_3_${student.batch}`) || 'null');
             } else if (!report && isSkillTest2 && student.batch) {
               report = JSON.parse(localStorage.getItem(`weeklyReport_${student.email}_skill_test_2_${student.batch}`) || 'null');
@@ -487,7 +571,11 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
             if (!report && altPattern) {
               report = await getFromCloudflare(`weeklyReport_${student.email}_${altPattern}`);
             }
-            if (!report && isSkillTest3 && student.batch) {
+            if (!report && isSkillTest5 && student.batch) {
+              report = await getFromCloudflare(`weeklyReport_${student.email}_skill_test_5_${student.batch}`);
+            } else if (!report && isSkillTest4 && student.batch) {
+              report = await getFromCloudflare(`weeklyReport_${student.email}_skill_test_4_${student.batch}`);
+            } else if (!report && isSkillTest3 && student.batch) {
               report = await getFromCloudflare(`weeklyReport_${student.email}_skill_test_3_${student.batch}`);
             } else if (!report && isSkillTest2 && student.batch) {
               report = await getFromCloudflare(`weeklyReport_${student.email}_skill_test_2_${student.batch}`);
@@ -499,7 +587,37 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
           if (!hasSubmitted && altPattern) {
             hasSubmitted = localStorage.getItem(`weeklyReportSubmission_${sEmail}_${altPattern}`) !== null;
           }
-          if (!hasSubmitted && isSkillTest3) {
+          if (!hasSubmitted && isSkillTest5) {
+            const possibleSubKeys = [
+              `weeklyReportSubmission_${sEmail}_skill_test_5`,
+              `weeklyReportSubmission_${sEmail}_week4`,
+              `weeklyReportSubmission_${sEmail}_skill_test_5_B1`,
+              `weeklyReportSubmission_${sEmail}_skill_test_5_B2`,
+              `weeklyReportSubmission_${sEmail}_skill_test_5_A1`,
+              `weeklyReportSubmission_${sEmail}_skill_test_5_A2`
+            ];
+            for (const pKey of possibleSubKeys) {
+              if (localStorage.getItem(pKey) !== null) {
+                hasSubmitted = true;
+                break;
+              }
+            }
+          } else if (!hasSubmitted && isSkillTest4) {
+            const possibleSubKeys = [
+              `weeklyReportSubmission_${sEmail}_skill_test_4`,
+              `weeklyReportSubmission_${sEmail}_week3`,
+              `weeklyReportSubmission_${sEmail}_skill_test_4_B1`,
+              `weeklyReportSubmission_${sEmail}_skill_test_4_B2`,
+              `weeklyReportSubmission_${sEmail}_skill_test_4_A1`,
+              `weeklyReportSubmission_${sEmail}_skill_test_4_A2`
+            ];
+            for (const pKey of possibleSubKeys) {
+              if (localStorage.getItem(pKey) !== null) {
+                hasSubmitted = true;
+                break;
+              }
+            }
+          } else if (!hasSubmitted && isSkillTest3) {
             const possibleSubKeys = [
               `weeklyReportSubmission_${sEmail}_skill_test_3`,
               `weeklyReportSubmission_${sEmail}_week2`,
@@ -538,7 +656,25 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
               const altCloud = await getFromCloudflare(`weeklyReportSubmission_${sEmail}_${altPattern}`);
               if (altCloud) hasSubmitted = true;
             }
-            if (!hasSubmitted && isSkillTest3) {
+            if (!hasSubmitted && isSkillTest5) {
+              const cloudSubSkill = await getFromCloudflare(`weeklyReportSubmission_${sEmail}_skill_test_5`)
+                || await getFromCloudflare(`weeklyReportSubmission_${sEmail}_week4`)
+                || await getFromCloudflare(`weeklyReportSubmission_${sEmail}_skill_test_5_B1`)
+                || await getFromCloudflare(`weeklyReportSubmission_${sEmail}_skill_test_5_B2`)
+                || await getFromCloudflare(`weeklyReportSubmission_${sEmail}_skill_test_5_A1`)
+                || await getFromCloudflare(`weeklyReportSubmission_${sEmail}_skill_test_5_A2`)
+                || (student.batch ? await getFromCloudflare(`weeklyReportSubmission_${sEmail}_skill_test_5_${student.batch}`) : null);
+              if (cloudSubSkill) hasSubmitted = true;
+            } else if (!hasSubmitted && isSkillTest4) {
+              const cloudSubSkill = await getFromCloudflare(`weeklyReportSubmission_${sEmail}_skill_test_4`)
+                || await getFromCloudflare(`weeklyReportSubmission_${sEmail}_week3`)
+                || await getFromCloudflare(`weeklyReportSubmission_${sEmail}_skill_test_4_B1`)
+                || await getFromCloudflare(`weeklyReportSubmission_${sEmail}_skill_test_4_B2`)
+                || await getFromCloudflare(`weeklyReportSubmission_${sEmail}_skill_test_4_A1`)
+                || await getFromCloudflare(`weeklyReportSubmission_${sEmail}_skill_test_4_A2`)
+                || (student.batch ? await getFromCloudflare(`weeklyReportSubmission_${sEmail}_skill_test_4_${student.batch}`) : null);
+              if (cloudSubSkill) hasSubmitted = true;
+            } else if (!hasSubmitted && isSkillTest3) {
               const cloudSubSkill = await getFromCloudflare(`weeklyReportSubmission_${sEmail}_skill_test_3`)
                 || await getFromCloudflare(`weeklyReportSubmission_${sEmail}_week2`)
                 || await getFromCloudflare(`weeklyReportSubmission_${sEmail}_skill_test_3_B1`)
@@ -559,7 +695,23 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
             }
             if (!hasSubmitted) {
               const cloudSubMap = await getFromCloudflare(`weeklyExamSubmissions_${sEmail}`);
-              if (cloudSubMap && isSkillTest3) {
+              if (cloudSubMap && isSkillTest5) {
+                if (cloudSubMap[pattern] || (altPattern && cloudSubMap[altPattern]) || 
+                    cloudSubMap['skill_test_5'] || cloudSubMap['week4'] ||
+                    cloudSubMap['skill_test_5_B1'] || cloudSubMap['skill_test_5_B2'] ||
+                    cloudSubMap['skill_test_5_A1'] || cloudSubMap['skill_test_5_A2'] ||
+                    (student.batch && cloudSubMap[`skill_test_5_${student.batch}`])) {
+                  hasSubmitted = true;
+                }
+              } else if (cloudSubMap && isSkillTest4) {
+                if (cloudSubMap[pattern] || (altPattern && cloudSubMap[altPattern]) || 
+                    cloudSubMap['skill_test_4'] || cloudSubMap['week3'] ||
+                    cloudSubMap['skill_test_4_B1'] || cloudSubMap['skill_test_4_B2'] ||
+                    cloudSubMap['skill_test_4_A1'] || cloudSubMap['skill_test_4_A2'] ||
+                    (student.batch && cloudSubMap[`skill_test_4_${student.batch}`])) {
+                  hasSubmitted = true;
+                }
+              } else if (cloudSubMap && isSkillTest3) {
                 if (cloudSubMap[pattern] || (altPattern && cloudSubMap[altPattern]) || 
                     cloudSubMap['skill_test_3'] || cloudSubMap['week2'] ||
                     cloudSubMap['skill_test_3_B1'] || cloudSubMap['skill_test_3_B2'] ||
@@ -579,7 +731,17 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
             }
             if (!hasSubmitted) {
               const subMap = JSON.parse(localStorage.getItem(`weeklyExamSubmissions_${sEmail}`) || '{}');
-              if (isSkillTest3) {
+              if (isSkillTest5) {
+                if (subMap[pattern] || (altPattern && subMap[altPattern]) || subMap['skill_test_5'] || subMap['week4'] ||
+                    subMap['skill_test_5_B1'] || subMap['skill_test_5_B2'] || subMap['skill_test_5_A1'] || subMap['skill_test_5_A2']) {
+                  hasSubmitted = true;
+                }
+              } else if (isSkillTest4) {
+                if (subMap[pattern] || (altPattern && subMap[altPattern]) || subMap['skill_test_4'] || subMap['week3'] ||
+                    subMap['skill_test_4_B1'] || subMap['skill_test_4_B2'] || subMap['skill_test_4_A1'] || subMap['skill_test_4_A2']) {
+                  hasSubmitted = true;
+                }
+              } else if (isSkillTest3) {
                 if (subMap[pattern] || (altPattern && subMap[altPattern]) || subMap['skill_test_3'] || subMap['week2'] ||
                     subMap['skill_test_3_B1'] || subMap['skill_test_3_B2'] || subMap['skill_test_3_A1'] || subMap['skill_test_3_A2']) {
                   hasSubmitted = true;
@@ -666,7 +828,31 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
     localStorage.setItem(key, JSON.stringify(reportData));
     await saveToCloudflare(key, reportData);
 
-    if (pattern === 'skill_test_3' || isSkillTest3) {
+    if (pattern === 'skill_test_5' || isSkillTest5) {
+      const altKey = `weeklyReport_${sEmail}_week4`;
+      localStorage.setItem(altKey, JSON.stringify(reportData));
+      await saveToCloudflare(altKey, reportData);
+      const skillKey = `weeklyReport_${sEmail}_skill_test_5`;
+      localStorage.setItem(skillKey, JSON.stringify(reportData));
+      await saveToCloudflare(skillKey, reportData);
+      if (selectedStudent.batch) {
+        const batchKey = `weeklyReport_${sEmail}_skill_test_5_${selectedStudent.batch}`;
+        localStorage.setItem(batchKey, JSON.stringify(reportData));
+        await saveToCloudflare(batchKey, reportData);
+      }
+    } else if (pattern === 'skill_test_4' || isSkillTest4) {
+      const altKey = `weeklyReport_${sEmail}_week3`;
+      localStorage.setItem(altKey, JSON.stringify(reportData));
+      await saveToCloudflare(altKey, reportData);
+      const skillKey = `weeklyReport_${sEmail}_skill_test_4`;
+      localStorage.setItem(skillKey, JSON.stringify(reportData));
+      await saveToCloudflare(skillKey, reportData);
+      if (selectedStudent.batch) {
+        const batchKey = `weeklyReport_${sEmail}_skill_test_4_${selectedStudent.batch}`;
+        localStorage.setItem(batchKey, JSON.stringify(reportData));
+        await saveToCloudflare(batchKey, reportData);
+      }
+    } else if (pattern === 'skill_test_3' || isSkillTest3) {
       const altKey = `weeklyReport_${sEmail}_week2`;
       localStorage.setItem(altKey, JSON.stringify(reportData));
       await saveToCloudflare(altKey, reportData);
@@ -711,7 +897,8 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
 
   const handleGrantStudentReExam = async () => {
     if (!selectedStudent) return;
-    const confirmMsg = `Grant Re-Exam for ${selectedStudent.name} (${selectedStudent.email}) on "${isSkillTest3 ? 'Skill Test 3' : (isSkillTest2 ? 'Skill Test 2' : pattern)}"?\n\nThis will reset their existing submission and allow them to take the exam again immediately.`;
+    const testName = isSkillTest5 ? 'Skill Test 5' : (isSkillTest4 ? 'Skill Test 4' : (isSkillTest3 ? 'Skill Test 3' : (isSkillTest2 ? 'Skill Test 2' : pattern)));
+    const confirmMsg = `Grant Re-Exam for ${selectedStudent.name} (${selectedStudent.email}) on "${testName}"?\n\nThis will reset their existing submission and allow them to take the exam again immediately.`;
     if (!window.confirm(confirmMsg)) return;
 
     try {
@@ -736,7 +923,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
 
   if (!isMentor) {
     // Student View
-    const displayPatternName = isSkillTest3 ? 'Skill Test 3' : (isSkillTest2 ? 'Skill Test 2' : pattern);
+    const displayPatternName = isSkillTest5 ? 'Skill Test 5' : (isSkillTest4 ? 'Skill Test 4' : (isSkillTest3 ? 'Skill Test 3' : (isSkillTest2 ? 'Skill Test 2' : pattern)));
     return (
       <div className="w-full max-w-3xl mx-auto space-y-6 pb-12">
         <div className="flex items-center gap-3 text-gray-900 font-bold text-2xl mb-8">
@@ -853,7 +1040,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
       )}
       <div className="flex items-center gap-3 text-gray-900 font-bold text-2xl mb-6">
         <FileText className="text-orange-500" size={28} /> 
-        {isSkillTest3 ? 'Skill Test 3' : (isSkillTest2 ? 'Skill Test 2' : pattern)} Evaluation
+        {isSkillTest5 ? 'Skill Test 5' : (isSkillTest4 ? 'Skill Test 4' : (isSkillTest3 ? 'Skill Test 3' : (isSkillTest2 ? 'Skill Test 2' : pattern)))} Evaluation
       </div>
 
       {!selectedStudent && (
@@ -1096,7 +1283,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
               <div className="flex flex-col gap-3 border-b border-blue-100/50 pb-4">
                 <div className="flex items-center flex-wrap gap-4 justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-blue-800">{isSkillTest3 ? 'Skill Test 3 (20 MCQs): ' : (isSkillTest2 ? 'Skill Test 2 (20 MCQs): ' : 'Theory Answers PDF: ')}</span>
+                    <span className="text-sm font-bold text-blue-800">{isSkillTest5 ? 'Skill Test 5 (20 MCQs): ' : (isSkillTest4 ? 'Skill Test 4 (20 MCQs): ' : (isSkillTest3 ? 'Skill Test 3 (20 MCQs): ' : (isSkillTest2 ? 'Skill Test 2 (20 MCQs): ' : 'Theory Answers PDF: ')))}</span>
                     {!isSkillTest && (studentSubmission.theoryAnswerPdfName ? (
                       <>
                         <span className="text-sm text-blue-600">{studentSubmission.theoryAnswerPdfName}</span>

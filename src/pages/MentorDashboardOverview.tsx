@@ -35,6 +35,8 @@ interface BatchSummary {
   preAvg: number;
   skill2Avg: number;
   skill3Avg: number;
+  skill4Avg: number;
+  skill5Avg: number;
 }
 
 export const MentorDashboardOverview: React.FC = () => {
@@ -77,7 +79,9 @@ export const MentorDashboardOverview: React.FC = () => {
     { id: 'graph_exam_2', title: 'Graph Exam 2', maxMarks: 20 },
     { id: 'pre_assessment', title: 'Pre Assessment', maxMarks: 30 },
     { id: 'skill_test_2', title: 'Skill Test 2', maxMarks: 20 },
-    { id: 'skill_test_3', title: 'Skill Test 3', maxMarks: 20 }
+    { id: 'skill_test_3', title: 'Skill Test 3', maxMarks: 20 },
+    { id: 'skill_test_4', title: 'Skill Test 4', maxMarks: 20 },
+    { id: 'skill_test_5', title: 'Skill Test 5', maxMarks: 20 }
   ], []);
 
   // Fetch all live marks and student data in parallel
@@ -187,6 +191,22 @@ export const MentorDashboardOverview: React.FC = () => {
           } else {
             allMarks[sEmail]['skill_test_3'] = '-';
           }
+
+          // Skill Test 4 (Week 3)
+          const st4 = studentSubs.skill_test_4 || studentSubs.week3;
+          if (st4 && st4.marks !== undefined) {
+            allMarks[sEmail]['skill_test_4'] = typeof st4.marks === 'object' ? (st4.marks.total ?? '-') : st4.marks;
+          } else {
+            allMarks[sEmail]['skill_test_4'] = '-';
+          }
+
+          // Skill Test 5 (Week 4)
+          const st5 = studentSubs.skill_test_5 || studentSubs.week4;
+          if (st5 && st5.marks !== undefined) {
+            allMarks[sEmail]['skill_test_5'] = typeof st5.marks === 'object' ? (st5.marks.total ?? '-') : st5.marks;
+          } else {
+            allMarks[sEmail]['skill_test_5'] = '-';
+          }
         }));
       }
 
@@ -269,7 +289,9 @@ export const MentorDashboardOverview: React.FC = () => {
           graph2Avg: 0,
           preAvg: 0,
           skill2Avg: 0,
-          skill3Avg: 0
+          skill3Avg: 0,
+          skill4Avg: 0,
+          skill5Avg: 0
         };
       }
 
@@ -293,10 +315,12 @@ export const MentorDashboardOverview: React.FC = () => {
       const pre = calcExamAvg('pre_assessment');
       const s2 = calcExamAvg('skill_test_2');
       const s3 = calcExamAvg('skill_test_3');
+      const s4 = calcExamAvg('skill_test_4');
+      const s5 = calcExamAvg('skill_test_5');
 
-      // Total average % across 110 points
-      const totalAvgScore = Number((g1 + g2 + pre + s2 + s3).toFixed(1));
-      const avgPct = Math.round((totalAvgScore / 110) * 100);
+      // Total average % across 150 points (20 + 20 + 30 + 20 + 20 + 20 + 20)
+      const totalAvgScore = Number((g1 + g2 + pre + s2 + s3 + s4 + s5).toFixed(1));
+      const avgPct = Math.round((totalAvgScore / 150) * 100);
 
       return {
         batch: batchName,
@@ -306,7 +330,9 @@ export const MentorDashboardOverview: React.FC = () => {
         graph2Avg: g2,
         preAvg: pre,
         skill2Avg: s2,
-        skill3Avg: s3
+        skill3Avg: s3,
+        skill4Avg: s4,
+        skill5Avg: s5
       };
     });
   }, [students, marksData]);
@@ -477,7 +503,7 @@ export const MentorDashboardOverview: React.FC = () => {
             <span className="text-xs text-gray-500 font-medium">Active Exams</span>
           </div>
           <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-600">
-            <span>Graph 1, 2, Pre, Skill 2, 3</span>
+            <span>Graph 1, 2, Pre, Skill 2, 3, 4, 5</span>
             <button 
               onClick={() => navigate('/mentor-dashboard/graph-exam')}
               className="text-primary hover:underline font-medium"
@@ -500,7 +526,7 @@ export const MentorDashboardOverview: React.FC = () => {
             <span className="text-xs text-gray-500 font-medium">Average</span>
           </div>
           <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-600">
-            <span>Max Score: <strong>110 Pts</strong></span>
+            <span>Max Score: <strong>150 Pts</strong></span>
             <span className="text-emerald-700 font-semibold">Standard Pass</span>
           </div>
         </div>
@@ -528,6 +554,9 @@ export const MentorDashboardOverview: React.FC = () => {
                   <th className="py-2.5 px-3 text-center whitespace-nowrap">Graph 2 (20)</th>
                   <th className="py-2.5 px-3 text-center whitespace-nowrap">Pre (30)</th>
                   <th className="py-2.5 px-3 text-center whitespace-nowrap">Skill 2 (20)</th>
+                  <th className="py-2.5 px-3 text-center whitespace-nowrap">Skill 3 (20)</th>
+                  <th className="py-2.5 px-3 text-center whitespace-nowrap">Skill 4 (20)</th>
+                  <th className="py-2.5 px-3 text-center whitespace-nowrap">Skill 5 (20)</th>
                   <th className="py-2.5 px-3 text-center whitespace-nowrap">Batch Avg %</th>
                 </tr>
               </thead>
@@ -544,6 +573,9 @@ export const MentorDashboardOverview: React.FC = () => {
                     <td className="py-2.5 px-3 text-center font-mono text-gray-800 font-medium">{b.graph2Avg}</td>
                     <td className="py-2.5 px-3 text-center font-mono text-gray-800 font-medium">{b.preAvg}</td>
                     <td className="py-2.5 px-3 text-center font-mono text-gray-800 font-medium">{b.skill2Avg}</td>
+                    <td className="py-2.5 px-3 text-center font-mono text-gray-800 font-medium">{b.skill3Avg}</td>
+                    <td className="py-2.5 px-3 text-center font-mono text-gray-800 font-medium">{b.skill4Avg}</td>
+                    <td className="py-2.5 px-3 text-center font-mono text-gray-800 font-medium">{b.skill5Avg}</td>
                     <td className="py-2.5 px-3 text-center font-mono font-bold text-gray-900">
                       {b.avgScore}%
                     </td>
@@ -561,7 +593,7 @@ export const MentorDashboardOverview: React.FC = () => {
               <FileText size={16} className="text-gray-600" />
               <h2 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Test-Wise Results & Metrics</h2>
             </div>
-            <span className="text-[11px] text-gray-500 font-mono">5 Exam Reports</span>
+            <span className="text-[11px] text-gray-500 font-mono">7 Exam Reports</span>
           </div>
 
           <div className="overflow-x-auto flex-1">
@@ -614,7 +646,7 @@ export const MentorDashboardOverview: React.FC = () => {
               <span>Consolidated Student Master Matrix</span>
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              Live multi-exam marks across all 5 exams for all {students.length} students.
+              Live multi-exam marks across all 7 exams for all {students.length} students.
             </p>
           </div>
 
@@ -679,14 +711,16 @@ export const MentorDashboardOverview: React.FC = () => {
                 <th className="py-2.5 px-3 text-center whitespace-nowrap">Pre (30)</th>
                 <th className="py-2.5 px-3 text-center whitespace-nowrap">Skill 2 (20)</th>
                 <th className="py-2.5 px-3 text-center whitespace-nowrap">Skill 3 (20)</th>
-                <th className="py-2.5 px-3 text-center whitespace-nowrap">Total / 110</th>
+                <th className="py-2.5 px-3 text-center whitespace-nowrap">Skill 4 (20)</th>
+                <th className="py-2.5 px-3 text-center whitespace-nowrap">Skill 5 (20)</th>
+                <th className="py-2.5 px-3 text-center whitespace-nowrap">Total / 150</th>
                 <th className="py-2.5 px-3 text-center whitespace-nowrap">Overall %</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="py-8 text-center text-gray-400 italic">
+                  <td colSpan={13} className="py-8 text-center text-gray-400 italic">
                     No student records found matching the selected criteria.
                   </td>
                 </tr>
@@ -700,11 +734,13 @@ export const MentorDashboardOverview: React.FC = () => {
                   const pre = sMarks['pre_assessment'];
                   const s2 = sMarks['skill_test_2'];
                   const s3 = sMarks['skill_test_3'];
+                  const s4 = sMarks['skill_test_4'];
+                  const s5 = sMarks['skill_test_5'];
 
                   // Calculate total
                   let totalSum = 0;
                   let hasAnyMarks = false;
-                  [g1, g2, pre, s2, s3].forEach(val => {
+                  [g1, g2, pre, s2, s3, s4, s5].forEach(val => {
                     const num = Number(val);
                     if (val !== undefined && val !== '-' && !isNaN(num)) {
                       totalSum += num;
@@ -712,7 +748,7 @@ export const MentorDashboardOverview: React.FC = () => {
                     }
                   });
 
-                  const overallPct = hasAnyMarks ? Math.round((totalSum / 110) * 100) : '-';
+                  const overallPct = hasAnyMarks ? Math.round((totalSum / 150) * 100) : '-';
 
                   return (
                     <tr key={sEmail} className="hover:bg-gray-50/80 transition-colors">
@@ -744,6 +780,12 @@ export const MentorDashboardOverview: React.FC = () => {
                       <td className="py-2.5 px-3 text-center font-mono font-semibold text-gray-800">
                         {s3 !== undefined && s3 !== '-' ? s3 : <span className="text-gray-300 font-normal">-</span>}
                       </td>
+                      <td className="py-2.5 px-3 text-center font-mono font-semibold text-gray-800">
+                        {s4 !== undefined && s4 !== '-' ? s4 : <span className="text-gray-300 font-normal">-</span>}
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-mono font-semibold text-gray-800">
+                        {s5 !== undefined && s5 !== '-' ? s5 : <span className="text-gray-300 font-normal">-</span>}
+                      </td>
                       <td className="py-2.5 px-3 text-center font-mono font-bold text-gray-900">
                         {hasAnyMarks ? totalSum : <span className="text-gray-300 font-normal">-</span>}
                       </td>
@@ -767,7 +809,7 @@ export const MentorDashboardOverview: React.FC = () => {
         {/* Footer Navigation Shortcuts */}
         <div className="pt-2 flex flex-wrap items-center justify-between gap-3 text-xs border-t border-gray-100">
           <span className="text-gray-500 font-medium">
-            Showing {filteredStudents.length} of {students.length} students across 5 examinations.
+            Showing {filteredStudents.length} of {students.length} students across 7 examinations.
           </span>
           <div className="flex items-center gap-3">
             <button

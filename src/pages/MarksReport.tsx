@@ -19,7 +19,9 @@ const DEFAULT_CONDUCTED_EXAMS: ConductedExam[] = [
   { id: 'graph_exam_2', title: 'Graph Exam 2', category: 'graph', maxMarks: 20 },
   { id: 'pre_assessment', title: 'Pre Assessment', category: 'pre', maxMarks: 30 },
   { id: 'skill_test_2', title: 'Skill Test 2', category: 'weekly', maxMarks: 20 },
-  { id: 'skill_test_3', title: 'Skill Test 3', category: 'weekly', maxMarks: 20 }
+  { id: 'skill_test_3', title: 'Skill Test 3', category: 'weekly', maxMarks: 20 },
+  { id: 'skill_test_4', title: 'Skill Test 4', category: 'weekly', maxMarks: 20 },
+  { id: 'skill_test_5', title: 'Skill Test 5', category: 'weekly', maxMarks: 20 }
 ];
 
 const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
@@ -185,7 +187,9 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
         { id: 'graph_exam_2', title: 'Graph Exam 2', category: 'graph', maxMarks: 20 },
         { id: 'pre_assessment', title: 'Pre Assessment', category: 'pre', maxMarks: 30 },
         { id: 'skill_test_2', title: 'Skill Test 2', category: 'weekly', maxMarks: 20 },
-        { id: 'skill_test_3', title: 'Skill Test 3', category: 'weekly', maxMarks: 20 }
+        { id: 'skill_test_3', title: 'Skill Test 3', category: 'weekly', maxMarks: 20 },
+        { id: 'skill_test_4', title: 'Skill Test 4', category: 'weekly', maxMarks: 20 },
+        { id: 'skill_test_5', title: 'Skill Test 5', category: 'weekly', maxMarks: 20 }
       ];
 
       // Add any additional exams conducted by the mentor (e.g. CIE1, CIE2, SEM, or future exams)
@@ -193,7 +197,7 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
       weeklyExams.forEach((exam: any) => {
         if (!exam || !exam.id) return;
         const examId = exam.id.trim();
-        // Ignore internal Skill Test 2 & 3 variants since we already have the dedicated Skill Test columns
+        // Ignore internal Skill Test 2, 3, 4, 5 variants since we already have the dedicated Skill Test columns
         if (
           examId === 'skill_test_2' || 
           examId.startsWith('skill_test_2_') || 
@@ -203,7 +207,20 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
           examId.startsWith('skill_test_3_') || 
           examId === 'week2' || 
           examId.startsWith('week2_') || 
-          (exam.title && (exam.title.toLowerCase().includes('skill test 2') || exam.title.toLowerCase().includes('skill test 3')))
+          examId === 'skill_test_4' || 
+          examId.startsWith('skill_test_4_') || 
+          examId === 'week3' || 
+          examId.startsWith('week3_') || 
+          examId === 'skill_test_5' || 
+          examId.startsWith('skill_test_5_') || 
+          examId === 'week4' || 
+          examId.startsWith('week4_') || 
+          (exam.title && (
+            exam.title.toLowerCase().includes('skill test 2') || 
+            exam.title.toLowerCase().includes('skill test 3') || 
+            exam.title.toLowerCase().includes('skill test 4') || 
+            exam.title.toLowerCase().includes('skill test 5')
+          ))
         ) {
           return;
         }
@@ -326,7 +343,83 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
             allMarks[sEmail]['skill_test_3'] = '-';
           }
 
-          // 3. Pre Assessment fallback (if not in manual marks dict)
+          // 3. Skill Test 4
+          const st4Keys = [
+            `weeklyReport_${sEmail}_skill_test_4`,
+            `weeklyReport_${sEmail}_week3`,
+            student.batch ? `weeklyReport_${sEmail}_skill_test_4_${student.batch}` : null,
+            `weeklyReport_${sEmail}_skill_test_4_B1`,
+            `weeklyReport_${sEmail}_skill_test_4_B2`,
+            `weeklyReport_${sEmail}_skill_test_4_A1`,
+            `weeklyReport_${sEmail}_skill_test_4_A2`
+          ].filter(Boolean) as string[];
+
+          let st4Report: any = null;
+          for (const k of st4Keys) {
+            try {
+              const loc = JSON.parse(localStorage.getItem(k) || 'null');
+              if (loc && (loc.isMentorSubmitted === true || loc.theory !== undefined)) {
+                st4Report = loc;
+                break;
+              }
+            } catch (e) {}
+          }
+
+          if (!st4Report) {
+            for (const k of st4Keys) {
+              const cld = await getFromCloudflare(k);
+              if (cld && (cld.isMentorSubmitted === true || cld.theory !== undefined)) {
+                st4Report = cld;
+                break;
+              }
+            }
+          }
+
+          if (st4Report && (st4Report.isMentorSubmitted === true || !userIsMuni)) {
+            allMarks[sEmail]['skill_test_4'] = st4Report.theory !== undefined ? st4Report.theory : (st4Report.total ?? '-');
+          } else {
+            allMarks[sEmail]['skill_test_4'] = '-';
+          }
+
+          // 4. Skill Test 5
+          const st5Keys = [
+            `weeklyReport_${sEmail}_skill_test_5`,
+            `weeklyReport_${sEmail}_week4`,
+            student.batch ? `weeklyReport_${sEmail}_skill_test_5_${student.batch}` : null,
+            `weeklyReport_${sEmail}_skill_test_5_B1`,
+            `weeklyReport_${sEmail}_skill_test_5_B2`,
+            `weeklyReport_${sEmail}_skill_test_5_A1`,
+            `weeklyReport_${sEmail}_skill_test_5_A2`
+          ].filter(Boolean) as string[];
+
+          let st5Report: any = null;
+          for (const k of st5Keys) {
+            try {
+              const loc = JSON.parse(localStorage.getItem(k) || 'null');
+              if (loc && (loc.isMentorSubmitted === true || loc.theory !== undefined)) {
+                st5Report = loc;
+                break;
+              }
+            } catch (e) {}
+          }
+
+          if (!st5Report) {
+            for (const k of st5Keys) {
+              const cld = await getFromCloudflare(k);
+              if (cld && (cld.isMentorSubmitted === true || cld.theory !== undefined)) {
+                st5Report = cld;
+                break;
+              }
+            }
+          }
+
+          if (st5Report && (st5Report.isMentorSubmitted === true || !userIsMuni)) {
+            allMarks[sEmail]['skill_test_5'] = st5Report.theory !== undefined ? st5Report.theory : (st5Report.total ?? '-');
+          } else {
+            allMarks[sEmail]['skill_test_5'] = '-';
+          }
+
+          // 5. Pre Assessment fallback (if not in manual marks dict)
           if (allMarks[sEmail]['pre_assessment'] === '-') {
             try {
               const preSub = JSON.parse(localStorage.getItem(`preAssessmentSubmissions_${sEmail}`) || 'null');
@@ -340,9 +433,14 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
             } catch (e) {}
           }
 
-          // 4. Any other custom weekly exams
+          // 6. Any other custom weekly exams
           for (const extraExam of otherWeeklyExams) {
-            if (extraExam.id === 'skill_test_2' || extraExam.id === 'skill_test_3') continue;
+            if (
+              extraExam.id === 'skill_test_2' || 
+              extraExam.id === 'skill_test_3' || 
+              extraExam.id === 'skill_test_4' || 
+              extraExam.id === 'skill_test_5'
+            ) continue;
 
             let exReport: any = null;
             try {
