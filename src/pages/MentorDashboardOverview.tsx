@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Users, ClipboardCheck, FileText, BarChart, 
-  Search, RefreshCw, Award, ArrowUpRight, CheckCircle2, AlertCircle, Calendar
+  Users, FileText, BarChart, 
+  Search, RefreshCw, Award, ArrowUpRight, CheckCircle2
 } from 'lucide-react';
 import { getFromCloudflare, getStudentsKey, getMentorKey, isMuniUser } from '../utils/cloudflare';
 import { MUNI_STUDENTS } from '../data/students';
@@ -29,7 +29,6 @@ interface ExamSummary {
 interface BatchSummary {
   batch: string;
   studentCount: number;
-  avgAttendance: number;
   avgScore: number;
   graph1Avg: number;
   graph2Avg: number;
@@ -67,13 +66,11 @@ export const MentorDashboardOverview: React.FC = () => {
     return {};
   });
 
-  const [attendanceRecords, setAttendanceRecords] = useState<Record<string, Record<string, string>>>({});
-  const [sessions, setSessions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<'roll' | 'name' | 'attendance' | 'total'>('roll');
+  const [sortBy, setSortBy] = useState<'roll' | 'name' | 'total'>('roll');
 
   const conductedExamsList = useMemo(() => [
     { id: 'graph_exam', title: 'Graph Exam 1', maxMarks: 20 },
@@ -83,7 +80,7 @@ export const MentorDashboardOverview: React.FC = () => {
     { id: 'skill_test_3', title: 'Skill Test 3', maxMarks: 20 }
   ], []);
 
-  // Fetch all live data in parallel
+  // Fetch all live marks and student data in parallel
   const loadDashboardData = async (forceRefresh = false) => {
     if (forceRefresh) setIsRefreshing(true);
     else setIsLoading(true);
@@ -94,32 +91,19 @@ export const MentorDashboardOverview: React.FC = () => {
 
       const [
         cloudStudents,
-        cloudAttendance,
-        cloudClasses,
         cloudGraphMarks,
         cloudGraph2Marks,
         cloudPreMarks,
         cloudExams
       ] = await Promise.all([
         getFromCloudflare(studentsKey),
-        getFromCloudflare('attendanceRecords'),
-        getFromCloudflare('anuragLmsClasses'),
         getFromCloudflare('graphExamMarks_muni'),
         getFromCloudflare('graphExam2Marks_muni'),
         getFromCloudflare('preAssessmentManualMarks_muni'),
         getFromCloudflare(examsKey) || (userIsMuni ? getFromCloudflare('anuragLmsWeeklyExams_muni@geonixa.com') : Promise.resolve(null))
       ]);
 
-      // 1. Attendance & Sessions
-      const localClasses = JSON.parse(localStorage.getItem('anuragLmsClasses') || '[]');
-      const allClasses = cloudClasses && cloudClasses.length > 0 ? cloudClasses : localClasses;
-      setSessions(allClasses || []);
-
-      const localAttendance = JSON.parse(localStorage.getItem('attendanceRecords') || '{}');
-      const currentAttendance = { ...(localAttendance || {}), ...(cloudAttendance || {}) };
-      setAttendanceRecords(currentAttendance);
-
-      // 2. Students Mapping
+      // 1. Students Mapping
       const localStudents = JSON.parse(localStorage.getItem(studentsKey) || '[]');
       const studentMap = new Map<string, StudentData>();
 
@@ -153,7 +137,7 @@ export const MentorDashboardOverview: React.FC = () => {
       const registeredStudents = Array.from(studentMap.values());
       setStudents(registeredStudents);
 
-      // 3. Marks Mapping
+      // 2. Marks Mapping
       const localGraphMarks = JSON.parse(localStorage.getItem('graphExamMarks_muni') || '{}');
       const localGraph2Marks = JSON.parse(localStorage.getItem('graphExam2Marks_muni') || '{}');
       const localPreMarks = JSON.parse(localStorage.getItem('preAssessmentManualMarks_muni') || '{}');
@@ -230,53 +214,10 @@ export const MentorDashboardOverview: React.FC = () => {
     loadDashboardData();
   }, []);
 
-  // Compute Student Attendance Map
-  const studentAttendanceMap = useMemo(() => {
-    const map: Record<string, { attended: number; total: number; percentage: number }> = {};
-    const totalSessions = sessions.length;
-
-    students.forEach(student => {
-      const sEmail = student.email.toLowerCase().trim();
-      let attended = 0;
-      let totalConducted = 0;
-
-      sessions.forEach(session => {
-        const record = attendanceRecords[session.dateString];
-        if (record) {
-          totalConducted++;
-          if (record[sEmail] === 'present') attended++;
-        }
-      });
-
-      const effectiveTotal = totalConducted > 0 ? totalConducted : totalSessions;
-      const pct = effectiveTotal > 0 ? Math.round((attended / effectiveTotal) * 100) : 0;
-
-      map[sEmail] = {
-        attended,
-        total: effectiveTotal,
-        percentage: pct
-      };
-    });
-
-    return map;
-  }, [students, sessions, attendanceRecords]);
-
   // Overall Statistics
   const overallStats = useMemo(() => {
     const totalStudentsCount = students.length;
 
-    // Attendance Rate
-    let sumAttendance = 0;
-    let studentsWithAttendance = 0;
-    Object.values(studentAttendanceMap).forEach(att => {
-      if (att.total > 0) {
-        sumAttendance += att.percentage;
-        studentsWithAttendance++;
-      }
-    });
-    const avgAttendance = studentsWithAttendance > 0 ? Math.round(sumAttendance / studentsWithAttendance) : 0;
-
-    // Evaluated Count across all 5 exams
     let totalMarksEntries = 0;
     let evaluatedEntries = 0;
     let totalScoreSum = 0;
@@ -304,15 +245,14 @@ export const MentorDashboardOverview: React.FC = () => {
 
     return {
       totalStudentsCount,
-      avgAttendance,
       conductedExamsCount: conductedExamsList.length,
       completionRate,
       evaluatedEntries,
       academicAvgPct
     };
-  }, [students, studentAttendanceMap, marksData, conductedExamsList]);
+  }, [students, marksData, conductedExamsList]);
 
-  // Batch Wise Summaries
+  // Batch Wise Summaries (Purely Exam Performance)
   const batchSummaries: BatchSummary[] = useMemo(() => {
     const batches = ['A1', 'A2', 'B1', 'B2'];
 
@@ -324,7 +264,6 @@ export const MentorDashboardOverview: React.FC = () => {
         return {
           batch: batchName,
           studentCount: 0,
-          avgAttendance: 0,
           avgScore: 0,
           graph1Avg: 0,
           graph2Avg: 0,
@@ -333,14 +272,6 @@ export const MentorDashboardOverview: React.FC = () => {
           skill3Avg: 0
         };
       }
-
-      // Attendance
-      let attSum = 0;
-      batchStudents.forEach(s => {
-        const att = studentAttendanceMap[s.email.toLowerCase().trim()];
-        if (att) attSum += att.percentage;
-      });
-      const avgAttendance = Math.round(attSum / studentCount);
 
       // Exam Averages
       const calcExamAvg = (examId: string) => {
@@ -363,15 +294,13 @@ export const MentorDashboardOverview: React.FC = () => {
       const s2 = calcExamAvg('skill_test_2');
       const s3 = calcExamAvg('skill_test_3');
 
-      // Total average %
-      const totalPossible = 20 + 20 + 30 + 20 + 20; // 110
+      // Total average % across 110 points
       const totalAvgScore = Number((g1 + g2 + pre + s2 + s3).toFixed(1));
-      const avgPct = Math.round((totalAvgScore / totalPossible) * 100);
+      const avgPct = Math.round((totalAvgScore / 110) * 100);
 
       return {
         batch: batchName,
         studentCount,
-        avgAttendance,
         avgScore: avgPct,
         graph1Avg: g1,
         graph2Avg: g2,
@@ -380,7 +309,7 @@ export const MentorDashboardOverview: React.FC = () => {
         skill3Avg: s3
       };
     });
-  }, [students, studentAttendanceMap, marksData]);
+  }, [students, marksData]);
 
   // Test Wise Summaries
   const testSummaries: ExamSummary[] = useMemo(() => {
@@ -443,10 +372,6 @@ export const MentorDashboardOverview: React.FC = () => {
         return (a.roll || '').localeCompare(b.roll || '');
       } else if (sortBy === 'name') {
         return (a.name || '').localeCompare(b.name || '');
-      } else if (sortBy === 'attendance') {
-        const attA = studentAttendanceMap[emailA]?.percentage || 0;
-        const attB = studentAttendanceMap[emailB]?.percentage || 0;
-        return attB - attA;
       } else if (sortBy === 'total') {
         const getStudentTotal = (email: string) => {
           let sum = 0;
@@ -461,11 +386,11 @@ export const MentorDashboardOverview: React.FC = () => {
       }
       return 0;
     });
-  }, [students, selectedBatch, searchQuery, sortBy, studentAttendanceMap, marksData, conductedExamsList]);
+  }, [students, selectedBatch, searchQuery, sortBy, marksData, conductedExamsList]);
 
   return (
     <div className="w-full space-y-6 pb-14">
-      {/* Top Professional Header Bar */}
+      {/* Top Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 pb-4">
         <div>
           <div className="flex items-center gap-2.5">
@@ -475,7 +400,7 @@ export const MentorDashboardOverview: React.FC = () => {
             </span>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            Consolidated batch analytics, exam results, and attendance overview in a single executive slide.
+            Consolidated batch analytics and exam results in a single executive slide.
           </p>
         </div>
 
@@ -521,30 +446,25 @@ export const MentorDashboardOverview: React.FC = () => {
           </div>
         </div>
 
-        {/* Tile 2: Overall Attendance */}
+        {/* Tile 2: Total Evaluations */}
         <div className="bg-white p-4 border border-gray-200 rounded shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Class Attendance</span>
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Evaluations</span>
             <div className="w-7 h-7 bg-gray-100 border border-gray-200 rounded flex items-center justify-center text-gray-600">
-              <ClipboardCheck size={15} />
+              <CheckCircle2 size={15} />
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-gray-900">{overallStats.avgAttendance}%</span>
-            <span className="text-xs text-gray-500 font-medium">Avg Rate</span>
+            <span className="text-2xl font-bold text-gray-900">{overallStats.evaluatedEntries}</span>
+            <span className="text-xs text-gray-500 font-medium">Graded</span>
           </div>
           <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-600">
-            <span>Sessions Conducted: <strong>{sessions.length}</strong></span>
-            <button 
-              onClick={() => navigate('/mentor-dashboard/attendance-report')}
-              className="text-primary hover:underline font-medium"
-            >
-              View Sheet
-            </button>
+            <span>Evaluation Rate</span>
+            <span className="font-semibold text-emerald-700">{overallStats.completionRate}% Done</span>
           </div>
         </div>
 
-        {/* Tile 3: Exams Evaluated */}
+        {/* Tile 3: Exams Conducted */}
         <div className="bg-white p-4 border border-gray-200 rounded shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Conducted Exams</span>
@@ -554,25 +474,30 @@ export const MentorDashboardOverview: React.FC = () => {
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-bold text-gray-900">{overallStats.conductedExamsCount}</span>
-            <span className="text-xs text-gray-500 font-medium">Exams Active</span>
+            <span className="text-xs text-gray-500 font-medium">Active Exams</span>
           </div>
           <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-600">
-            <span>Evaluations: <strong>{overallStats.evaluatedEntries}</strong></span>
-            <span className="font-semibold text-gray-700">{overallStats.completionRate}% Done</span>
+            <span>Graph 1, 2, Pre, Skill 2, 3</span>
+            <button 
+              onClick={() => navigate('/mentor-dashboard/graph-exam')}
+              className="text-primary hover:underline font-medium"
+            >
+              Exams
+            </button>
           </div>
         </div>
 
         {/* Tile 4: Academic Performance */}
         <div className="bg-white p-4 border border-gray-200 rounded shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Academic Score Avg</span>
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Cohort Mean Score</span>
             <div className="w-7 h-7 bg-gray-100 border border-gray-200 rounded flex items-center justify-center text-gray-600">
               <Award size={15} />
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-bold text-gray-900">{overallStats.academicAvgPct}%</span>
-            <span className="text-xs text-gray-500 font-medium">Cohort Mean</span>
+            <span className="text-xs text-gray-500 font-medium">Average</span>
           </div>
           <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-600">
             <span>Max Score: <strong>110 Pts</strong></span>
@@ -581,14 +506,14 @@ export const MentorDashboardOverview: React.FC = () => {
         </div>
       </div>
 
-      {/* Middle Section: Side-by-Side Executive Summary Panels */}
+      {/* Middle Section: Side-by-Side Professional Analytics Tables */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Panel 1: Batch-Wise Summary Table */}
         <div className="bg-white border border-gray-200 rounded shadow-xs flex flex-col">
           <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Users size={16} className="text-gray-600" />
-              <h2 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Batch-Wise Performance & Attendance</h2>
+              <h2 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Batch-Wise Exam Performance</h2>
             </div>
             <span className="text-[11px] text-gray-500 font-mono">4 Batches</span>
           </div>
@@ -596,34 +521,30 @@ export const MentorDashboardOverview: React.FC = () => {
           <div className="overflow-x-auto flex-1">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 font-semibold">
-                  <th className="py-2.5 px-3">Batch</th>
-                  <th className="py-2.5 px-3 text-center">Students</th>
-                  <th className="py-2.5 px-3 text-center">Attendance</th>
-                  <th className="py-2.5 px-3 text-center">Graph 1 (20)</th>
-                  <th className="py-2.5 px-3 text-center">Graph 2 (20)</th>
-                  <th className="py-2.5 px-3 text-center">Pre (30)</th>
-                  <th className="py-2.5 px-3 text-center">Overall %</th>
+                <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 font-semibold text-[11px] uppercase tracking-wider">
+                  <th className="py-2.5 px-3 text-left whitespace-nowrap">Batch</th>
+                  <th className="py-2.5 px-3 text-center whitespace-nowrap">Students</th>
+                  <th className="py-2.5 px-3 text-center whitespace-nowrap">Graph 1 (20)</th>
+                  <th className="py-2.5 px-3 text-center whitespace-nowrap">Graph 2 (20)</th>
+                  <th className="py-2.5 px-3 text-center whitespace-nowrap">Pre (30)</th>
+                  <th className="py-2.5 px-3 text-center whitespace-nowrap">Skill 2 (20)</th>
+                  <th className="py-2.5 px-3 text-center whitespace-nowrap">Batch Avg %</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {batchSummaries.map(b => (
                   <tr key={b.batch} className="hover:bg-gray-50/70 transition-colors">
-                    <td className="py-2 px-3 font-bold text-gray-900">
-                      <span className="px-2 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">
+                    <td className="py-2.5 px-3 text-left whitespace-nowrap">
+                      <span className="inline-block px-2 py-0.5 bg-gray-100 border border-gray-300 text-gray-900 font-bold text-xs rounded whitespace-nowrap">
                         Batch {b.batch}
                       </span>
                     </td>
-                    <td className="py-2 px-3 text-center font-mono font-medium text-gray-700">{b.studentCount}</td>
-                    <td className="py-2 px-3 text-center font-mono font-semibold">
-                      <span className={b.avgAttendance >= 80 ? 'text-emerald-700' : 'text-gray-700'}>
-                        {b.avgAttendance}%
-                      </span>
-                    </td>
-                    <td className="py-2 px-3 text-center font-mono text-gray-800">{b.graph1Avg}</td>
-                    <td className="py-2 px-3 text-center font-mono text-gray-800">{b.graph2Avg}</td>
-                    <td className="py-2 px-3 text-center font-mono text-gray-800">{b.preAvg}</td>
-                    <td className="py-2 px-3 text-center font-mono font-bold text-gray-900">
+                    <td className="py-2.5 px-3 text-center font-mono font-medium text-gray-700">{b.studentCount}</td>
+                    <td className="py-2.5 px-3 text-center font-mono text-gray-800 font-medium">{b.graph1Avg}</td>
+                    <td className="py-2.5 px-3 text-center font-mono text-gray-800 font-medium">{b.graph2Avg}</td>
+                    <td className="py-2.5 px-3 text-center font-mono text-gray-800 font-medium">{b.preAvg}</td>
+                    <td className="py-2.5 px-3 text-center font-mono text-gray-800 font-medium">{b.skill2Avg}</td>
+                    <td className="py-2.5 px-3 text-center font-mono font-bold text-gray-900">
                       {b.avgScore}%
                     </td>
                   </tr>
@@ -646,14 +567,14 @@ export const MentorDashboardOverview: React.FC = () => {
           <div className="overflow-x-auto flex-1">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 font-semibold">
-                  <th className="py-2.5 px-3">Exam Name</th>
-                  <th className="py-2.5 px-3 text-center">Max</th>
-                  <th className="py-2.5 px-3 text-center">Evaluated</th>
-                  <th className="py-2.5 px-3 text-center">Avg Mark</th>
-                  <th className="py-2.5 px-3 text-center">Highest</th>
-                  <th className="py-2.5 px-3 text-center">Lowest</th>
-                  <th className="py-2.5 px-3 text-center">Passing</th>
+                <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 font-semibold text-[11px] uppercase tracking-wider">
+                  <th className="py-2.5 px-3 text-left whitespace-nowrap">Exam Name</th>
+                  <th className="py-2.5 px-3 text-center whitespace-nowrap">Max</th>
+                  <th className="py-2.5 px-3 text-center whitespace-nowrap">Evaluated</th>
+                  <th className="py-2.5 px-3 text-center whitespace-nowrap">Avg Mark</th>
+                  <th className="py-2.5 px-3 text-center whitespace-nowrap">Highest</th>
+                  <th className="py-2.5 px-3 text-center whitespace-nowrap">Lowest</th>
+                  <th className="py-2.5 px-3 text-center whitespace-nowrap">Passing</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -661,18 +582,18 @@ export const MentorDashboardOverview: React.FC = () => {
                   const evalPct = exam.totalStudents > 0 ? Math.round((exam.evaluatedCount / exam.totalStudents) * 100) : 0;
                   return (
                     <tr key={exam.id} className="hover:bg-gray-50/70 transition-colors">
-                      <td className="py-2 px-3 font-semibold text-gray-900 whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-left font-semibold text-gray-900 whitespace-nowrap">
                         {exam.title}
                       </td>
-                      <td className="py-2 px-3 text-center font-mono text-gray-500">{exam.maxMarks}</td>
-                      <td className="py-2 px-3 text-center font-mono">
+                      <td className="py-2.5 px-3 text-center font-mono text-gray-500">{exam.maxMarks}</td>
+                      <td className="py-2.5 px-3 text-center font-mono">
                         <span className="font-semibold text-gray-800">{exam.evaluatedCount}</span>
                         <span className="text-[10px] text-gray-400 font-normal"> ({evalPct}%)</span>
                       </td>
-                      <td className="py-2 px-3 text-center font-mono font-bold text-gray-900">{exam.averageScore}</td>
-                      <td className="py-2 px-3 text-center font-mono text-emerald-700 font-semibold">{exam.highestScore}</td>
-                      <td className="py-2 px-3 text-center font-mono text-gray-600">{exam.lowestScore}</td>
-                      <td className="py-2 px-3 text-center font-mono text-gray-700">
+                      <td className="py-2.5 px-3 text-center font-mono font-bold text-gray-900">{exam.averageScore}</td>
+                      <td className="py-2.5 px-3 text-center font-mono text-emerald-700 font-semibold">{exam.highestScore}</td>
+                      <td className="py-2.5 px-3 text-center font-mono text-gray-600">{exam.lowestScore}</td>
+                      <td className="py-2.5 px-3 text-center font-mono text-gray-700 font-medium">
                         {exam.evaluatedCount > 0 ? `${Math.round((exam.passCount / exam.evaluatedCount) * 100)}%` : '-'}
                       </td>
                     </tr>
@@ -693,7 +614,7 @@ export const MentorDashboardOverview: React.FC = () => {
               <span>Consolidated Student Master Matrix</span>
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              Instant multi-exam marks and live attendance metrics for all {students.length} students.
+              Live multi-exam marks across all 5 exams for all {students.length} students.
             </p>
           </div>
 
@@ -726,7 +647,6 @@ export const MentorDashboardOverview: React.FC = () => {
               >
                 <option value="roll">Roll Number</option>
                 <option value="name">Student Name</option>
-                <option value="attendance">Attendance Rate</option>
                 <option value="total">Overall Score</option>
               </select>
             </div>
@@ -750,24 +670,23 @@ export const MentorDashboardOverview: React.FC = () => {
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200 text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
-                <th className="py-2 px-3 text-center w-12">#</th>
-                <th className="py-2 px-3 whitespace-nowrap">Roll No</th>
-                <th className="py-2 px-3 min-w-[180px]">Student Name</th>
-                <th className="py-2 px-3 text-center whitespace-nowrap">Batch</th>
-                <th className="py-2 px-3 text-center whitespace-nowrap">Attendance</th>
-                <th className="py-2 px-3 text-center whitespace-nowrap">Graph 1 (20)</th>
-                <th className="py-2 px-3 text-center whitespace-nowrap">Graph 2 (20)</th>
-                <th className="py-2 px-3 text-center whitespace-nowrap">Pre (30)</th>
-                <th className="py-2 px-3 text-center whitespace-nowrap">Skill 2 (20)</th>
-                <th className="py-2 px-3 text-center whitespace-nowrap">Skill 3 (20)</th>
-                <th className="py-2 px-3 text-center whitespace-nowrap">Total / 110</th>
-                <th className="py-2 px-3 text-center whitespace-nowrap">Overall %</th>
+                <th className="py-2.5 px-3 text-center w-12">#</th>
+                <th className="py-2.5 px-3 text-left whitespace-nowrap">Roll No</th>
+                <th className="py-2.5 px-3 text-left min-w-[200px]">Student Name</th>
+                <th className="py-2.5 px-3 text-center whitespace-nowrap">Batch</th>
+                <th className="py-2.5 px-3 text-center whitespace-nowrap">Graph 1 (20)</th>
+                <th className="py-2.5 px-3 text-center whitespace-nowrap">Graph 2 (20)</th>
+                <th className="py-2.5 px-3 text-center whitespace-nowrap">Pre (30)</th>
+                <th className="py-2.5 px-3 text-center whitespace-nowrap">Skill 2 (20)</th>
+                <th className="py-2.5 px-3 text-center whitespace-nowrap">Skill 3 (20)</th>
+                <th className="py-2.5 px-3 text-center whitespace-nowrap">Total / 110</th>
+                <th className="py-2.5 px-3 text-center whitespace-nowrap">Overall %</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="py-8 text-center text-gray-400 italic">
+                  <td colSpan={11} className="py-8 text-center text-gray-400 italic">
                     No student records found matching the selected criteria.
                   </td>
                 </tr>
@@ -775,7 +694,6 @@ export const MentorDashboardOverview: React.FC = () => {
                 filteredStudents.map((student, idx) => {
                   const sEmail = student.email.toLowerCase().trim();
                   const sMarks = marksData[sEmail] || {};
-                  const att = studentAttendanceMap[sEmail] || { attended: 0, total: 0, percentage: 0 };
 
                   const g1 = sMarks['graph_exam'];
                   const g2 = sMarks['graph_exam_2'];
@@ -798,46 +716,38 @@ export const MentorDashboardOverview: React.FC = () => {
 
                   return (
                     <tr key={sEmail} className="hover:bg-gray-50/80 transition-colors">
-                      <td className="py-2 px-3 text-center font-mono text-gray-400 text-[11px]">{idx + 1}</td>
-                      <td className="py-2 px-3 font-mono font-semibold text-gray-800 whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-center font-mono text-gray-400 text-[11px]">{idx + 1}</td>
+                      <td className="py-2.5 px-3 text-left font-mono font-semibold text-gray-800 whitespace-nowrap">
                         {student.roll || 'N/A'}
                       </td>
-                      <td className="py-2 px-3">
-                        <p className="font-semibold text-gray-900 truncate max-w-[200px]">{student.name}</p>
-                        <p className="text-[10px] text-gray-400 truncate max-w-[200px]">{student.email}</p>
+                      <td className="py-2.5 px-3 text-left">
+                        <p className="font-semibold text-gray-900 truncate max-w-[220px]">{student.name}</p>
+                        <p className="text-[10px] text-gray-400 truncate max-w-[220px]">{student.email}</p>
                       </td>
-                      <td className="py-2 px-3 text-center whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-center whitespace-nowrap">
                         <span className="px-2 py-0.5 bg-gray-100 border border-gray-200 text-gray-800 font-medium text-[11px] rounded">
                           {student.batch || 'A1'}
                         </span>
                       </td>
-                      <td className="py-2 px-3 text-center whitespace-nowrap font-mono">
-                        <span className={`font-semibold ${att.percentage >= 75 ? 'text-gray-900' : 'text-amber-700'}`}>
-                          {att.percentage}%
-                        </span>
-                        <span className="text-[10px] text-gray-400 block font-normal">
-                          {att.attended}/{att.total}
-                        </span>
-                      </td>
-                      <td className="py-2 px-3 text-center font-mono font-semibold text-gray-800">
+                      <td className="py-2.5 px-3 text-center font-mono font-semibold text-gray-800">
                         {g1 !== undefined && g1 !== '-' ? g1 : <span className="text-gray-300 font-normal">-</span>}
                       </td>
-                      <td className="py-2 px-3 text-center font-mono font-semibold text-gray-800">
+                      <td className="py-2.5 px-3 text-center font-mono font-semibold text-gray-800">
                         {g2 !== undefined && g2 !== '-' ? g2 : <span className="text-gray-300 font-normal">-</span>}
                       </td>
-                      <td className="py-2 px-3 text-center font-mono font-semibold text-gray-800">
+                      <td className="py-2.5 px-3 text-center font-mono font-semibold text-gray-800">
                         {pre !== undefined && pre !== '-' ? pre : <span className="text-gray-300 font-normal">-</span>}
                       </td>
-                      <td className="py-2 px-3 text-center font-mono font-semibold text-gray-800">
+                      <td className="py-2.5 px-3 text-center font-mono font-semibold text-gray-800">
                         {s2 !== undefined && s2 !== '-' ? s2 : <span className="text-gray-300 font-normal">-</span>}
                       </td>
-                      <td className="py-2 px-3 text-center font-mono font-semibold text-gray-800">
+                      <td className="py-2.5 px-3 text-center font-mono font-semibold text-gray-800">
                         {s3 !== undefined && s3 !== '-' ? s3 : <span className="text-gray-300 font-normal">-</span>}
                       </td>
-                      <td className="py-2 px-3 text-center font-mono font-bold text-gray-900">
+                      <td className="py-2.5 px-3 text-center font-mono font-bold text-gray-900">
                         {hasAnyMarks ? totalSum : <span className="text-gray-300 font-normal">-</span>}
                       </td>
-                      <td className="py-2 px-3 text-center font-mono font-bold text-gray-900">
+                      <td className="py-2.5 px-3 text-center font-mono font-bold text-gray-900">
                         {overallPct !== '-' ? (
                           <span className={Number(overallPct) >= 60 ? 'text-emerald-700' : 'text-gray-800'}>
                             {overallPct}%
@@ -860,14 +770,6 @@ export const MentorDashboardOverview: React.FC = () => {
             Showing {filteredStudents.length} of {students.length} students across 5 examinations.
           </span>
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/mentor-dashboard/attendance-report')}
-              className="text-primary hover:underline font-medium inline-flex items-center gap-1 cursor-pointer"
-            >
-              <span>Attendance Register</span>
-              <ArrowUpRight size={12} />
-            </button>
-            <span className="text-gray-300">|</span>
             <button
               onClick={() => navigate('/mentor-dashboard/marks-report')}
               className="text-primary hover:underline font-medium inline-flex items-center gap-1 cursor-pointer"
