@@ -880,10 +880,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
         return;
       }
 
-      console.log('[PDF Parser] Extracted text length:', extractedText.length);
       const parsedQuestions = parseMcqQuestionsAndAnswers(extractedText);
-      console.log('[PDF Parser] Parsed questions count:', parsedQuestions.length);
-
       if (!parsedQuestions || parsedQuestions.length === 0) {
         setPdfUploadErrorMsg('No MCQ questions detected in this PDF. Format: 1. Question... A) ... B) ... C) ... D) ... Answer: B. You can also paste text directly.');
         setIsParsingPdf(false);
@@ -2075,16 +2072,6 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                                 }} 
                               />
                             </label>
-
-                            <a
-                              href="/sample_question_paper.html"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-2.5 py-1.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-xs font-medium transition-colors cursor-pointer inline-flex items-center gap-1"
-                              title="View and print sample PDF format"
-                            >
-                              <span>Sample Format (PDF)</span>
-                            </a>
 
                             <button
                               type="button"
