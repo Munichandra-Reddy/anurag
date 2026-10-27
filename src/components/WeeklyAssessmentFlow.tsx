@@ -1763,7 +1763,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
         {effectiveQuestions && effectiveQuestions.length > 0 ? (
           <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 space-y-6">
             <h3 className="font-bold text-lg text-gray-900 border-b border-gray-200 pb-2">
-              {isExamSkillTest4 ? `2. Objective Quiz (10 MCQs - Jumbled Questions)` : (isSkillExamTaking ? `Multiple Choice Questions (${effectiveQuestions.length} Questions)` : `${exam.portfolioTopic ? '3' : '2'}. Multiple Choice Questions (${effectiveQuestions.length} Questions)`)}
+              {isExamSkillTest4 ? `2. Objective Quiz (10 MCQs)` : (isSkillExamTaking ? `Multiple Choice Questions (${effectiveQuestions.length} Questions)` : `${exam.portfolioTopic ? '3' : '2'}. Multiple Choice Questions (${effectiveQuestions.length} Questions)`)}
             </h3>
             
             <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2">
