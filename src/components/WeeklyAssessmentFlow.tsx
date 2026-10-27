@@ -1592,7 +1592,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
             {isExamSkillTest5 ? 'Skill Test 5' : (isExamSkillTest4 ? 'Skill Test 4' : (isExamSkillTest3 ? 'Skill Test 3' : (isExamSkillTest2 ? 'Skill Test 2' : exam.title)))}
           </h2>
-          {isExamSkillTest4 ? (
+          {false ? (
             <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
               <span className="px-2.5 py-1 bg-blue-50 text-blue-700 font-bold rounded-md border border-blue-200">
                 Section B1 & B2 Assessment
@@ -2896,7 +2896,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                       {exam.targetStudentName || `${exam.targetStudentEmails.length} Students`}
                     </span>
                   )}
-                  {isExamSkillTest4 && (
+                  {false && (
                     <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                       <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-semibold rounded-md">
                         Graph Exam + 10 Quiz Questions
