@@ -159,7 +159,7 @@ const PERMANENT_SKILL_TEST_3_A2: WeeklyExamData = {
 };
 
 // Skill Test 4 Permanent Configurations (STRICTLY B1 & B2 Batches ONLY)
-// Graph Exam + 10 Quiz Questions (Date: 28.10.2026, 9:00 AM - 5:00 PM)
+// Graph Exam + 10 Quiz Questions (Date: 27.10.2026, 9:00 AM - 5:00 PM)
 const PERMANENT_SKILL_TEST_4_B1: WeeklyExamData = {
   id: 'skill_test_4_B1',
   title: 'Skill Test 4',
@@ -1598,7 +1598,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                 Section B1 & B2 Assessment
               </span>
               <span className="px-2.5 py-1 bg-purple-50 text-purple-700 font-bold rounded-md border border-purple-200 flex items-center gap-1">
-                <Clock size={12} /> Date: 28.10.2026 (9:00 AM - 5:00 PM)
+                <Clock size={12} /> Date: 27.10.2026 (9:00 AM - 5:00 PM)
               </span>
               <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 font-bold rounded-md border border-emerald-200">
                 Part 1: Graph Exam • Part 2: Quiz (10 MCQs)
@@ -2902,7 +2902,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                         Graph Exam + 10 Quiz Questions
                       </span>
                       <span className="px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 text-[11px] font-semibold rounded-md flex items-center gap-1">
-                        <Clock size={11} /> 28.10.2026 (9:00 AM - 5:00 PM)
+                        <Clock size={11} /> 27.10.2026 (9:00 AM - 5:00 PM)
                       </span>
                       {exam.targetBatch && (
                         <span className="px-2 py-0.5 bg-gray-100 text-gray-700 border border-gray-200 text-[11px] font-semibold rounded-md">
@@ -3087,7 +3087,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                         if (isExamSkillTest4) {
                           const windowCheck = checkSkillTest4Window();
                           if (!windowCheck.isOpen && !isReExamGranted) {
-                            alert(`Skill Test 4 Assessment Schedule\n\nDate: 28.10.2026\nExam Window: 9:00 AM to 5:00 PM\n\n${windowCheck.message}\n\nPlease come back during the exam window (9:00 AM to 5:00 PM).`);
+                            alert(`Skill Test 4 Assessment Schedule\n\nDate: 27.10.2026\nExam Window: 9:00 AM to 5:00 PM\n\n${windowCheck.message}\n\nPlease come back during the exam window (9:00 AM to 5:00 PM).`);
                             return;
                           }
                           if (isReExamGranted || !localStorage.getItem(`examDraft_${studentEmailClean}_${exam.id}`)) {
@@ -3120,7 +3120,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                         </>
                       ) : (
                         <>
-                          {(isExamSkillTest4 && !checkSkillTest4Window().isOpen) ? <Clock size={14} /> : <PlayCircle size={14} />} {(isExamSkillTest4 && !checkSkillTest4Window().isOpen) ? (checkSkillTest4Window().status === 'closed' ? 'Exam Closed (5:00 PM)' : 'Opens 28 Oct 9:00 AM') : 'Start Exam'}
+                          {(isExamSkillTest4 && !checkSkillTest4Window().isOpen) ? <Clock size={14} /> : <PlayCircle size={14} />} {(isExamSkillTest4 && !checkSkillTest4Window().isOpen) ? (checkSkillTest4Window().status === 'closed' ? 'Exam Closed (5:00 PM)' : 'Opens 27 Oct 9:00 AM') : 'Start Exam'}
                         </>
                       )}
                     </button>

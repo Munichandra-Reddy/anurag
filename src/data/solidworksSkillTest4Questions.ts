@@ -5,8 +5,8 @@ export interface MCQQuestion {
 }
 
 export const SKILL_TEST_4_CONFIG = {
-  examDate: '28-10-2026',
-  dateDisplay: '28.10.2026',
+  examDate: '27-10-2026',
+  dateDisplay: '27.10.2026',
   startTime: '09:00',
   endTime: '17:00',
   windowDisplay: '9:00 AM to 5:00 PM',
@@ -180,14 +180,14 @@ export function checkSkillTest4Window(currentTime = new Date()): {
   } catch (e) {}
 
   const current = new Date(currentTime);
-  const start = new Date(2026, 9, 28, 9, 0, 0, 0);  // 28 Oct 2026 09:00:00
-  const end = new Date(2026, 9, 28, 17, 0, 0, 0);    // 28 Oct 2026 17:00:00
+  const start = new Date(2026, 9, 27, 9, 0, 0, 0);  // 27 Oct 2026 09:00:00
+  const end = new Date(2026, 9, 27, 17, 0, 0, 0);    // 27 Oct 2026 17:00:00
 
   if (current.getTime() < start.getTime()) {
     return {
       isOpen: false,
       status: 'upcoming',
-      message: 'Skill Test 4 will open on 28-10-2026 at 9:00 AM. Exam timing is 9:00 AM to 5:00 PM.'
+      message: 'Skill Test 4 will open on 27-10-2026 at 9:00 AM. Exam timing is 9:00 AM to 5:00 PM.'
     };
   }
 
@@ -195,7 +195,7 @@ export function checkSkillTest4Window(currentTime = new Date()): {
     return {
       isOpen: false,
       status: 'closed',
-      message: 'Skill Test 4 assessment has closed. It was conducted on 28-10-2026 from 9:00 AM to 5:00 PM.'
+      message: 'Skill Test 4 assessment has closed. It was conducted on 27-10-2026 from 9:00 AM to 5:00 PM.'
     };
   }
 
