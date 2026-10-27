@@ -376,7 +376,11 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
           }
 
           if (st4Report && (st4Report.isMentorSubmitted === true || !userIsMuni)) {
-            allMarks[sEmail]['skill_test_4'] = st4Report.theory !== undefined ? st4Report.theory : (st4Report.total ?? '-');
+            const graphM = Number(st4Report.project || 0);
+            const quizM = Number(st4Report.theory || 0);
+            allMarks[sEmail]['skill_test_4'] = (st4Report.project !== undefined || st4Report.theory !== undefined)
+              ? (graphM + quizM)
+              : (st4Report.total ?? '-');
           } else {
             allMarks[sEmail]['skill_test_4'] = '-';
           }

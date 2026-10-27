@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, X, Upload, Link as LinkIcon, FileText, CheckCircle2, Award, PlayCircle, RotateCcw, Users, User, Search, AlertCircle, Check, Loader2 } from 'lucide-react';
+import { Plus, X, Upload, Link as LinkIcon, FileText, CheckCircle2, Award, PlayCircle, RotateCcw, Users, User, Search, AlertCircle, Check, Loader2, Clock, Calendar, Image as ImageIcon } from 'lucide-react';
+import {
+  SOLIDWORKS_SKILL_TEST_4_BASE_MCQS,
+  getJumbledSkillTest4Questions,
+  checkSkillTest4Window,
+  SKILL_TEST_4_CONFIG
+} from '../data/solidworksSkillTest4Questions';
+
 import { WeeklyExamReport } from './WeeklyExamReport';
 import { getFromCloudflare, saveToCloudflare, replaceInCloudflare, getMentorKey, getStudentsKey, getMentorBatches, isMuniUser, matchesStudentEmail } from '../utils/cloudflare';
 import { SOLIDWORKS_60_MCQS } from '../data/solidworks60Mcqs';
@@ -49,6 +56,10 @@ interface WeeklyExamSubmission {
   batch?: string;
   targetBatch?: string;
   theoryQuestions?: TheoryQuestion[];
+  graphQuestionNumber?: string;
+  graphFileName?: string;
+  graphFileType?: 'image' | 'pdf';
+  graphFileData?: string;
 }
 
 interface Props {
@@ -144,6 +155,35 @@ const PERMANENT_SKILL_TEST_3_A2: WeeklyExamData = {
   assessmentMode: 'mcq',
   theoryPdfName: '',
   theoryQuestions: SOLIDWORKS_SKILL_TEST_2_SET1_MCQS, // Exchanged: A2 gets A1's paper
+  targetBatch: 'A2'
+};
+
+// Skill Test 4 Permanent Configurations (STRICTLY B1 & B2 Batches ONLY)
+// Graph Exam + 10 Quiz Questions (Date: 28.10.2026, 9:00 AM - 5:00 PM)
+const PERMANENT_SKILL_TEST_4_B1: WeeklyExamData = {
+  id: 'skill_test_4_B1',
+  title: 'Skill Test 4',
+  projectTitle: '',
+  portfolioTopic: '',
+  assessmentMode: 'mcq',
+  theoryPdfName: '',
+  theoryQuestions: SOLIDWORKS_SKILL_TEST_4_BASE_MCQS,
+  targetBatch: 'B1'
+};
+
+const PERMANENT_SKILL_TEST_4_B2: WeeklyExamData = {
+  id: 'skill_test_4_B2',
+  title: 'Skill Test 4',
+  projectTitle: '',
+  portfolioTopic: '',
+  assessmentMode: 'mcq',
+  theoryPdfName: '',
+  theoryQuestions: SOLIDWORKS_SKILL_TEST_4_BASE_MCQS,
+  targetBatch: 'B2'
+};
+
+
+const _unusedPermanentBatch = {
   targetBatch: 'A2'
 };
 
@@ -268,7 +308,54 @@ const ensureSkillTest2 = (examList: WeeklyExamData[], emailToCheck: string): Wee
     });
   });
 
-  return [...Array.from(batchSkill2Map.values()), ...Array.from(batchSkill3Map.values()), ...nonSkill3Exams];
+  // --- 3. Skill Test 4 (Batches B1 and B2 ONLY) ---
+  const isRemoved4 = 
+    localStorage.getItem('muni_skill_test_4_explicitly_removed') === 'true' ||
+    localStorage.getItem(`${examsKey}_removed_skill_test_4`) === 'true' ||
+    localStorage.getItem('anuragLmsWeeklyExams_muni@geonixa.com_removed_skill_test_4') === 'true';
+
+  if (!isRemoved4) {
+    const hasBatchExam4 = (batch: string) => updatedList.some(e => 
+      e && (e.id === `skill_test_4_${batch}` || (e.title && e.title.toLowerCase().includes('skill test 4') && e.targetBatch && e.targetBatch.toUpperCase().includes(batch)))
+    );
+
+    if (!hasBatchExam4('B1') && localStorage.getItem(`${examsKey}_removed_skill_test_4_B1`) !== 'true') {
+      updatedList.push(PERMANENT_SKILL_TEST_4_B1);
+    }
+    if (!hasBatchExam4('B2') && localStorage.getItem(`${examsKey}_removed_skill_test_4_B2`) !== 'true') {
+      updatedList.push(PERMANENT_SKILL_TEST_4_B2);
+    }
+  }
+
+  // Deduplicate Skill Test 4 exams by batch so there are strictly B1 and B2 only
+  const nonSkill4Exams = nonSkill3Exams.filter(e => !e.id.startsWith('skill_test_4') && !e.title?.toLowerCase().includes('skill test 4'));
+  const skill4Exams = nonSkill3Exams.filter(e => e.id.startsWith('skill_test_4') || e.title?.toLowerCase().includes('skill test 4'));
+  const batchSkill4Map = new Map<string, WeeklyExamData>();
+
+  if (!isRemoved4) {
+    if (localStorage.getItem(`${examsKey}_removed_skill_test_4_B1`) !== 'true') {
+      batchSkill4Map.set('B1', PERMANENT_SKILL_TEST_4_B1);
+    }
+    if (localStorage.getItem(`${examsKey}_removed_skill_test_4_B2`) !== 'true') {
+      batchSkill4Map.set('B2', PERMANENT_SKILL_TEST_4_B2);
+    }
+  }
+
+  skill4Exams.forEach(e => {
+    const rawBatch = (e.targetBatch || e.id.replace('skill_test_4_', '') || 'B1').replace(/batch/gi, '').trim().toUpperCase();
+    const cleanB = rawBatch.includes('B2') ? 'B2' : (rawBatch.includes('B1') ? 'B1' : '');
+    if (!cleanB) return; // Strictly B1 and B2 only!
+
+    batchSkill4Map.set(cleanB, {
+      ...e,
+      id: `skill_test_4_${cleanB}`,
+      title: 'Skill Test 4',
+      targetBatch: cleanB,
+      theoryQuestions: SOLIDWORKS_SKILL_TEST_4_BASE_MCQS
+    });
+  });
+
+  return [...Array.from(batchSkill2Map.values()), ...Array.from(batchSkill3Map.values()), ...Array.from(batchSkill4Map.values()), ...nonSkill4Exams];
 };
 
 export const resetStudentSubmissionForExam = async (sEmail: string, examId: string, batch?: string) => {
@@ -560,6 +647,14 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
   const [studentTheoryPdfDataUrl, setStudentTheoryPdfDataUrl] = useState('');
   const [isSubmittingExam, setIsSubmittingExam] = useState(false);
   
+  // Skill Test 4 Graph Exam state
+  const [graphQuestionNumber, setGraphQuestionNumber] = useState<string>('Question 1');
+  const [graphFileName, setGraphFileName] = useState<string>('');
+  const [graphFileType, setGraphFileType] = useState<'image' | 'pdf'>('image');
+  const [graphFileDataUrl, setGraphFileDataUrl] = useState<string>('');
+  const [graphFileError, setGraphFileError] = useState<string>('');
+  const [previewGraphModal, setPreviewGraphModal] = useState<boolean>(false);
+  
   // Submissions state
   const [submissions, setSubmissions] = useState<Record<string, WeeklyExamSubmission>>({});
   const [evaluatingExamId, setEvaluatingExamId] = useState<string | null>(null);
@@ -820,6 +915,10 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           if (draft.studentTheoryTextAnswer) setStudentTheoryTextAnswer(draft.studentTheoryTextAnswer);
           if (draft.studentTheoryPdf) setStudentTheoryPdf(draft.studentTheoryPdf);
           if (draft.studentTheoryPdfDataUrl) setStudentTheoryPdfDataUrl(draft.studentTheoryPdfDataUrl);
+          if (draft.graphQuestionNumber) setGraphQuestionNumber(draft.graphQuestionNumber);
+          if (draft.graphFileName) setGraphFileName(draft.graphFileName);
+          if (draft.graphFileType) setGraphFileType(draft.graphFileType);
+          if (draft.graphFileDataUrl) setGraphFileDataUrl(draft.graphFileDataUrl);
         }
       } catch (err) {
         console.error("Failed to load exam draft:", err);
@@ -846,6 +945,10 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       studentTheoryTextAnswer,
       studentTheoryPdf,
       studentTheoryPdfDataUrl,
+      graphQuestionNumber,
+      graphFileName,
+      graphFileType,
+      graphFileDataUrl,
       savedAt: new Date().toISOString()
     };
 
@@ -856,7 +959,8 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     studentProjectUrl, studentProjectPdf, studentProjectPdfDataUrl,
     studentPortfolioPdf, studentPortfolioPdfDataUrl,
     studentTheoryAnswers, studentTheoryTextAnswer,
-    studentTheoryPdf, studentTheoryPdfDataUrl
+    studentTheoryPdf, studentTheoryPdfDataUrl,
+    graphQuestionNumber, graphFileName, graphFileType, graphFileDataUrl
   ]);
 
   const handlePdfQuestionUpload = async (file: File) => {
@@ -925,6 +1029,75 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     }
   };
 
+  const handleGraphFileSelect = async (file: File) => {
+    setGraphFileError('');
+    if (!file) return;
+
+    const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
+    const isImage = file.type.startsWith('image/') || /\.(png|jpg|jpeg|webp|gif)$/i.test(file.name);
+
+    if (!isPdf && !isImage) {
+      setGraphFileError('Invalid file type. Please select a Screenshot (Image) or PDF file.');
+      return;
+    }
+
+    if (isPdf && file.size > 1024 * 1024) {
+      setGraphFileError('PDF file is too large (max 1MB). Please compress or take a screenshot.');
+      return;
+    }
+
+    if (isImage && file.size > 15 * 1024 * 1024) {
+      setGraphFileError('Image file is too large (max 15MB).');
+      return;
+    }
+
+    setGraphFileName(file.name);
+    setGraphFileType(isPdf ? 'pdf' : 'image');
+
+    try {
+      if (isImage) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            const maxDim = 900;
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, width, height);
+              setGraphFileDataUrl(canvas.toDataURL('image/jpeg', 0.65));
+            } else {
+              setGraphFileDataUrl(event.target?.result as string);
+            }
+          };
+          img.onerror = () => setGraphFileDataUrl(event.target?.result as string);
+          img.src = event.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+      } else {
+        const reader = new FileReader();
+        reader.onload = (e) => setGraphFileDataUrl(e.target?.result as string);
+        reader.readAsDataURL(file);
+      }
+    } catch (err: any) {
+      console.error('File read error:', err);
+      setGraphFileError('Failed to read file. Please try again.');
+    }
+  };
+
   const handleAddExam = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -971,7 +1144,9 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       ? getSkillTest2McqsForBatch(targetBatch)
       : isSkillTest3
       ? getSkillTest3McqsForBatch(targetBatch)
-      : (isSkillTest4 || isSkillTest5)
+      : isSkillTest4
+      ? SOLIDWORKS_SKILL_TEST_4_BASE_MCQS
+      : isSkillTest5
       ? SOLIDWORKS_60_MCQS.slice(0, 20)
       : (assessmentMode === 'mcq' 
           ? (theoryQuestions.length > 0 ? theoryQuestions.slice(0, questionCount) : SOLIDWORKS_60_MCQS.slice(0, questionCount)) 
@@ -1120,6 +1295,23 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       return;
     }
 
+    if (isSkillTest4Taking) {
+      if (!graphFileName || !graphFileDataUrl) {
+        alert("Please select a Question Number and upload your Graph Exam answer file (Screenshot or PDF) before submitting.");
+        return;
+      }
+      const answeredCount = (studentTheoryAnswers || []).filter(a => a !== undefined && a !== null).length;
+      if (answeredCount < 10 && !window.confirm(`You have answered ${answeredCount} of 10 quiz questions.\n\nAre you sure you want to submit your Skill Test 4 now?`)) return;
+    }
+    if (false as boolean) {
+      if (answeredCount < 10) {
+        if (!window.confirm(`You have answered ${answeredCount} of 10 quiz questions.\n\nAre you sure you want to submit your Skill Test 4 now?`)) {
+          return;
+        }
+      }
+      return;
+    }
+
     setIsSubmittingExam(true);
 
     try {
@@ -1130,7 +1322,9 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
         ? exam.theoryQuestions
         : isSkillTest3Taking
         ? getSkillTest3McqsForBatch(exam.targetBatch || studentDetails?.batch)
-        : (isSkillTest4Taking || isSkillTest5Taking)
+        : isSkillTest4Taking
+        ? getJumbledSkillTest4Questions(effectiveEmail)
+        : isSkillTest5Taking
         ? SOLIDWORKS_60_MCQS.slice(0, 20)
         : getSkillTest2McqsForBatch(exam.targetBatch || studentDetails?.batch);
 
@@ -1148,7 +1342,11 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
         examId: takingExamId,
         batch: studentBatch,
         targetBatch: (exam.targetBatch || studentBatch).toString(),
-        theoryQuestions: examQuestionsToSubmit
+        theoryQuestions: examQuestionsToSubmit,
+        graphQuestionNumber: isSkillTest4Taking ? graphQuestionNumber : undefined,
+        graphFileName: isSkillTest4Taking ? graphFileName : undefined,
+        graphFileType: isSkillTest4Taking ? graphFileType : undefined,
+        graphFileData: isSkillTest4Taking ? graphFileDataUrl : undefined
       };
 
       const newSubmissions = { ...submissions, [takingExamId]: submission };
@@ -1283,6 +1481,11 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       setStudentTheoryTextAnswer('');
       setStudentTheoryPdf('');
       setStudentTheoryPdfDataUrl('');
+      setGraphQuestionNumber('Question 1');
+      setGraphFileName('');
+      setGraphFileType('image');
+      setGraphFileDataUrl('');
+      setGraphFileError('');
     } catch (error) {
       console.error("Submission error:", error);
       alert("Submission encountered an issue. Please try clicking Submit again.");
@@ -1368,7 +1571,9 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
 
     const isSkillExamTaking = isExamSkillTest2 || isExamSkillTest3 || isExamSkillTest4 || isExamSkillTest5;
 
-    const effectiveQuestions = (exam.theoryQuestions && exam.theoryQuestions.length > 0)
+    const effectiveQuestions = isExamSkillTest4
+      ? getJumbledSkillTest4Questions(currentEmail || loggedInEmail)
+      : (exam.theoryQuestions && exam.theoryQuestions.length > 0)
       ? exam.theoryQuestions
       : (isExamSkillTest3 
           ? getSkillTest3McqsForBatch(exam.targetBatch || studentDetails?.batch)
@@ -1387,7 +1592,21 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
             {isExamSkillTest5 ? 'Skill Test 5' : (isExamSkillTest4 ? 'Skill Test 4' : (isExamSkillTest3 ? 'Skill Test 3' : (isExamSkillTest2 ? 'Skill Test 2' : exam.title)))}
           </h2>
-          <p className="text-gray-500">Complete all sections below and submit your work.</p>
+          {isExamSkillTest4 ? (
+            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+              <span className="px-2.5 py-1 bg-blue-50 text-blue-700 font-bold rounded-md border border-blue-200">
+                Section B1 & B2 Assessment
+              </span>
+              <span className="px-2.5 py-1 bg-purple-50 text-purple-700 font-bold rounded-md border border-purple-200 flex items-center gap-1">
+                <Clock size={12} /> Date: 28.10.2026 (9:00 AM - 5:00 PM)
+              </span>
+              <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 font-bold rounded-md border border-emerald-200">
+                Part 1: Graph Exam • Part 2: Quiz (10 MCQs)
+              </span>
+            </div>
+          ) : (
+            <p className="text-gray-500">Complete all sections below and submit your work.</p>
+          )}
         </div>
 
         {/* Project Section - Hidden for Skill Test 2, 3, 4, 5 */}
@@ -1459,11 +1678,92 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
           </div>
         )}
 
+        {/* Skill Test 4 - Section 1: Graph Exam */}
+        {isExamSkillTest4 && (
+          <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+              <div>
+                <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2">
+                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-xs font-bold">1</span>
+                  Graph Exam
+                </h3>
+                <p className="text-xs text-gray-500 mt-1">Select your question number and upload the completed drawing / model file (Screenshot or PDF).</p>
+              </div>
+              <span className="text-xs font-bold px-2.5 py-1 bg-blue-50 text-blue-700 rounded-md border border-blue-200">
+                10 Marks
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Question Number <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={graphQuestionNumber}
+                  onChange={(e) => setGraphQuestionNumber(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary shadow-xs"
+                >
+                  {[...Array(10)].map((_, i) => (
+                    <option key={i + 1} value={`Question ${i + 1}`}>Question {i + 1}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Upload Answer File (Screenshot / PDF) <span className="text-red-500">*</span>
+                </label>
+                <label className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-dashed border-gray-300 hover:border-primary hover:bg-gray-50 rounded-lg cursor-pointer transition-colors text-xs font-semibold text-gray-700 shadow-xs">
+                  <Upload size={15} className="text-primary" />
+                  <span>{graphFileName ? 'Change File' : 'Choose File (Screenshot or PDF)'}</span>
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleGraphFileSelect(file);
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+
+            {graphFileError && (
+              <p className="text-xs text-red-600 font-medium">{graphFileError}</p>
+            )}
+
+            {graphFileName && (
+              <div className="p-3 bg-white border border-gray-200 rounded-lg flex items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="p-2 bg-primary/10 text-primary rounded-md">
+                    {graphFileType === 'image' ? <ImageIcon size={18} /> : <FileText size={18} />}
+                  </span>
+                  <div className="truncate">
+                    <p className="text-xs font-bold text-gray-900 truncate">{graphFileName}</p>
+                    <p className="text-[11px] text-gray-500">{graphFileType.toUpperCase()} file selected for {graphQuestionNumber}</p>
+                  </div>
+                </div>
+                {graphFileType === 'image' && graphFileDataUrl && (
+                  <img
+                    src={graphFileDataUrl}
+                    alt="Preview"
+                    onClick={() => setPreviewGraphModal(true)}
+                    className="w-12 h-12 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-80 transition-opacity shrink-0"
+                    title="Click to preview full size"
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Theory / MCQ Section */}
         {effectiveQuestions && effectiveQuestions.length > 0 ? (
           <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 space-y-6">
             <h3 className="font-bold text-lg text-gray-900 border-b border-gray-200 pb-2">
-              {isSkillExamTaking ? `Multiple Choice Questions (${effectiveQuestions.length} Questions)` : `${exam.portfolioTopic ? '3' : '2'}. Multiple Choice Questions (${effectiveQuestions.length} Questions)`}
+              {isExamSkillTest4 ? `2. Objective Quiz (10 MCQs - Jumbled Questions)` : (isSkillExamTaking ? `Multiple Choice Questions (${effectiveQuestions.length} Questions)` : `${exam.portfolioTopic ? '3' : '2'}. Multiple Choice Questions (${effectiveQuestions.length} Questions)`)}
             </h3>
             
             <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2">
@@ -1545,6 +1845,25 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
             </div>
           </div>
         ) : null}
+
+        {/* Graph Image Preview Modal */}
+        {previewGraphModal && graphFileDataUrl && (
+          <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4" onClick={() => setPreviewGraphModal(false)}>
+            <div className="relative max-w-3xl max-h-[90vh] bg-white rounded-xl p-2 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+              <button
+                type="button"
+                onClick={() => setPreviewGraphModal(false)}
+                className="absolute top-3 right-3 p-1.5 bg-black/60 text-white hover:bg-black rounded-full transition-colors z-10 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+              <img src={graphFileDataUrl} alt="Graph Preview" className="max-h-[85vh] w-auto mx-auto rounded object-contain" />
+              <div className="p-2 text-center text-xs font-semibold text-gray-700">
+                {graphFileName} ({graphQuestionNumber})
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex justify-end pt-4">
           <button 
@@ -1682,7 +2001,10 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                           if (val === 'skill_test_5' || (val === 'week4' && isMuni)) {
                             setQuestionCount(20);
                             setTheoryQuestions(SOLIDWORKS_60_MCQS.slice(0, 20));
-                          } else if (val === 'skill_test_4' || (val === 'week3' && isMuni)) {
+                          } else if (val === 'skill_test_4' || (val === 'week3' && isMuni)) { setQuestionCount(10); setTheoryQuestions(SOLIDWORKS_SKILL_TEST_4_BASE_MCQS); } else if (false) {
+                            setQuestionCount(10);
+                            setTheoryQuestions(SOLIDWORKS_SKILL_TEST_4_BASE_MCQS);
+                            return;
                             setQuestionCount(20);
                             setTheoryQuestions(SOLIDWORKS_60_MCQS.slice(0, 20));
                           } else if (val === 'skill_test_3' || (val === 'week2' && isMuni)) {
@@ -1739,7 +2061,10 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                           if (selectedWeek === 'skill_test_5' || (selectedWeek === 'week4' && isMuni)) {
                             setQuestionCount(20);
                             setTheoryQuestions(SOLIDWORKS_60_MCQS.slice(0, 20));
-                          } else if (selectedWeek === 'skill_test_4' || (selectedWeek === 'week3' && isMuni)) {
+                          } else if (selectedWeek === 'skill_test_4' || (selectedWeek === 'week3' && isMuni)) { setQuestionCount(10); setTheoryQuestions(SOLIDWORKS_SKILL_TEST_4_BASE_MCQS); } else if (false) {
+                            setQuestionCount(10);
+                            setTheoryQuestions(SOLIDWORKS_SKILL_TEST_4_BASE_MCQS);
+                            return;
                             setQuestionCount(20);
                             setTheoryQuestions(SOLIDWORKS_60_MCQS.slice(0, 20));
                           } else if (selectedWeek === 'skill_test_3' || (selectedWeek === 'week2' && isMuni)) {
@@ -2405,6 +2730,20 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
             const targetBatchClean = cleanBatch(exam.targetBatch);
             const studentBatchClean = cleanBatch(rawStudentBatch);
 
+            // For Skill Test 4: Strictly match student's batch ONLY (B1 sees B1, B2 sees B2, A1/A2 NEVER see it!)
+            if (isSkillTest4Exam) {
+              if (!targetBatchClean || targetBatchClean === 'all' || targetBatchClean === 'all batches') {
+                return false;
+              }
+              if (studentBatchClean === 'b1') {
+                return targetBatchClean === 'b1' || exam.id === 'skill_test_4_B1';
+              }
+              if (studentBatchClean === 'b2') {
+                return targetBatchClean === 'b2' || exam.id === 'skill_test_4_B2';
+              }
+              return false; // Batches A1, A2 or others will NEVER see Skill Test 4
+            }
+
             // For Skill Test 3: Strictly match student's batch ONLY (A1 sees A1, A2 sees A2, B1 sees B1, B2 sees B2)
             if (isSkillTest3Exam) {
               if (!targetBatchClean || targetBatchClean === 'all' || targetBatchClean === 'all batches') {
@@ -2556,6 +2895,21 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                       <User size={11} />
                       {exam.targetStudentName || `${exam.targetStudentEmails.length} Students`}
                     </span>
+                  )}
+                  {isExamSkillTest4 && (
+                    <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                      <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-semibold rounded-md">
+                        Graph Exam + 10 Quiz Questions
+                      </span>
+                      <span className="px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 text-[11px] font-semibold rounded-md flex items-center gap-1">
+                        <Clock size={11} /> 28.10.2026 (9:00 AM - 5:00 PM)
+                      </span>
+                      {exam.targetBatch && (
+                        <span className="px-2 py-0.5 bg-gray-100 text-gray-700 border border-gray-200 text-[11px] font-semibold rounded-md">
+                          Batch {exam.targetBatch}
+                        </span>
+                      )}
+                    </div>
                   )}
                   {isMentor && (!exam.targetStudentEmails || exam.targetStudentEmails.length === 0) && (
                     <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold rounded-md flex items-center gap-1">
@@ -2730,14 +3084,34 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                   return (
                     <button 
                       onClick={() => {
-                        const draftKey = `examDraft_${studentEmailClean}_${exam.id}`;
+                        if (isExamSkillTest4) {
+                          const windowCheck = checkSkillTest4Window();
+                          if (!windowCheck.isOpen && !isReExamGranted) {
+                            alert(`Skill Test 4 Assessment Schedule\n\nDate: 28.10.2026\nExam Window: 9:00 AM to 5:00 PM\n\n${windowCheck.message}\n\nPlease come back during the exam window (9:00 AM to 5:00 PM).`);
+                            return;
+                          }
+                          if (isReExamGranted || !localStorage.getItem(`examDraft_${studentEmailClean}_${exam.id}`)) {
+                            setGraphQuestionNumber('Question 1');
+                            setGraphFileName('');
+                            setGraphFileType('image');
+                            setGraphFileDataUrl('');
+                          }
+                          setGraphFileError(''); } if (false) {
+                          setGraphFileName('');
+                          setGraphFileType('image');
+                          setGraphFileDataUrl('');
+                          setGraphFileError('');
+                        }
+                        const draftKey = `examDraft_${studentEmailClean}_${exam.id}`; if (isReExamGranted) { localStorage.removeItem(draftKey); } else if (false)
                         localStorage.removeItem(draftKey);
                         setTakingExamId(exam.id);
                       }}
                       className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 text-white font-medium text-xs rounded-lg transition-colors shadow-xs cursor-pointer ${
                         isReExamGranted
                           ? 'bg-amber-600 hover:bg-amber-700 animate-pulse'
-                          : 'bg-primary hover:bg-primary-dark'
+                          : (isExamSkillTest4 && !checkSkillTest4Window().isOpen
+                              ? (checkSkillTest4Window().status === 'closed' ? 'bg-gray-500 hover:bg-gray-600' : 'bg-amber-600 hover:bg-amber-700')
+                              : 'bg-primary hover:bg-primary-dark')
                       }`}
                     >
                       {isReExamGranted ? (
@@ -2746,7 +3120,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                         </>
                       ) : (
                         <>
-                          <PlayCircle size={14} /> Start Exam
+                          {(isExamSkillTest4 && !checkSkillTest4Window().isOpen) ? <Clock size={14} /> : <PlayCircle size={14} />} {(isExamSkillTest4 && !checkSkillTest4Window().isOpen) ? (checkSkillTest4Window().status === 'closed' ? 'Exam Closed (5:00 PM)' : 'Opens 28 Oct 9:00 AM') : 'Start Exam'}
                         </>
                       )}
                     </button>

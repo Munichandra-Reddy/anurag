@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Search, FileText, ArrowLeft, Send, CheckCircle2, Edit, X, Check, HelpCircle, ChevronDown, ChevronUp, Award, RotateCcw } from 'lucide-react';
+import {
+  SOLIDWORKS_SKILL_TEST_4_BASE_MCQS,
+  getJumbledSkillTest4Questions
+} from '../data/solidworksSkillTest4Questions';
+import { Search, FileText, ArrowLeft, Send, CheckCircle2, Edit, X, Check, HelpCircle, ChevronDown, ChevronUp, Award, RotateCcw, Image as ImageIcon } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare, getMentorKey, getStudentsKey, isMuniUser, matchesStudentEmail } from '../utils/cloudflare';
 import { resetStudentSubmissionForExam } from './WeeklyAssessmentFlow';
 import { 
@@ -91,6 +95,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
   const [theoryEvalInput, setTheoryEvalInput] = useState<string>('');
   const [attendanceEvalInput, setAttendanceEvalInput] = useState<string>('');
   const [mentorEvalInput, setMentorEvalInput] = useState<string>('');
+  const [previewGraphModal, setPreviewGraphModal] = useState<string | null>(null);
 
   // Load the target exam to evaluate objective questions
   useEffect(() => {
@@ -165,7 +170,14 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         }
       }
 
-      if (!exam && isSkillTest3) {
+      if (!exam && isSkillTest4) {
+        exam = {
+          id: 'skill_test_4',
+          title: 'Skill Test 4',
+          theoryQuestions: SOLIDWORKS_SKILL_TEST_4_BASE_MCQS,
+          targetBatch: 'B1'
+        };
+      } else if (!exam && isSkillTest3) {
         exam = {
           id: 'skill_test_3',
           title: 'Skill Test 3',
@@ -190,6 +202,9 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
   const getQuestionsForStudent = (student: Student | null, submission: any) => {
     if (submission && submission.theoryQuestions && Array.isArray(submission.theoryQuestions) && submission.theoryQuestions.length > 0) {
       return submission.theoryQuestions;
+    }
+    if (isSkillTest4) {
+      return getJumbledSkillTest4Questions(student?.email || submission?.studentEmail || '');
     }
     if (isSkillTest3) {
       const studentBatch = (student?.batch || '').replace(/batch/gi, '').trim().toUpperCase();
@@ -504,8 +519,8 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
             return acc + (finalSubmission.theoryAnswers[idx] === q.answerIndex ? 1 : 0);
           }, 0);
           const total = questions.length;
-          const maxMark = isSkillTest ? 20 : (isCie ? 10 : 5);
-          const autoScore = isSkillTest ? correctCount : Math.round((correctCount / total) * maxMark);
+          const maxMark = isSkillTest4 ? 10 : (isSkillTest ? 20 : (isCie ? 10 : 5));
+          const autoScore = isSkillTest ? correctCount : Math.round((correctCount / total) * maxMark); if (isSkillTest4 && isSkillTest) { if (!loadedMarks.isMentorSubmitted || loadedMarks.theory === undefined || loadedMarks.theory === null) { loadedMarks.theory = autoScore; } loadedMarks.portfolio = 0; loadedMarks.attendance = 0; loadedMarks.mentor = 0; } else
 
           if (isSkillTest) {
             if (!loadedMarks.isMentorSubmitted || !loadedMarks.theory || (isSkillTest2 && loadedMarks.theory === 6 && autoScore !== 6)) {
@@ -933,11 +948,55 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         
         {studentReport ? (
           <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-xs">
-            <div className="space-y-4 text-lg">
-              {isSkillTest ? (
+            <div className="space-y-4 text-lg"> {/* student-report-block */}
+              {false ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-blue-200">
+                  <div>
+                    <label className="font-bold text-gray-800 block text-base">Part 1: Graph Exam</label>
+                    <span className="text-xs text-gray-500">Drawing upload evaluation (Max 10 Marks)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="number" min="0" max={10} 
+                      value={marks.project} 
+                      onChange={(e) => setMarks(prev => ({ ...prev, project: Math.min(10, Math.max(0, Number(e.target.value) || 0)) }))}
+                      className="w-20 px-3 py-2 border-2 border-blue-400 rounded-xl text-center font-bold text-blue-700 text-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    />
+                    <span className="text-sm font-bold text-gray-500">/ 10</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-primary/20">
+                  <div>
+                    <label className="font-bold text-gray-800 block text-base">Part 2: SOLIDWORKS Quiz</label>
+                    <span className="text-xs text-gray-500">10 MCQs (1 Mark each, Max 10 Marks)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="number" min="0" max={10} 
+                      value={marks.theory} 
+                      onChange={(e) => setMarks(prev => ({ ...prev, theory: Math.min(10, Math.max(0, Number(e.target.value) || 0)) }))}
+                      className="w-20 px-3 py-2 border-2 border-primary rounded-xl text-center font-bold text-primary text-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                    <span className="text-sm font-bold text-gray-500">/ 10</span>
+                  </div>
+                </div>
+              </div>
+            ) : isSkillTest ? (
+                <>
+                  {isSkillTest4 && (
+                    <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+                      <span className="font-medium text-gray-700">Part 1: Graph Exam</span>
+                      <span className="font-bold text-primary">{studentReport.project ?? 0} / 10</span>
+                    </div>
+                  )}
                 <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-                  <span className="font-medium text-gray-700">Multiple Choice Questions (20 MCQs)</span>
-                  <span className="font-bold text-primary">{studentReport.theory} / 20</span>
+                  <span className="font-medium text-gray-700">{isSkillTest4 ? 'Part 2: SOLIDWORKS Quiz (10 MCQs)' : 'Multiple Choice Questions (20 MCQs)'}</span>
+                  <span className="font-bold text-primary">{studentReport.theory} / {isSkillTest4 ? 10 : 20}</span>
+                </div>
+              </>
+              <div style={{ display: 'none' }}>
                 </div>
               ) : (
                 <>
@@ -969,7 +1028,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                 <span className="font-black text-gray-900 text-xl">Total Score</span>
                 <span className="font-black text-primary text-2xl">
                   {isSkillTest 
-                    ? `${Number(studentReport.theory)} / 20`
+                    ? (isSkillTest4 ? `${Number(studentReport.project || 0) + Number(studentReport.theory || 0)} / 20` : `${Number(studentReport.theory)} / 20`)
                     : `${Number(studentReport.project) + (isCie ? 0 : Number(studentReport.portfolio)) + Number(studentReport.theory) + Number(studentReport.attendance) + Number(studentReport.mentor)} / ${isCie ? 50 : 20}`}
                 </span>
               </div>
@@ -993,6 +1052,10 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                           student.email.toLowerCase().includes(searchQuery.toLowerCase());
     
     // 2. Batch filter
+    if (isSkillTest4) {
+      const b = (student.batch || '').toLowerCase().replace(/batch/gi, '').trim();
+      if (b !== 'b1' && b !== 'b2') return false;
+    }
     let matchesBatch = true;
     if (targetExam && targetExam.targetBatch && targetExam.targetBatch !== 'All Batches') {
       // Extract the core batch name to handle 'Morning', 'Evening', or custom names
@@ -1183,6 +1246,114 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
             <div className="mb-8 p-6 bg-blue-50 border border-blue-100 rounded-xl space-y-4">
               <h4 className="font-bold text-blue-900 border-b border-blue-200 pb-2">Student Submission Details</h4>
               
+              {/* Part 1: Graph Exam (for Skill Test 4) */}
+              {isSkillTest4 && (
+                <div className="flex flex-col gap-3 border-b border-blue-200 pb-4 bg-white/80 p-4 rounded-xl border border-blue-100 shadow-2xs">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-1 bg-blue-100 text-blue-800 text-xs font-black rounded">
+                        Part 1: Graph Exam
+                      </span>
+                      <span className="text-sm font-bold text-gray-800">
+                        Selected Question: <span className="text-blue-600 font-black text-base">Question {studentSubmission.graphQuestionNumber || '1'}</span>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="number" min="0" max="10" placeholder="0-10" 
+                        value={projectEvalInput} 
+                        onChange={e => setProjectEvalInput(e.target.value)} 
+                        className="w-16 px-2 py-1 text-sm border border-blue-300 rounded font-bold text-center focus:outline-none focus:border-blue-500" 
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          const val = Math.min(10, Math.max(0, Number(projectEvalInput) || 0));
+                          setMarks(prev => ({ ...prev, project: val }));
+                        }} 
+                        className="px-3 py-1 text-xs font-bold text-white bg-blue-600 rounded shadow-xs hover:bg-blue-700 transition-colors cursor-pointer"
+                      >
+                        Set Graph Marks ({marks.project || 0}/10)
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center flex-wrap gap-3 pt-1">
+                    <span className="text-xs font-bold text-gray-600">Drawing Answer File:</span>
+                    {studentSubmission.graphFileName ? (
+                      <span className="text-xs font-mono font-medium text-blue-700 bg-blue-50 px-2 py-1 rounded border border-blue-200">
+                        {studentSubmission.graphFileName}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-red-500 font-semibold">No file uploaded</span>
+                    )}
+
+                    {studentSubmission.graphFileData && (
+                      (studentSubmission.graphFileType === 'image' || (studentSubmission.graphFileName && /\.(png|jpg|jpeg|webp|gif)$/i.test(studentSubmission.graphFileName))) ? (
+                        <button
+                          type="button"
+                          onClick={() => setPreviewGraphModal(studentSubmission.graphFileData)}
+                          className="flex items-center gap-1 text-xs font-bold text-primary hover:underline bg-orange-50 px-2.5 py-1 rounded border border-orange-200 cursor-pointer"
+                        >
+                          <ImageIcon size={14} /> Preview Drawing
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenPdf(studentSubmission.graphFileData, studentSubmission.graphFileName || 'graph_exam.pdf')}
+                          className="flex items-center gap-1 text-xs font-bold text-blue-700 hover:underline bg-blue-50 px-2.5 py-1 rounded border border-blue-200 cursor-pointer"
+                        >
+                          <FileText size={14} /> View / Download PDF
+                        </button>
+                      )
+                    )}
+                  </div>
+
+                  {studentSubmission.graphFileData && (studentSubmission.graphFileType === 'image' || (studentSubmission.graphFileName && /\.(png|jpg|jpeg|webp|gif)$/i.test(studentSubmission.graphFileName))) && (
+                    <div className="mt-1">
+                      <img 
+                        src={studentSubmission.graphFileData} 
+                        alt="Graph Submission" 
+                        onClick={() => setPreviewGraphModal(studentSubmission.graphFileData)}
+                        className="max-h-48 max-w-xs object-contain rounded-lg border border-gray-300 shadow-xs cursor-pointer hover:opacity-90 transition-opacity" 
+                      />
+                      <p className="text-[11px] text-gray-500 mt-1">Click to view full image</p>
+                      {previewGraphModal && (
+                        <div 
+                          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-xs"
+                          onClick={() => setPreviewGraphModal(null)}
+                        >
+                          <div 
+                            className="bg-white rounded-2xl max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl relative"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <div className="flex items-center justify-between p-3.5 border-b border-gray-200 bg-gray-50">
+                              <span className="font-bold text-gray-800 text-sm flex items-center gap-2">
+                                <ImageIcon size={18} className="text-primary" /> Drawing Submission Preview
+                              </span>
+                              <button 
+                                type="button" 
+                                onClick={() => setPreviewGraphModal(null)}
+                                className="p-1 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                              >
+                                <X size={18} />
+                              </button>
+                            </div>
+                            <div className="p-4 overflow-auto flex items-center justify-center bg-gray-900/5 min-h-[300px]">
+                              <img 
+                                src={previewGraphModal} 
+                                alt="Full size Drawing" 
+                                className="max-h-[75vh] max-w-full object-contain rounded shadow"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Project line */}
               {!isSkillTest && (
                 <div className="flex items-center flex-wrap gap-4 justify-between border-b border-blue-100/50 pb-3">
@@ -1283,7 +1454,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
               <div className="flex flex-col gap-3 border-b border-blue-100/50 pb-4">
                 <div className="flex items-center flex-wrap gap-4 justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-blue-800">{isSkillTest5 ? 'Skill Test 5 (20 MCQs): ' : (isSkillTest4 ? 'Skill Test 4 (20 MCQs): ' : (isSkillTest3 ? 'Skill Test 3 (20 MCQs): ' : (isSkillTest2 ? 'Skill Test 2 (20 MCQs): ' : 'Theory Answers PDF: ')))}</span>
+                    <span className="text-sm font-bold text-blue-800">{isSkillTest5 ? 'Skill Test 5 (20 MCQs): ' : (isSkillTest4 ? 'Part 2: SOLIDWORKS Quiz (10 MCQs): ' : (isSkillTest3 ? 'Skill Test 3 (20 MCQs): ' : (isSkillTest2 ? 'Skill Test 2 (20 MCQs): ' : 'Theory Answers PDF: ')))}</span>
                     {!isSkillTest && (studentSubmission.theoryAnswerPdfName ? (
                       <>
                         <span className="text-sm text-blue-600">{studentSubmission.theoryAnswerPdfName}</span>
@@ -1300,14 +1471,14 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                   
                   <div className="flex items-center gap-2">
                     <input 
-                      type="number" min="0" max={isSkillTest ? "20" : (isCie ? "10" : "5")} placeholder="Marks" 
+                      type="number" min="0" max={isSkillTest4 ? "10" : (isSkillTest ? "20" : (isCie ? "10" : "5"))} placeholder="Marks" 
                       value={theoryEvalInput} 
                       onChange={e => setTheoryEvalInput(e.target.value)} 
                       className="w-16 px-2 py-1 text-sm border border-blue-200 rounded focus:outline-none focus:border-blue-400" 
                     />
                     <button 
                       onClick={() => {
-                        const val = Number(theoryEvalInput);
+                        const val = Number(theoryEvalInput); if (isSkillTest4) { setMarks(prev => ({ ...prev, theory: val })); } else
                         if (isSkillTest) {
                           setMarks({ project: 0, portfolio: 0, attendance: 0, mentor: 0, theory: val });
                         } else {
@@ -1337,7 +1508,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                     return acc + (studentSubmission.theoryAnswers[idx] === q.answerIndex ? 1 : 0);
                   }, 0);
                   const total = questions.length;
-                  const maxMark = isSkillTest ? 20 : (isCie ? 10 : 5);
+                  const maxMark = isSkillTest4 ? 10 : (isSkillTest ? 20 : (isCie ? 10 : 5));
                   const calculatedMark = isSkillTest ? correctCount : Math.round((correctCount / total) * maxMark);
 
                   return (
@@ -1364,7 +1535,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                           <button
                             type="button"
                             onClick={() => {
-                              setTheoryEvalInput(String(calculatedMark));
+                              setTheoryEvalInput(String(calculatedMark)); if (isSkillTest4) { setMarks(prev => ({ ...prev, theory: calculatedMark })); } else
                               if (isSkillTest) {
                                 setMarks({ project: 0, portfolio: 0, attendance: 0, mentor: 0, theory: calculatedMark });
                               } else {
@@ -1490,7 +1661,41 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
           )}
 
           <div className="space-y-6 max-w-2xl">
-            {isSkillTest ? (
+            {isSkillTest4 ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-blue-200">
+                  <div>
+                    <label className="font-bold text-gray-800 block text-base">Part 1: Graph Exam</label>
+                    <span className="text-xs text-gray-500">Drawing upload evaluation (Max 10 Marks)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="number" min="0" max={10} 
+                      value={marks.project} 
+                      onChange={(e) => setMarks(prev => ({ ...prev, project: Math.min(10, Math.max(0, Number(e.target.value) || 0)) }))}
+                      className="w-20 px-3 py-2 border-2 border-blue-400 rounded-xl text-center font-bold text-blue-700 text-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    />
+                    <span className="text-sm font-bold text-gray-500">/ 10</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-primary/20">
+                  <div>
+                    <label className="font-bold text-gray-800 block text-base">Part 2: SOLIDWORKS Quiz</label>
+                    <span className="text-xs text-gray-500">10 MCQs (1 Mark each, Max 10 Marks)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="number" min="0" max={10} 
+                      value={marks.theory} 
+                      onChange={(e) => setMarks(prev => ({ ...prev, theory: Math.min(10, Math.max(0, Number(e.target.value) || 0)) }))}
+                      className="w-20 px-3 py-2 border-2 border-primary rounded-xl text-center font-bold text-primary text-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                    <span className="text-sm font-bold text-gray-500">/ 10</span>
+                  </div>
+                </div>
+              </div>
+            ) : isSkillTest ? (
               <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-primary/20">
                 <div>
                   <label className="font-bold text-gray-800 block text-base">Multiple Choice Questions</label>
@@ -1553,7 +1758,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
             <span className="font-bold text-gray-900 text-lg">Total Score</span>
             <span className="font-black text-primary text-2xl">
               {isSkillTest 
-                ? `${Number(marks.theory)} / 20` 
+                ? (isSkillTest4 ? `${Number(marks.project || 0) + Number(marks.theory || 0)} / 20` : `${Number(marks.theory)} / 20`) 
                 : `${Number(marks.project) + (isCie ? 0 : Number(marks.portfolio)) + Number(marks.theory) + Number(marks.attendance) + Number(marks.mentor)} / ${isCie ? 50 : 20}`}
             </span>
           </div>
