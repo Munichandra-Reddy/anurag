@@ -984,7 +984,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                 </div>
               </div>
             ) : isSkillTest ? (
-                <>
+                <div className="w-full">
                   {isSkillTest4 && (
                     <div className="flex justify-between items-center border-b border-gray-100 pb-3">
                       <span className="font-medium text-gray-700">Part 1: Graph Exam</span>
@@ -993,10 +993,8 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                   )}
                 <div className="flex justify-between items-center border-b border-gray-100 pb-3">
                   <span className="font-medium text-gray-700">{isSkillTest4 ? 'Part 2: SOLIDWORKS Quiz (10 MCQs)' : 'Multiple Choice Questions (20 MCQs)'}</span>
-                  <span className="font-bold text-primary">{studentReport.theory} / {isSkillTest4 ? 10 : 20}</span>
-                </div>
-              </>
-              <div style={{ display: 'none' }}>
+                  <span className="font-bold text-primary">{studentReport.theory} / {isSkillTest4 ? 10 : 20}</span></div>
+
                 </div>
               ) : (
                 <>
