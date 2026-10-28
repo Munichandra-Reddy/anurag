@@ -96,6 +96,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
   const [attendanceEvalInput, setAttendanceEvalInput] = useState<string>('');
   const [mentorEvalInput, setMentorEvalInput] = useState<string>('');
   const [previewGraphModal, setPreviewGraphModal] = useState<string | null>(null);
+  const [isReEvaluatingAll, setIsReEvaluatingAll] = useState(false);
 
   // Load the target exam to evaluate objective questions
   useEffect(() => {
@@ -200,11 +201,12 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
 
   // Helper to get the correct questions for a student based on batch and submission
   const getQuestionsForStudent = (student: Student | null, submission: any) => {
+    if (isSkillTest4) {
+      const email = (student?.email || submission?.studentEmail || submission?.email || '').toLowerCase().trim();
+      return getJumbledSkillTest4Questions(email);
+    }
     if (submission && submission.theoryQuestions && Array.isArray(submission.theoryQuestions) && submission.theoryQuestions.length > 0) {
       return submission.theoryQuestions;
-    }
-    if (isSkillTest4) {
-      return getJumbledSkillTest4Questions(student?.email || submission?.studentEmail || '');
     }
     if (isSkillTest3) {
       const studentBatch = (student?.batch || '').replace(/batch/gi, '').trim().toUpperCase();
@@ -316,6 +318,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         if (finalReport) {
           // For Skill Tests, only show report to student if mentor has submitted it
           if (isSkillTest) {
+
             if (finalReport.isMentorSubmitted === true) {
               setStudentReport(finalReport as any);
             } else {
@@ -520,9 +523,15 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
           }, 0);
           const total = questions.length;
           const maxMark = isSkillTest4 ? 10 : (isSkillTest ? 20 : (isCie ? 10 : 5));
-          const autoScore = isSkillTest ? correctCount : Math.round((correctCount / total) * maxMark); if (isSkillTest4 && isSkillTest) { if (!loadedMarks.isMentorSubmitted || loadedMarks.theory === undefined || loadedMarks.theory === null) { loadedMarks.theory = autoScore; } loadedMarks.portfolio = 0; loadedMarks.attendance = 0; loadedMarks.mentor = 0; } else
+          const autoScore = isSkillTest ? correctCount : Math.round((correctCount / total) * maxMark);
+          if (isSkillTest4) {
+            loadedMarks.theory = autoScore;
+            loadedMarks.portfolio = 0;
+            loadedMarks.attendance = 0;
+            loadedMarks.mentor = 0;
+          } else if (isSkillTest) {
 
-          if (isSkillTest) {
+
             if (!loadedMarks.isMentorSubmitted || !loadedMarks.theory || (isSkillTest2 && loadedMarks.theory === 6 && autoScore !== 6)) {
               loadedMarks.theory = autoScore;
             }
@@ -536,7 +545,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         }
 
         setMarks(loadedMarks);
-        setTheoryEvalInput(loadedMarks.theory ? String(loadedMarks.theory) : '');
+        setTheoryEvalInput(loadedMarks.theory !== undefined && loadedMarks.theory !== null ? String(loadedMarks.theory) : '');
         setProjectEvalInput(loadedMarks.project ? String(loadedMarks.project) : '');
         setPortfolioEvalInput(loadedMarks.portfolio ? String(loadedMarks.portfolio) : '');
         setAttendanceEvalInput(pattern.startsWith('CIE') ? String(loadedMarks.attendance) : '');
@@ -774,6 +783,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
           let isCompleted = false;
           if (report) {
             if (isSkillTest) {
+  
               isCompleted = report.isMentorSubmitted === true;
             } else {
               isCompleted = true;
@@ -933,6 +943,96 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
     } catch (e) {
       console.error("Failed to grant re-exam in report:", e);
       alert("Failed to grant re-exam. Please try again.");
+    }
+  };
+
+  const handleReEvaluateAllSkillTest4 = async () => {
+    const confirmMsg = "Re-evaluate all Skill Test 4 submissions for B1 and B2 students using their individual jumbled keys?\n\nThis will verify each student's objective answers against their unique jumbled question key and update their scores accurately, while preserving your Graph Exam marks.";
+    if (!window.confirm(confirmMsg)) return;
+
+    setIsReEvaluatingAll(true);
+    let updatedCount = 0;
+
+    try {
+      const promises = filteredStudents.map(async (student) => {
+        const sEmail = (student.email || '').toLowerCase().trim();
+        const jumbledQuestions = getJumbledSkillTest4Questions(sEmail);
+
+        // Fetch submission from local or cloud
+        const subKey = `weeklyReportSubmission_${sEmail}_skill_test_4`;
+        let submission = JSON.parse(localStorage.getItem(subKey) || 'null');
+        if (!submission) {
+          submission = await getFromCloudflare(subKey);
+        }
+        if (!submission) {
+          const altKeys = [`weeklyReportSubmission_${sEmail}_week3`, `weeklyReportSubmission_${sEmail}_${pattern}`];
+          for (const k of altKeys) {
+            submission = JSON.parse(localStorage.getItem(k) || 'null') || await getFromCloudflare(k);
+            if (submission) break;
+          }
+        }
+
+        if (submission && Array.isArray(submission.theoryAnswers) && submission.theoryAnswers.length > 0) {
+          const correctCount = jumbledQuestions.reduce((acc, q, idx) => {
+            return acc + (submission.theoryAnswers[idx] === q.answerIndex ? 1 : 0);
+          }, 0);
+
+          // Preserve any existing graph exam marks
+          const reportKey = `weeklyReport_${sEmail}_skill_test_4`;
+          let existingReport = JSON.parse(localStorage.getItem(reportKey) || 'null') || await getFromCloudflare(reportKey);
+          if (!existingReport) {
+            existingReport = JSON.parse(localStorage.getItem(`weeklyReport_${sEmail}_${pattern}`) || 'null') || await getFromCloudflare(`weeklyReport_${sEmail}_${pattern}`);
+          }
+
+          const updatedReport: Marks = {
+            project: existingReport?.project || 0,
+            portfolio: 0,
+            theory: correctCount,
+            attendance: 0,
+            mentor: 0,
+            isMentorSubmitted: true,
+            submittedAt: existingReport?.submittedAt || new Date().toISOString()
+          };
+
+          const keysToSave = [
+            `weeklyReport_${sEmail}_skill_test_4`,
+            `weeklyReport_${sEmail}_week3`,
+            `weeklyReport_${sEmail}_${pattern}`,
+            student.batch ? `weeklyReport_${sEmail}_skill_test_4_${student.batch}` : null
+          ].filter(Boolean) as string[];
+
+          for (const k of keysToSave) {
+            localStorage.setItem(k, JSON.stringify(updatedReport));
+            await saveToCloudflare(k, updatedReport);
+          }
+
+          submission.theoryQuestions = jumbledQuestions;
+          localStorage.setItem(subKey, JSON.stringify(submission));
+          await saveToCloudflare(subKey, submission);
+
+          updatedCount++;
+        }
+      });
+
+      await Promise.all(promises);
+
+      setSubmissionStatuses(prev => {
+        const next = { ...prev };
+        filteredStudents.forEach(s => {
+          if (next[s.email]?.hasSubmitted) {
+            next[s.email] = { isCompleted: true, hasSubmitted: true };
+          }
+        });
+        return next;
+      });
+
+      alert(`Successfully re-evaluated ${updatedCount} student submissions using their individual jumbled keys!`);
+    } catch (err) {
+      console.error("Failed to re-evaluate all Skill Test 4 submissions:", err);
+      alert("Failed to re-evaluate submissions. Please try again.");
+    } finally {
+      setIsReEvaluatingAll(false); {
+    }
     }
   };
 
@@ -1128,7 +1228,21 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
       {!selectedStudent ? (
         <div className="bg-white rounded-xl shadow-xs border border-gray-200 overflow-hidden">
           <div className="p-5 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <h3 className="font-bold text-base text-gray-900">Select Student to Grade</h3>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h3 className="font-bold text-base text-gray-900">Select Student to Grade</h3>
+              {isSkillTest4 && (
+                <button
+                  type="button"
+                  disabled={isReEvaluatingAll}
+                  onClick={handleReEvaluateAllSkillTest4}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs transition-colors cursor-pointer"
+                  title="Re-evaluate all B1 and B2 submissions using each student's unique jumbled key"
+                >
+                  <CheckCircle2 size={14} />
+                  <span>{isReEvaluatingAll ? 'Re-Evaluating All...' : 'Re-Evaluate All (Jumbled Key)'}</span>
+                </button>
+              )}
+            </div>
             <div className="relative w-full sm:w-72 flex-shrink-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={15} />
               <input 
@@ -1476,8 +1590,8 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                     />
                     <button 
                       onClick={() => {
-                        const val = Number(theoryEvalInput); if (isSkillTest4) { setMarks(prev => ({ ...prev, theory: val })); } else
-                        if (isSkillTest) {
+                        const val = Number(theoryEvalInput); if (isSkillTest4) { setMarks(prev => ({ ...prev, theory: val })); } else if (isSkillTest) {
+              
                           setMarks({ project: 0, portfolio: 0, attendance: 0, mentor: 0, theory: val });
                         } else {
                           setMarks({...marks, theory: val});
@@ -1533,8 +1647,8 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                           <button
                             type="button"
                             onClick={() => {
-                              setTheoryEvalInput(String(calculatedMark)); if (isSkillTest4) { setMarks(prev => ({ ...prev, theory: calculatedMark })); } else
-                              if (isSkillTest) {
+                              setTheoryEvalInput(String(calculatedMark)); if (isSkillTest4) { setMarks(prev => ({ ...prev, theory: calculatedMark })); } else if (isSkillTest) {
+                    
                                 setMarks({ project: 0, portfolio: 0, attendance: 0, mentor: 0, theory: calculatedMark });
                               } else {
                                 setMarks(prev => ({ ...prev, theory: calculatedMark }));

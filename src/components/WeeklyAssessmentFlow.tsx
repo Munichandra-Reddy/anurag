@@ -1318,12 +1318,12 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
       const effectiveEmail = (currentEmail || loggedInEmail || sessionStorage.getItem('loggedInEmail') || localStorage.getItem('loggedInEmail') || '').toLowerCase().trim();
 
       const studentBatch = (studentDetails?.batch || exam.targetBatch || '').toString();
-      const examQuestionsToSubmit = (exam.theoryQuestions && exam.theoryQuestions.length > 0)
+      const examQuestionsToSubmit = isSkillTest4Taking
+        ? getJumbledSkillTest4Questions(effectiveEmail)
+        : (exam.theoryQuestions && exam.theoryQuestions.length > 0)
         ? exam.theoryQuestions
         : isSkillTest3Taking
         ? getSkillTest3McqsForBatch(exam.targetBatch || studentDetails?.batch)
-        : isSkillTest4Taking
-        ? getJumbledSkillTest4Questions(effectiveEmail)
         : isSkillTest5Taking
         ? SOLIDWORKS_60_MCQS.slice(0, 20)
         : getSkillTest2McqsForBatch(exam.targetBatch || studentDetails?.batch);

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Loader2, ClipboardList, Search, Download, RefreshCw, Award, CheckCircle2, Upload } from 'lucide-react';
 import { getFromCloudflare, saveToCloudflare, getStudentsKey, isMuniUser, getMentorKey } from '../utils/cloudflare';
 import { MUNI_STUDENTS } from '../data/students';
+import { getJumbledSkillTest4Questions } from '../data/solidworksSkillTest4Questions';
 
 interface MarksReportProps {
   isFacultyView?: boolean;
@@ -377,7 +378,15 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
 
           if (st4Report && (st4Report.isMentorSubmitted === true || !userIsMuni)) {
             const graphM = Number(st4Report.project || 0);
-            const quizM = Number(st4Report.theory || 0);
+            let quizM = Number(st4Report.theory || 0);
+            const subKey = `weeklyReportSubmission_${sEmail}_skill_test_4`;
+            try {
+              const sub = JSON.parse(localStorage.getItem(subKey) || 'null');
+              if (sub && Array.isArray(sub.theoryAnswers) && sub.theoryAnswers.length > 0) {
+                const jumbled = getJumbledSkillTest4Questions(sEmail);
+                quizM = jumbled.reduce((acc: number, q: any, idx: number) => acc + (sub.theoryAnswers[idx] === q.answerIndex ? 1 : 0), 0);
+              }
+            } catch (e) {}
             allMarks[sEmail]['skill_test_4'] = (st4Report.project !== undefined || st4Report.theory !== undefined)
               ? (graphM + quizM)
               : (st4Report.total ?? '-');

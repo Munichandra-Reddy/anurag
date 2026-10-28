@@ -169,12 +169,22 @@ export const MentorDashboardOverview: React.FC = () => {
           }
 
           // Skill Test 4 (Week 3)
-          const st4 = studentSubs.skill_test_4 || studentSubs.week3;
-          if (st4 && st4.marks !== undefined) {
-            allMarks[sEmail]['skill_test_4'] = typeof st4.marks === 'object' ? (st4.marks.total ?? '-') : st4.marks;
-          } else {
-            allMarks[sEmail]['skill_test_4'] = '-';
+          let st4Val: number | string = '-';
+          try {
+            const st4Report = JSON.parse(localStorage.getItem(`weeklyReport_${sEmail}_skill_test_4`) || 'null') ||
+                              JSON.parse(localStorage.getItem(`weeklyReport_${sEmail}_week3`) || 'null');
+            if (st4Report && (st4Report.project !== undefined || st4Report.theory !== undefined)) {
+              st4Val = Number(st4Report.project || 0) + Number(st4Report.theory || 0);
+            }
+          } catch (e) {}
+
+          if (st4Val === '-') {
+            const st4 = studentSubs.skill_test_4 || studentSubs.week3;
+            if (st4 && st4.marks !== undefined) {
+              st4Val = typeof st4.marks === 'object' ? (st4.marks.total ?? '-') : st4.marks;
+            }
           }
+          allMarks[sEmail]['skill_test_4'] = st4Val;
 
           // Skill Test 5 (Week 4)
           const st5 = studentSubs.skill_test_5 || studentSubs.week4;
