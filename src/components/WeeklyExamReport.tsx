@@ -526,7 +526,6 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
           const autoScore = isSkillTest ? correctCount : Math.round((correctCount / total) * maxMark);
           if (isSkillTest4) {
             loadedMarks.theory = autoScore;
-            loadedMarks.project = 0;
             loadedMarks.portfolio = 0;
             loadedMarks.attendance = 0;
             loadedMarks.mentor = 0;
@@ -1054,20 +1053,17 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
               <div className="space-y-4">
                 <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-blue-200">
                   <div>
-                    <div className="flex items-center gap-2">
-                      <label className="font-bold text-gray-800 block text-base">Part 1: Graph Exam</label>
-                      <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded">Not Considered in Total</span>
-                    </div>
-                    <span className="text-xs text-gray-500">Drawing upload evaluation (Not considered for marks)</span>
+                    <label className="font-bold text-gray-800 block text-base">Part 1: Graph Exam</label>
+                    <span className="text-xs text-gray-500">Drawing upload evaluation (Max 30 Marks)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <input 
-                      type="number" min="0" max={10} 
+                      type="number" min="0" max={30} 
                       value={marks.project} 
-                      onChange={(e) => setMarks(prev => ({ ...prev, project: Math.min(10, Math.max(0, Number(e.target.value) || 0)) }))}
+                      onChange={(e) => setMarks(prev => ({ ...prev, project: Math.min(30, Math.max(0, Number(e.target.value) || 0)) }))}
                       className="w-20 px-3 py-2 border-2 border-blue-400 rounded-xl text-center font-bold text-blue-700 text-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                     />
-                    <span className="text-sm font-bold text-gray-500">/ 10</span>
+                    <span className="text-sm font-bold text-gray-500">/ 30</span>
                   </div>
                 </div>
 
@@ -1092,7 +1088,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                   {isSkillTest4 && (
                     <div className="flex justify-between items-center border-b border-gray-100 pb-3">
                       <span className="font-medium text-gray-700">Part 1: Graph Exam</span>
-                      <span className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">Not Considered</span>
+                      <span className="font-bold text-primary">{studentReport.project ?? 0} / 30</span>
                     </div>
                   )}
                 <div className="flex justify-between items-center border-b border-gray-100 pb-3">
@@ -1130,7 +1126,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                 <span className="font-black text-gray-900 text-xl">Total Score</span>
                 <span className="font-black text-primary text-2xl">
                   {isSkillTest 
-                    ? (isSkillTest4 ? `${Number(studentReport.theory ?? 0)} / 10` : `${Number(studentReport.theory)} / 20`)
+                    ? (isSkillTest4 ? `${Number(studentReport.project || 0) + Number(studentReport.theory || 0)} / 40` : `${Number(studentReport.theory)} / 20`)
                     : `${Number(studentReport.project) + (isCie ? 0 : Number(studentReport.portfolio)) + Number(studentReport.theory) + Number(studentReport.attendance) + Number(studentReport.mentor)} / ${isCie ? 50 : 20}`}
                 </span>
               </div>
@@ -1376,7 +1372,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                     </div>
                     <div className="flex items-center gap-2">
                       <input 
-                        type="number" min="0" max="10" placeholder="0-10" 
+                        type="number" min="0" max="30" placeholder="0-30" 
                         value={projectEvalInput} 
                         onChange={e => setProjectEvalInput(e.target.value)} 
                         className="w-16 px-2 py-1 text-sm border border-blue-300 rounded font-bold text-center focus:outline-none focus:border-blue-500" 
@@ -1384,12 +1380,12 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                       <button 
                         type="button"
                         onClick={() => {
-                          const val = Math.min(10, Math.max(0, Number(projectEvalInput) || 0));
+                          const val = Math.min(30, Math.max(0, Number(projectEvalInput) || 0));
                           setMarks(prev => ({ ...prev, project: val }));
                         }} 
                         className="px-3 py-1 text-xs font-bold text-white bg-blue-600 rounded shadow-xs hover:bg-blue-700 transition-colors cursor-pointer"
                       >
-                        Set Graph Marks ({marks.project || 0}/10)
+                        Set Graph Marks ({marks.project || 0}/30)
                       </button>
                     </div>
                   </div>
@@ -1781,20 +1777,17 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
               <div className="space-y-4">
                 <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-blue-200">
                   <div>
-                    <div className="flex items-center gap-2">
-                      <label className="font-bold text-gray-800 block text-base">Part 1: Graph Exam</label>
-                      <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded">Not Considered in Total</span>
-                    </div>
-                    <span className="text-xs text-gray-500">Drawing upload evaluation (Not considered for marks)</span>
+                    <label className="font-bold text-gray-800 block text-base">Part 1: Graph Exam</label>
+                    <span className="text-xs text-gray-500">Drawing upload evaluation (Max 30 Marks)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <input 
-                      type="number" min="0" max={10} 
+                      type="number" min="0" max={30} 
                       value={marks.project} 
-                      onChange={(e) => setMarks(prev => ({ ...prev, project: Math.min(10, Math.max(0, Number(e.target.value) || 0)) }))}
+                      onChange={(e) => setMarks(prev => ({ ...prev, project: Math.min(30, Math.max(0, Number(e.target.value) || 0)) }))}
                       className="w-20 px-3 py-2 border-2 border-blue-400 rounded-xl text-center font-bold text-blue-700 text-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                     />
-                    <span className="text-sm font-bold text-gray-500">/ 10</span>
+                    <span className="text-sm font-bold text-gray-500">/ 30</span>
                   </div>
                 </div>
 
@@ -1877,7 +1870,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
             <span className="font-bold text-gray-900 text-lg">Total Score</span>
             <span className="font-black text-primary text-2xl">
               {isSkillTest 
-                ? (isSkillTest4 ? `${Number(marks.theory || 0)} / 10` : `${Number(marks.theory)} / 20`) 
+                ? (isSkillTest4 ? `${Number(marks.project || 0) + Number(marks.theory || 0)} / 40` : `${Number(marks.theory)} / 20`) 
                 : `${Number(marks.project) + (isCie ? 0 : Number(marks.portfolio)) + Number(marks.theory) + Number(marks.attendance) + Number(marks.mentor)} / ${isCie ? 50 : 20}`}
             </span>
           </div>

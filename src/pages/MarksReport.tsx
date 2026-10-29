@@ -21,7 +21,7 @@ const DEFAULT_CONDUCTED_EXAMS: ConductedExam[] = [
   { id: 'pre_assessment', title: 'Pre Assessment', category: 'pre', maxMarks: 30 },
   { id: 'skill_test_2', title: 'Skill Test 2', category: 'weekly', maxMarks: 20 },
   { id: 'skill_test_3', title: 'Skill Test 3', category: 'weekly', maxMarks: 20 },
-  { id: 'skill_test_4', title: 'Skill Test 4', category: 'weekly', maxMarks: 10 },
+  { id: 'skill_test_4', title: 'Skill Test 4', category: 'weekly', maxMarks: 40 },
   { id: 'skill_test_5', title: 'Skill Test 5', category: 'weekly', maxMarks: 20 }
 ];
 
@@ -189,7 +189,7 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
         { id: 'pre_assessment', title: 'Pre Assessment', category: 'pre', maxMarks: 30 },
         { id: 'skill_test_2', title: 'Skill Test 2', category: 'weekly', maxMarks: 20 },
         { id: 'skill_test_3', title: 'Skill Test 3', category: 'weekly', maxMarks: 20 },
-        { id: 'skill_test_4', title: 'Skill Test 4', category: 'weekly', maxMarks: 10 },
+        { id: 'skill_test_4', title: 'Skill Test 4', category: 'weekly', maxMarks: 40 },
         { id: 'skill_test_5', title: 'Skill Test 5', category: 'weekly', maxMarks: 20 }
       ];
 
@@ -377,6 +377,7 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
           }
 
           if (st4Report && (st4Report.isMentorSubmitted === true || !userIsMuni)) {
+            const graphM = Number(st4Report.project || 0);
             let quizM = Number(st4Report.theory || 0);
             const subKey = `weeklyReportSubmission_${sEmail}_skill_test_4`;
             try {
@@ -386,9 +387,9 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
                 quizM = jumbled.reduce((acc: number, q: any, idx: number) => acc + (sub.theoryAnswers[idx] === q.answerIndex ? 1 : 0), 0);
               }
             } catch (e) {}
-            // Graph exam marks are not considered, so only quiz marks out of 10
-            allMarks[sEmail]['skill_test_4'] = (st4Report.theory !== undefined)
-              ? quizM
+            // Graph marks (out of 30) + MCQ quiz marks (out of 10) = Total out of 40
+            allMarks[sEmail]['skill_test_4'] = (st4Report.project !== undefined || st4Report.theory !== undefined)
+              ? (graphM + quizM)
               : (st4Report.total ?? '-');
           } else {
             allMarks[sEmail]['skill_test_4'] = '-';
