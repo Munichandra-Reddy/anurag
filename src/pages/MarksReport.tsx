@@ -580,7 +580,6 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
       'S.No',
       'Roll Number',
       'Student Name',
-      'Email',
       'Batch',
       ...conductedExams.map(e => `"${e.title.replace(/"/g, '""')}"`)
     ];
@@ -597,7 +596,6 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
         idx + 1,
         `"${(student.roll || '').replace(/"/g, '""')}"`,
         `"${(student.name || '').replace(/"/g, '""')}"`,
-        `"${(student.email || '').replace(/"/g, '""')}"`,
         `"${(student.batch || '').replace(/"/g, '""')}"`,
         ...examMarks
       ].join(',');
@@ -771,9 +769,6 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
                 <th className="px-4 py-3.5 text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap border-r border-gray-200 sticky left-0 bg-gray-50 z-10 shadow-[1px_0_0_0_#e5e7eb]">
                   Student Name
                 </th>
-                <th className="px-4 py-3.5 text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap border-r border-gray-200">
-                  Email
-                </th>
                 <th className="px-3 py-3.5 text-xs font-semibold text-gray-700 uppercase tracking-wider text-center whitespace-nowrap border-r border-gray-200">
                   Batch
                 </th>
@@ -810,9 +805,6 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
                     <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10 border-r border-gray-100 shadow-[1px_0_0_0_#f3f4f6]">
                       {student.name}
                     </td>
-                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap border-r border-gray-100">
-                      {student.email}
-                    </td>
                     <td className="px-3 py-3 text-center whitespace-nowrap border-r border-gray-100">
                       <span className="px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-700 border border-gray-200">
                         {student.batch || 'A1'}
@@ -845,7 +837,7 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
               {filteredStudents.length === 0 && (
                 <tr>
                   <td
-                    colSpan={conductedExams.length + 5}
+                    colSpan={conductedExams.length + 4}
                     className="px-6 py-12 text-center text-gray-500 font-medium"
                   >
                     No students match the selected filters or search query.
