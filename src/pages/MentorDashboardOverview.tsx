@@ -56,7 +56,7 @@ export const MentorDashboardOverview: React.FC = () => {
     { id: 'pre_assessment', title: 'Pre Assessment', maxMarks: 30 },
     { id: 'skill_test_2', title: 'Skill Test 2', maxMarks: 20 },
     { id: 'skill_test_3', title: 'Skill Test 3', maxMarks: 20 },
-    { id: 'skill_test_4', title: 'Skill Test 4', maxMarks: 20 },
+    { id: 'skill_test_4', title: 'Skill Test 4', maxMarks: 10 },
     { id: 'skill_test_5', title: 'Skill Test 5', maxMarks: 20 }
   ], []);
 
@@ -173,8 +173,8 @@ export const MentorDashboardOverview: React.FC = () => {
           try {
             const st4Report = JSON.parse(localStorage.getItem(`weeklyReport_${sEmail}_skill_test_4`) || 'null') ||
                               JSON.parse(localStorage.getItem(`weeklyReport_${sEmail}_week3`) || 'null');
-            if (st4Report && (st4Report.project !== undefined || st4Report.theory !== undefined)) {
-              st4Val = Number(st4Report.project || 0) + Number(st4Report.theory || 0);
+            if (st4Report && st4Report.theory !== undefined) {
+              st4Val = Number(st4Report.theory || 0);
             }
           } catch (e) {}
 

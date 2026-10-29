@@ -87,11 +87,11 @@ const MentorStudents: React.FC = () => {
           
           if (marksObj) {
              const isCie = pattern.startsWith('CIE') || pattern.startsWith('SEM');
-             marks[pattern] = Number(marksObj.project || 0) + 
+             marks[pattern] = (pattern === 'week3' || pattern === 'skill_test_4') ? Number(marksObj.theory || 0) : (Number(marksObj.project || 0) + 
                              (isCie ? 0 : Number(marksObj.portfolio || 0)) + 
                              Number(marksObj.theory || 0) + 
                              Number(marksObj.attendance || 0) + 
-                             Number(marksObj.mentor || 0);
+                             Number(marksObj.mentor || 0));
           } else {
              marks[pattern] = '-';
           }
