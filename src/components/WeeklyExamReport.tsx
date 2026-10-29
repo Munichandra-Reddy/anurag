@@ -1049,41 +1049,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
         {studentReport ? (
           <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-xs">
             <div className="space-y-4 text-lg"> {/* student-report-block */}
-              {false ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-blue-200">
-                  <div>
-                    <label className="font-bold text-gray-800 block text-base">Part 1: Graph Exam</label>
-                    <span className="text-xs text-gray-500">Drawing upload evaluation (Max 30 Marks)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input 
-                      type="number" min="0" max={30} 
-                      value={marks.project} 
-                      onChange={(e) => setMarks(prev => ({ ...prev, project: Math.min(30, Math.max(0, Number(e.target.value) || 0)) }))}
-                      className="w-20 px-3 py-2 border-2 border-blue-400 rounded-xl text-center font-bold text-blue-700 text-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-                    />
-                    <span className="text-sm font-bold text-gray-500">/ 30</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-primary/20">
-                  <div>
-                    <label className="font-bold text-gray-800 block text-base">Part 2: SOLIDWORKS Quiz</label>
-                    <span className="text-xs text-gray-500">10 MCQs (1 Mark each, Max 10 Marks)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input 
-                      type="number" min="0" max={10} 
-                      value={marks.theory} 
-                      onChange={(e) => setMarks(prev => ({ ...prev, theory: Math.min(10, Math.max(0, Number(e.target.value) || 0)) }))}
-                      className="w-20 px-3 py-2 border-2 border-primary rounded-xl text-center font-bold text-primary text-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    />
-                    <span className="text-sm font-bold text-gray-500">/ 10</span>
-                  </div>
-                </div>
-              </div>
-            ) : isSkillTest ? (
+              {isSkillTest ? (
                 <div className="w-full">
                   {isSkillTest4 && (
                     <div className="flex justify-between items-center border-b border-gray-100 pb-3">

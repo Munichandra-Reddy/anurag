@@ -62,6 +62,7 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
           return parsed.conductedExams.map((e: ConductedExam) => {
             if (e.id === 'graph_exam' || e.id === 'graph_exam_2') return { ...e, maxMarks: 20 };
             if (e.id === 'pre_assessment') return { ...e, maxMarks: 30 };
+            if (e.id === 'skill_test_4') return { ...e, maxMarks: 40 };
             return e;
           });
         }
@@ -103,6 +104,7 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
           const snapExams = (snapshot.conductedExams || DEFAULT_CONDUCTED_EXAMS).map((e: ConductedExam) => {
             if (e.id === 'graph_exam' || e.id === 'graph_exam_2') return { ...e, maxMarks: 20 };
             if (e.id === 'pre_assessment') return { ...e, maxMarks: 30 };
+            if (e.id === 'skill_test_4') return { ...e, maxMarks: 40 };
             return e;
           });
           setConductedExams(snapExams);
