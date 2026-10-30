@@ -2964,7 +2964,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                         Graph Exam + 10 Quiz Questions
                       </span>
                       <span className="px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 text-[11px] font-semibold rounded-md flex items-center gap-1">
-                        <Clock size={11} /> 28.10.2026 (9:00 AM - 5:00 PM)
+                        <Clock size={11} /> 31.10.2026 (9:00 AM - 5:00 PM)
                       </span>
                       {exam.targetBatch && (
                         <span className="px-2 py-0.5 bg-gray-100 text-gray-700 border border-gray-200 text-[11px] font-semibold rounded-md">
@@ -3149,7 +3149,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                         if (isExamSkillTest4) {
                           const windowCheck = checkSkillTest4Window(new Date(), studentDetails?.batch || exam.targetBatch);
                           if (!windowCheck.isOpen && !isReExamGranted) {
-                            alert(`Skill Test 4 Assessment Schedule\n\nDate: 28.10.2026\nExam Window: 9:00 AM to 5:00 PM\n\n${windowCheck.message}\n\nPlease come back during the exam window (9:00 AM to 5:00 PM).`);
+                            alert(`Skill Test 4 Assessment Schedule\n\nDate: 31.10.2026\nExam Window: 9:00 AM to 5:00 PM\n\n${windowCheck.message}\n\nPlease come back during the exam window (9:00 AM to 5:00 PM on 31-10-2026).`);
                             return;
                           }
                           if (isReExamGranted || !localStorage.getItem(`examDraft_${studentEmailClean}_${exam.id}`)) {
@@ -3182,7 +3182,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                         </>
                       ) : (
                         <>
-                          {(isExamSkillTest4 && !checkSkillTest4Window(new Date(), studentDetails?.batch || exam.targetBatch).isOpen) ? <Clock size={14} /> : <PlayCircle size={14} />} {(isExamSkillTest4 && !checkSkillTest4Window(new Date(), studentDetails?.batch || exam.targetBatch).isOpen) ? (checkSkillTest4Window(new Date(), studentDetails?.batch || exam.targetBatch).status === 'closed' ? 'Exam Closed' : 'Upcoming Exam') : 'Start Exam'}
+                          {(isExamSkillTest4 && !checkSkillTest4Window(new Date(), studentDetails?.batch || exam.targetBatch).isOpen) ? <Clock size={14} /> : <PlayCircle size={14} />} {(isExamSkillTest4 && !checkSkillTest4Window(new Date(), studentDetails?.batch || exam.targetBatch).isOpen) ? (checkSkillTest4Window(new Date(), studentDetails?.batch || exam.targetBatch).status === 'closed' ? 'Exam Closed' : 'Opens 31 Oct 9:00 AM') : 'Start Exam'}
                         </>
                       )}
                     </button>

@@ -7,8 +7,8 @@ export interface MCQQuestion {
 }
 
 export const SKILL_TEST_4_CONFIG = {
-  examDate: '28-10-2026',
-  dateDisplay: '28.10.2026',
+  examDate: '31-10-2026',
+  dateDisplay: '31.10.2026',
   startTime: '09:00',
   endTime: '17:00',
   windowDisplay: '9:00 AM to 5:00 PM',
@@ -327,26 +327,14 @@ export function checkSkillTest4Window(currentTime = new Date(), batch?: string):
   } catch (e) {}
 
   const current = new Date(currentTime);
-  const cleanB = (batch || '').replace(/batch/gi, '').trim().toUpperCase();
-  const isA = cleanB === 'A1' || cleanB === 'A2';
-
-  // For A1 and A2 batches conducted now:
-  if (isA) {
-    return {
-      isOpen: true,
-      status: 'open',
-      message: `Skill Test 4 is currently OPEN for Batch ${cleanB}.`
-    };
-  }
-
-  const start = new Date(2026, 9, 28, 9, 0, 0, 0);  // 28 Oct 2026 09:00:00
-  const end = new Date(2026, 9, 31, 23, 59, 59, 0); // Open during active assessment period
+  const start = new Date(2026, 9, 31, 9, 0, 0, 0);  // 31 Oct 2026 09:00:00
+  const end = new Date(2026, 9, 31, 17, 0, 0, 0);    // 31 Oct 2026 17:00:00
 
   if (current.getTime() < start.getTime()) {
     return {
       isOpen: false,
       status: 'upcoming',
-      message: 'Skill Test 4 will open on 28-10-2026 at 9:00 AM. Exam timing is 9:00 AM to 5:00 PM.'
+      message: 'Skill Test 4 will open on 31-10-2026 at 9:00 AM. Exam timing is 9:00 AM to 5:00 PM.'
     };
   }
 
@@ -354,7 +342,7 @@ export function checkSkillTest4Window(currentTime = new Date(), batch?: string):
     return {
       isOpen: false,
       status: 'closed',
-      message: 'Skill Test 4 assessment has closed.'
+      message: 'Skill Test 4 assessment has closed. It was conducted on 31-10-2026 from 9:00 AM to 5:00 PM.'
     };
   }
 
