@@ -2777,18 +2777,33 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
             const targetBatchClean = cleanBatch(exam.targetBatch);
             const studentBatchClean = cleanBatch(rawStudentBatch);
 
-            // For Skill Test 4: Strictly match student's batch ONLY (B1 sees B1, B2 sees B2, A1/A2 NEVER see it!)
+            // For Skill Test 4: Strictly match student's batch ONLY (A1 sees A1 only, A2 sees A2 only, B1 sees B1 only, B2 sees B2 only)
             if (isSkillTest4Exam) {
               if (!targetBatchClean || targetBatchClean === 'all' || targetBatchClean === 'all batches') {
                 return false;
               }
-              if (studentBatchClean === 'b1') {
+              const isStudentA1 = studentBatchClean === 'a1' || studentBatchClean === 'morning' ||
+                MUNI_A1_STUDENTS.some(s => matchesStudentEmail(s?.email, cleanEmail) || (s?.roll && cleanEmail.includes(s.roll.toLowerCase())));
+              const isStudentA2 = studentBatchClean === 'a2' || studentBatchClean === 'evening' ||
+                MUNI_A2_STUDENTS.some(s => matchesStudentEmail(s?.email, cleanEmail) || (s?.roll && cleanEmail.includes(s.roll.toLowerCase())));
+              const isStudentB1 = studentBatchClean === 'b1' ||
+                MUNI_B1_STUDENTS.some(s => matchesStudentEmail(s?.email, cleanEmail) || (s?.roll && cleanEmail.includes(s.roll.toLowerCase())));
+              const isStudentB2 = studentBatchClean === 'b2' ||
+                MUNI_B2_STUDENTS.some(s => matchesStudentEmail(s?.email, cleanEmail) || (s?.roll && cleanEmail.includes(s.roll.toLowerCase())));
+
+              if (isStudentA1) {
+                return targetBatchClean === 'a1' || targetBatchClean === 'morning' || exam.id === 'skill_test_4_A1';
+              }
+              if (isStudentA2) {
+                return targetBatchClean === 'a2' || targetBatchClean === 'evening' || exam.id === 'skill_test_4_A2';
+              }
+              if (isStudentB1) {
                 return targetBatchClean === 'b1' || exam.id === 'skill_test_4_B1';
               }
-              if (studentBatchClean === 'b2') {
+              if (isStudentB2) {
                 return targetBatchClean === 'b2' || exam.id === 'skill_test_4_B2';
               }
-              return false; // Batches A1, A2 or others will NEVER see Skill Test 4
+              return false;
             }
 
             // For Skill Test 3: Strictly match student's batch ONLY (A1 sees A1, A2 sees A2, B1 sees B1, B2 sees B2)
