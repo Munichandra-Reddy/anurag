@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   SOLIDWORKS_SKILL_TEST_4_BASE_MCQS,
+  SOLIDWORKS_SKILL_TEST_4_A_MCQS,
+  SOLIDWORKS_SKILL_TEST_4_B_MCQS,
+  getSkillTest4BaseQuestions,
   getJumbledSkillTest4Questions
 } from '../data/solidworksSkillTest4Questions';
 import { Search, FileText, ArrowLeft, Send, CheckCircle2, Edit, X, Check, HelpCircle, ChevronDown, ChevronUp, Award, RotateCcw, Image as ImageIcon } from 'lucide-react';
@@ -172,11 +175,12 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
       }
 
       if (!exam && isSkillTest4) {
+        const isA = pattern.includes('A1') || pattern.includes('A2');
         exam = {
-          id: 'skill_test_4',
+          id: isA ? (pattern.includes('A2') ? 'skill_test_4_A2' : 'skill_test_4_A1') : 'skill_test_4',
           title: 'Skill Test 4',
-          theoryQuestions: SOLIDWORKS_SKILL_TEST_4_BASE_MCQS,
-          targetBatch: 'B1'
+          theoryQuestions: isA ? SOLIDWORKS_SKILL_TEST_4_A_MCQS : SOLIDWORKS_SKILL_TEST_4_B_MCQS,
+          targetBatch: isA ? (pattern.includes('A2') ? 'A2' : 'A1') : 'B1'
         };
       } else if (!exam && isSkillTest3) {
         exam = {
@@ -202,8 +206,12 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
   // Helper to get the correct questions for a student based on batch and submission
   const getQuestionsForStudent = (student: Student | null, submission: any) => {
     if (isSkillTest4) {
+      if (submission && submission.theoryQuestions && Array.isArray(submission.theoryQuestions) && submission.theoryQuestions.length > 0) {
+        return submission.theoryQuestions;
+      }
       const email = (student?.email || submission?.studentEmail || submission?.email || '').toLowerCase().trim();
-      return getJumbledSkillTest4Questions(email);
+      const sBatch = student?.batch || submission?.batch || submission?.targetBatch || targetExam?.targetBatch;
+      return getJumbledSkillTest4Questions(email, sBatch);
     }
     if (submission && submission.theoryQuestions && Array.isArray(submission.theoryQuestions) && submission.theoryQuestions.length > 0) {
       return submission.theoryQuestions;
@@ -947,7 +955,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
   };
 
   const handleReEvaluateAllSkillTest4 = async () => {
-    const confirmMsg = "Re-evaluate all Skill Test 4 submissions for B1 and B2 students using their individual jumbled keys?\n\nThis will verify each student's objective answers against their unique jumbled question key and update their scores accurately, while preserving your Graph Exam marks.";
+    const confirmMsg = "Re-evaluate all Skill Test 4 submissions for students using their individual jumbled keys?\n\nThis will verify each student's objective answers against their unique jumbled question key and update their scores accurately, while preserving your Graph Exam marks.";
     if (!window.confirm(confirmMsg)) return;
 
     setIsReEvaluatingAll(true);
@@ -956,7 +964,8 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
     try {
       const promises = filteredStudents.map(async (student) => {
         const sEmail = (student.email || '').toLowerCase().trim();
-        const jumbledQuestions = getJumbledSkillTest4Questions(sEmail);
+        const sBatch = student.batch || targetExam?.targetBatch || '';
+        const jumbledQuestions = getJumbledSkillTest4Questions(sEmail, sBatch);
 
         // Fetch submission from local or cloud
         const subKey = `weeklyReportSubmission_${sEmail}_skill_test_4`;
@@ -1118,7 +1127,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
     // 2. Batch filter
     if (isSkillTest4) {
       const b = (student.batch || '').toLowerCase().replace(/batch/gi, '').trim();
-      if (b !== 'b1' && b !== 'b2') return false;
+      if (b !== 'b1' && b !== 'b2' && b !== 'a1' && b !== 'a2') return false;
     }
     let matchesBatch = true;
     if (targetExam && targetExam.targetBatch && targetExam.targetBatch !== 'All Batches') {
@@ -1202,7 +1211,7 @@ export const WeeklyExamReport: React.FC<WeeklyExamReportProps> = ({ pattern, isM
                   disabled={isReEvaluatingAll}
                   onClick={handleReEvaluateAllSkillTest4}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs transition-colors cursor-pointer"
-                  title="Re-evaluate all B1 and B2 submissions using each student's unique jumbled key"
+                  title="Re-evaluate all submissions using each student's unique jumbled key"
                 >
                   <CheckCircle2 size={14} />
                   <span>{isReEvaluatingAll ? 'Re-Evaluating All...' : 'Re-Evaluate All (Jumbled Key)'}</span>

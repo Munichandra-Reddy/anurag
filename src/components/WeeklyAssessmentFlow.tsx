@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Plus, X, Upload, Link as LinkIcon, FileText, CheckCircle2, Award, PlayCircle, RotateCcw, Users, User, Search, AlertCircle, Check, Loader2, Clock, Calendar, Image as ImageIcon } from 'lucide-react';
 import {
   SOLIDWORKS_SKILL_TEST_4_BASE_MCQS,
+  SOLIDWORKS_SKILL_TEST_4_A_MCQS,
+  SOLIDWORKS_SKILL_TEST_4_B_MCQS,
+  getSkillTest4BaseQuestions,
   getJumbledSkillTest4Questions,
   checkSkillTest4Window,
   SKILL_TEST_4_CONFIG
@@ -158,8 +161,8 @@ const PERMANENT_SKILL_TEST_3_A2: WeeklyExamData = {
   targetBatch: 'A2'
 };
 
-// Skill Test 4 Permanent Configurations (STRICTLY B1 & B2 Batches ONLY)
-// Graph Exam + 10 Quiz Questions (Date: 28.10.2026, 9:00 AM - 5:00 PM)
+// Skill Test 4 Permanent Configurations (B1, B2, A1, A2 Batches)
+// Graph Exam + 10 Quiz Questions
 const PERMANENT_SKILL_TEST_4_B1: WeeklyExamData = {
   id: 'skill_test_4_B1',
   title: 'Skill Test 4',
@@ -167,7 +170,7 @@ const PERMANENT_SKILL_TEST_4_B1: WeeklyExamData = {
   portfolioTopic: '',
   assessmentMode: 'mcq',
   theoryPdfName: '',
-  theoryQuestions: SOLIDWORKS_SKILL_TEST_4_BASE_MCQS,
+  theoryQuestions: SOLIDWORKS_SKILL_TEST_4_B_MCQS,
   targetBatch: 'B1'
 };
 
@@ -178,8 +181,30 @@ const PERMANENT_SKILL_TEST_4_B2: WeeklyExamData = {
   portfolioTopic: '',
   assessmentMode: 'mcq',
   theoryPdfName: '',
-  theoryQuestions: SOLIDWORKS_SKILL_TEST_4_BASE_MCQS,
+  theoryQuestions: SOLIDWORKS_SKILL_TEST_4_B_MCQS,
   targetBatch: 'B2'
+};
+
+const PERMANENT_SKILL_TEST_4_A1: WeeklyExamData = {
+  id: 'skill_test_4_A1',
+  title: 'Skill Test 4',
+  projectTitle: '',
+  portfolioTopic: '',
+  assessmentMode: 'mcq',
+  theoryPdfName: '',
+  theoryQuestions: SOLIDWORKS_SKILL_TEST_4_A_MCQS,
+  targetBatch: 'A1'
+};
+
+const PERMANENT_SKILL_TEST_4_A2: WeeklyExamData = {
+  id: 'skill_test_4_A2',
+  title: 'Skill Test 4',
+  projectTitle: '',
+  portfolioTopic: '',
+  assessmentMode: 'mcq',
+  theoryPdfName: '',
+  theoryQuestions: SOLIDWORKS_SKILL_TEST_4_A_MCQS,
+  targetBatch: 'A2'
 };
 
 
@@ -308,7 +333,7 @@ const ensureSkillTest2 = (examList: WeeklyExamData[], emailToCheck: string): Wee
     });
   });
 
-  // --- 3. Skill Test 4 (Batches B1 and B2 ONLY) ---
+  // --- 3. Skill Test 4 (Batches B1, B2, A1, A2) ---
   const isRemoved4 = 
     localStorage.getItem('muni_skill_test_4_explicitly_removed') === 'true' ||
     localStorage.getItem(`${examsKey}_removed_skill_test_4`) === 'true' ||
@@ -325,9 +350,15 @@ const ensureSkillTest2 = (examList: WeeklyExamData[], emailToCheck: string): Wee
     if (!hasBatchExam4('B2') && localStorage.getItem(`${examsKey}_removed_skill_test_4_B2`) !== 'true') {
       updatedList.push(PERMANENT_SKILL_TEST_4_B2);
     }
+    if (!hasBatchExam4('A1') && localStorage.getItem(`${examsKey}_removed_skill_test_4_A1`) !== 'true') {
+      updatedList.push(PERMANENT_SKILL_TEST_4_A1);
+    }
+    if (!hasBatchExam4('A2') && !hasBatchExam4('All') && localStorage.getItem(`${examsKey}_removed_skill_test_4_A2`) !== 'true') {
+      updatedList.push(PERMANENT_SKILL_TEST_4_A2);
+    }
   }
 
-  // Deduplicate Skill Test 4 exams by batch so there are strictly B1 and B2 only
+  // Deduplicate Skill Test 4 exams by batch so there are B1, B2, A1, A2
   const nonSkill4Exams = nonSkill3Exams.filter(e => !e.id.startsWith('skill_test_4') && !e.title?.toLowerCase().includes('skill test 4'));
   const skill4Exams = nonSkill3Exams.filter(e => e.id.startsWith('skill_test_4') || e.title?.toLowerCase().includes('skill test 4'));
   const batchSkill4Map = new Map<string, WeeklyExamData>();
@@ -339,19 +370,29 @@ const ensureSkillTest2 = (examList: WeeklyExamData[], emailToCheck: string): Wee
     if (localStorage.getItem(`${examsKey}_removed_skill_test_4_B2`) !== 'true') {
       batchSkill4Map.set('B2', PERMANENT_SKILL_TEST_4_B2);
     }
+    if (localStorage.getItem(`${examsKey}_removed_skill_test_4_A1`) !== 'true') {
+      batchSkill4Map.set('A1', PERMANENT_SKILL_TEST_4_A1);
+    }
+    if (localStorage.getItem(`${examsKey}_removed_skill_test_4_A2`) !== 'true') {
+      batchSkill4Map.set('A2', PERMANENT_SKILL_TEST_4_A2);
+    }
   }
 
   skill4Exams.forEach(e => {
     const rawBatch = (e.targetBatch || e.id.replace('skill_test_4_', '') || 'B1').replace(/batch/gi, '').trim().toUpperCase();
-    const cleanB = rawBatch.includes('B2') ? 'B2' : (rawBatch.includes('B1') ? 'B1' : '');
-    if (!cleanB) return; // Strictly B1 and B2 only!
+    const cleanB = rawBatch.includes('B2') ? 'B2' : (rawBatch.includes('B1') ? 'B1' : (rawBatch.includes('A1') ? 'A1' : (rawBatch.includes('A2') ? 'A2' : '')));
+    if (!cleanB) return;
+
+    const baseQuestions = (cleanB === 'A1' || cleanB === 'A2')
+      ? SOLIDWORKS_SKILL_TEST_4_A_MCQS
+      : SOLIDWORKS_SKILL_TEST_4_B_MCQS;
 
     batchSkill4Map.set(cleanB, {
       ...e,
       id: `skill_test_4_${cleanB}`,
       title: 'Skill Test 4',
       targetBatch: cleanB,
-      theoryQuestions: SOLIDWORKS_SKILL_TEST_4_BASE_MCQS
+      theoryQuestions: baseQuestions
     });
   });
 
@@ -1319,7 +1360,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
 
       const studentBatch = (studentDetails?.batch || exam.targetBatch || '').toString();
       const examQuestionsToSubmit = isSkillTest4Taking
-        ? getJumbledSkillTest4Questions(effectiveEmail)
+        ? getJumbledSkillTest4Questions(effectiveEmail, studentBatch || exam.targetBatch)
         : (exam.theoryQuestions && exam.theoryQuestions.length > 0)
         ? exam.theoryQuestions
         : isSkillTest3Taking
@@ -1572,7 +1613,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
     const isSkillExamTaking = isExamSkillTest2 || isExamSkillTest3 || isExamSkillTest4 || isExamSkillTest5;
 
     const effectiveQuestions = isExamSkillTest4
-      ? getJumbledSkillTest4Questions(currentEmail || loggedInEmail)
+      ? getJumbledSkillTest4Questions(currentEmail || loggedInEmail, studentDetails?.batch || exam.targetBatch)
       : (exam.theoryQuestions && exam.theoryQuestions.length > 0)
       ? exam.theoryQuestions
       : (isExamSkillTest3 
@@ -2001,7 +2042,10 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                           if (val === 'skill_test_5' || (val === 'week4' && isMuni)) {
                             setQuestionCount(20);
                             setTheoryQuestions(SOLIDWORKS_60_MCQS.slice(0, 20));
-                          } else if (val === 'skill_test_4' || (val === 'week3' && isMuni)) { setQuestionCount(10); setTheoryQuestions(SOLIDWORKS_SKILL_TEST_4_BASE_MCQS); } else if (false) {
+                          } else if (val === 'skill_test_4' || (val === 'week3' && isMuni)) {
+                            setQuestionCount(10);
+                            setTheoryQuestions(getSkillTest4BaseQuestions(targetBatch));
+                          } else if (false) {
                             setQuestionCount(10);
                             setTheoryQuestions(SOLIDWORKS_SKILL_TEST_4_BASE_MCQS);
                             return;
@@ -2061,7 +2105,10 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                           if (selectedWeek === 'skill_test_5' || (selectedWeek === 'week4' && isMuni)) {
                             setQuestionCount(20);
                             setTheoryQuestions(SOLIDWORKS_60_MCQS.slice(0, 20));
-                          } else if (selectedWeek === 'skill_test_4' || (selectedWeek === 'week3' && isMuni)) { setQuestionCount(10); setTheoryQuestions(SOLIDWORKS_SKILL_TEST_4_BASE_MCQS); } else if (false) {
+                          } else if (selectedWeek === 'skill_test_4' || (selectedWeek === 'week3' && isMuni)) {
+                            setQuestionCount(10);
+                            setTheoryQuestions(getSkillTest4BaseQuestions(newBatch));
+                          } else if (false) {
                             setQuestionCount(10);
                             setTheoryQuestions(SOLIDWORKS_SKILL_TEST_4_BASE_MCQS);
                             return;
@@ -3085,7 +3132,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                     <button 
                       onClick={() => {
                         if (isExamSkillTest4) {
-                          const windowCheck = checkSkillTest4Window();
+                          const windowCheck = checkSkillTest4Window(new Date(), studentDetails?.batch || exam.targetBatch);
                           if (!windowCheck.isOpen && !isReExamGranted) {
                             alert(`Skill Test 4 Assessment Schedule\n\nDate: 28.10.2026\nExam Window: 9:00 AM to 5:00 PM\n\n${windowCheck.message}\n\nPlease come back during the exam window (9:00 AM to 5:00 PM).`);
                             return;
@@ -3109,8 +3156,8 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                       className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 text-white font-medium text-xs rounded-lg transition-colors shadow-xs cursor-pointer ${
                         isReExamGranted
                           ? 'bg-primary hover:bg-primary-dark'
-                          : (isExamSkillTest4 && !checkSkillTest4Window().isOpen
-                              ? (checkSkillTest4Window().status === 'closed' ? 'bg-gray-500 hover:bg-gray-600' : 'bg-amber-600 hover:bg-amber-700')
+                          : (isExamSkillTest4 && !checkSkillTest4Window(new Date(), studentDetails?.batch || exam.targetBatch).isOpen
+                              ? (checkSkillTest4Window(new Date(), studentDetails?.batch || exam.targetBatch).status === 'closed' ? 'bg-gray-500 hover:bg-gray-600' : 'bg-amber-600 hover:bg-amber-700')
                               : 'bg-primary hover:bg-primary-dark')
                       }`}
                     >
@@ -3120,7 +3167,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                         </>
                       ) : (
                         <>
-                          {(isExamSkillTest4 && !checkSkillTest4Window().isOpen) ? <Clock size={14} /> : <PlayCircle size={14} />} {(isExamSkillTest4 && !checkSkillTest4Window().isOpen) ? (checkSkillTest4Window().status === 'closed' ? 'Exam Closed (5:00 PM)' : 'Opens 28 Oct 9:00 AM') : 'Start Exam'}
+                          {(isExamSkillTest4 && !checkSkillTest4Window(new Date(), studentDetails?.batch || exam.targetBatch).isOpen) ? <Clock size={14} /> : <PlayCircle size={14} />} {(isExamSkillTest4 && !checkSkillTest4Window(new Date(), studentDetails?.batch || exam.targetBatch).isOpen) ? (checkSkillTest4Window(new Date(), studentDetails?.batch || exam.targetBatch).status === 'closed' ? 'Exam Closed' : 'Upcoming Exam') : 'Start Exam'}
                         </>
                       )}
                     </button>

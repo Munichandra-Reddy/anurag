@@ -385,7 +385,7 @@ const MarksReport: React.FC<MarksReportProps> = ({ isFacultyView = false }) => {
             try {
               const sub = JSON.parse(localStorage.getItem(subKey) || 'null');
               if (sub && Array.isArray(sub.theoryAnswers) && sub.theoryAnswers.length > 0) {
-                const jumbled = getJumbledSkillTest4Questions(sEmail);
+                const jumbled = getJumbledSkillTest4Questions(sEmail, student.batch);
                 quizM = jumbled.reduce((acc: number, q: any, idx: number) => acc + (sub.theoryAnswers[idx] === q.answerIndex ? 1 : 0), 0);
               }
             } catch (e) {}
