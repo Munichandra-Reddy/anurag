@@ -1612,6 +1612,34 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
 
     const isSkillExamTaking = isExamSkillTest2 || isExamSkillTest3 || isExamSkillTest4 || isExamSkillTest5;
 
+    if (isExamSkillTest4) {
+      const windowCheck = checkSkillTest4Window(new Date(), studentDetails?.batch || exam.targetBatch);
+      if (!windowCheck.isOpen) {
+        return (
+          <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-8 text-center space-y-4">
+            <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto">
+              <Clock size={32} />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900">Skill Test 4 Assessment Window</h2>
+            <p className="text-gray-600 max-w-md mx-auto">
+              Skill Test 4 is scheduled strictly for <strong>31-10-2026 from 9:00 AM to 5:00 PM</strong>.
+            </p>
+            <p className="text-amber-800 font-medium bg-amber-50 p-3 rounded-lg border border-amber-200 inline-block text-sm">
+              {windowCheck.message}
+            </p>
+            <div className="pt-2">
+              <button
+                onClick={() => setTakingExamId(null)}
+                className="px-6 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors cursor-pointer"
+              >
+                Back to Assessments
+              </button>
+            </div>
+          </div>
+        );
+      }
+    }
+
     const effectiveQuestions = isExamSkillTest4
       ? getJumbledSkillTest4Questions(currentEmail || loggedInEmail, studentDetails?.batch || exam.targetBatch)
       : (exam.theoryQuestions && exam.theoryQuestions.length > 0)
@@ -3148,7 +3176,7 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                       onClick={() => {
                         if (isExamSkillTest4) {
                           const windowCheck = checkSkillTest4Window(new Date(), studentDetails?.batch || exam.targetBatch);
-                          if (!windowCheck.isOpen && !isReExamGranted) {
+                          if (!windowCheck.isOpen) {
                             alert(`Skill Test 4 Assessment Schedule\n\nDate: 31.10.2026\nExam Window: 9:00 AM to 5:00 PM\n\n${windowCheck.message}\n\nPlease come back during the exam window (9:00 AM to 5:00 PM on 31-10-2026).`);
                             return;
                           }
@@ -3169,14 +3197,14 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                         setTakingExamId(exam.id);
                       }}
                       className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 text-white font-medium text-xs rounded-lg transition-colors shadow-xs cursor-pointer ${
-                        isReExamGranted
+                        (!isExamSkillTest4 && isReExamGranted)
                           ? 'bg-primary hover:bg-primary-dark'
                           : (isExamSkillTest4 && !checkSkillTest4Window(new Date(), studentDetails?.batch || exam.targetBatch).isOpen
                               ? (checkSkillTest4Window(new Date(), studentDetails?.batch || exam.targetBatch).status === 'closed' ? 'bg-gray-500 hover:bg-gray-600' : 'bg-amber-600 hover:bg-amber-700')
                               : 'bg-primary hover:bg-primary-dark')
                       }`}
                     >
-                      {isReExamGranted ? (
+                      {(!isExamSkillTest4 && isReExamGranted) ? (
                         <>
                           <PlayCircle size={14} /> Start Exam
                         </>
