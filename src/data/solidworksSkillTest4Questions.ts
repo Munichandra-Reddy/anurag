@@ -306,49 +306,16 @@ export function getJumbledSkillTest4Questions(studentIdentifier?: string, batch?
 
 /**
  * Checks whether the current time is within the exam window.
+ * Skill Test 4 is OPEN for all students who have not yet submitted to take and submit the test.
  */
 export function checkSkillTest4Window(currentTime = new Date(), batch?: string): {
   isOpen: boolean;
   status: 'upcoming' | 'open' | 'closed';
   message: string;
 } {
-  // Allow explicit testing override if needed via localStorage or URL
-  try {
-    if (typeof window !== 'undefined') {
-      const search = window.location.search;
-      if (search.includes('bypassTime=true') || localStorage.getItem('skillTest4_bypassTime') === 'true') {
-        return {
-          isOpen: true,
-          status: 'open',
-          message: 'Skill Test 4 is OPEN (Preview Mode).'
-        };
-      }
-    }
-  } catch (e) {}
-
-  const current = new Date(currentTime);
-  const start = new Date(2026, 9, 31, 9, 0, 0, 0);  // 31 Oct 2026 09:00:00
-  const end = new Date(2026, 9, 31, 17, 0, 0, 0);    // 31 Oct 2026 17:00:00
-
-  if (current.getTime() < start.getTime()) {
-    return {
-      isOpen: false,
-      status: 'upcoming',
-      message: 'Skill Test 4 will open on 31-10-2026 at 9:00 AM. Exam timing is 9:00 AM to 5:00 PM.'
-    };
-  }
-
-  if (current.getTime() > end.getTime()) {
-    return {
-      isOpen: false,
-      status: 'closed',
-      message: 'Skill Test 4 assessment has closed. It was conducted on 31-10-2026 from 9:00 AM to 5:00 PM.'
-    };
-  }
-
   return {
     isOpen: true,
     status: 'open',
-    message: 'Skill Test 4 is currently OPEN (9:00 AM to 5:00 PM).'
+    message: 'Skill Test 4 is currently OPEN.'
   };
 }

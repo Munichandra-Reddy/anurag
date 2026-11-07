@@ -3197,14 +3197,14 @@ export const WeeklyAssessmentFlow: React.FC<Props> = ({ isMentor, loggedInEmail 
                         setTakingExamId(exam.id);
                       }}
                       className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 text-white font-medium text-xs rounded-lg transition-colors shadow-xs cursor-pointer ${
-                        (!isExamSkillTest4 && isReExamGranted)
+                        isReExamGranted
                           ? 'bg-primary hover:bg-primary-dark'
                           : (isExamSkillTest4 && !checkSkillTest4Window(new Date(), studentDetails?.batch || exam.targetBatch).isOpen
                               ? (checkSkillTest4Window(new Date(), studentDetails?.batch || exam.targetBatch).status === 'closed' ? 'bg-gray-500 hover:bg-gray-600' : 'bg-amber-600 hover:bg-amber-700')
                               : 'bg-primary hover:bg-primary-dark')
                       }`}
                     >
-                      {(!isExamSkillTest4 && isReExamGranted) ? (
+                      {isReExamGranted ? (
                         <>
                           <PlayCircle size={14} /> Start Exam
                         </>
